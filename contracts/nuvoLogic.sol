@@ -3,15 +3,22 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 
-contract StakingContract is Ownable, Pausable {
-    using SafeMath for uint256;
+/// @title Simplified Staking Contract
+/// @notice This contract allows users to deposit and withdraw POL with automatic reward calculation
+/// @dev Implements pausable and reentrancy protection
+contract StakingContract is Ownable, Pausable, ReentrancyGuard {
+    using Address for address payable;
 
-    uint256 public constant HOURLY_ROI_PERCENTAGE = 190; // 0.0190% per hour
-    uint16 public constant MAX_ROI_PERCENTAGE = 13000; // 125%
-    uint16 public constant COMMISSION_PERCENTAGE = 510; // 5.1% 
-    uint256 public constant MAX_DEPOSIT = 6000 ether; // 6000 Matic
+    uint256 public constant HOURLY_ROI_PERCENTAGE = 200; // 0.02% per hour
+    uint16 public constant MAX_ROI_PERCENTAGE = 12500; // 125%
+    uint16 public constant COMMISSION_PERCENTAGE = 6; // 6% 
+    uint256 public constant MAX_DEPOSIT = 10000 ether; // 10000 POL
+    uint256 public constant MIN_DEPOSIT = 5 ether; // 5 POL
+    uint256 public constant MAX_DEPOSITS_PER_USER = 300;
+    uint256 public constant CONTRACT_VERSION = 1;
 
     uint256 public uniqueUsersCount;
     address public treasury;
@@ -24,169 +31,183 @@ contract StakingContract is Ownable, Pausable {
 
     struct User {
         Deposit[] deposits;
-        uint256 lastClaimTime;
-        uint256 totalClaimedRewards; // Total de recompensas reclamadas por el usuario
     }
 
     mapping(address => User) private users;
 
-    event DepositMade(address indexed user, uint256 amount, uint256 commission);
-    event RewardClaimed(address indexed user, uint256 amount);
-    event RewardWithdrawn(address indexed user, uint256 amount);
+    event DepositMade(
+        address indexed user,
+        uint256 indexed depositId,
+        uint256 amount,
+        uint256 commission,
+        uint256 timestamp
+    );
+    event WithdrawalMade(address indexed user, uint256 amount);
     event ContractPaused(address indexed owner);
     event ContractUnpaused(address indexed owner);
     event BalanceAdded(uint256 amount);
     event TreasuryAddressChanged(address indexed previousTreasury, address indexed newTreasury);
-
+    event EmergencyWithdraw(address indexed user, uint256 amount);
 
     address public newContractAddress;
     bool public migrated;
 
-    constructor(address _treasury) Pausable() Ownable() {
+    modifier notMigrated() {
+        require(!migrated, "Contract has been migrated");
+        _;
+    }
+
+    constructor(address _treasury) {
+        require(_treasury != address(0), "Invalid treasury address");
         treasury = _treasury;
     }
 
-   
-
-    // Función para cambiar la dirección de la tesorería, solo puede ser llamada por el propietario
-    function changeTreasuryAddress(address _newTreasury) public onlyOwner {
+    function changeTreasuryAddress(address _newTreasury) external onlyOwner {
         require(_newTreasury != address(0), "Invalid treasury address");
         address previousTreasury = treasury;
         treasury = _newTreasury;
         emit TreasuryAddressChanged(previousTreasury, _newTreasury);
     }
 
-    function deposit() public payable whenNotPaused {
-        require(msg.value <= MAX_DEPOSIT, "Deposit exceeds the maximum");
+    function deposit() external payable nonReentrant whenNotPaused notMigrated {
+        require(msg.value >= MIN_DEPOSIT, "Deposit below minimum");
+        require(msg.value <= MAX_DEPOSIT, "Deposit amount exceeds maximum limit");
+        require(users[msg.sender].deposits.length < MAX_DEPOSITS_PER_USER, "Max deposits reached");
 
-        uint256 commission = msg.value.mul(COMMISSION_PERCENTAGE).div(10000);
-        uint256 depositAmount = msg.value.sub(commission);
+        uint256 commission = (msg.value * 600) / 10000;
+        uint256 depositAmount = msg.value - commission;
 
         if (users[msg.sender].deposits.length == 0) {
             uniqueUsersCount++;
         }
 
-        totalPoolBalance = totalPoolBalance.add(depositAmount);
+        totalPoolBalance += depositAmount;
+        uint256 depositId = users[msg.sender].deposits.length;
+
         users[msg.sender].deposits.push(Deposit({
             amount: depositAmount,
             timestamp: block.timestamp
         }));
-        users[msg.sender].lastClaimTime = block.timestamp;
 
-        (bool success, ) = payable(treasury).call{value: commission}("");
-        require(success, "Failed to transfer commission");
+        payable(treasury).transfer(commission);
 
-        emit DepositMade(msg.sender, depositAmount, commission);
+        emit DepositMade(msg.sender, depositId, depositAmount, commission, block.timestamp);
     }
 
     function getTotalDeposit(address user) public view returns (uint256) {
         User storage userStruct = users[user];
         uint256 total = 0;
         for (uint256 i = 0; i < userStruct.deposits.length; i++) {
-            total = total.add(userStruct.deposits[i].amount);
+            total += userStruct.deposits[i].amount;
         }
         return total;
     }
 
-    function getLastClaimTime(address user) public view returns (uint256) {
-        return users[user].lastClaimTime;
+    function getUserDeposits(address user) external view returns (Deposit[] memory) {
+        return users[user].deposits;
     }
 
-    function calculateRewards(address userAddress) public view returns (uint256) {
+        function calculateRewards(address userAddress) public view returns (uint256) {
         User storage user = users[userAddress];
         uint256 totalRewards = 0;
-
+    
         for (uint256 i = 0; i < user.deposits.length; i++) {
             Deposit storage userDeposit = user.deposits[i];
-
-            // Calcula el tiempo transcurrido desde el último reclamo en horas
             uint256 elapsedTime = (block.timestamp - userDeposit.timestamp) / 3600;
-
-            // Calcula las recompensas para este depósito basadas en el tiempo transcurrido desde el último reclamo específico del depósito
             uint256 depositAmount = userDeposit.amount * HOURLY_ROI_PERCENTAGE * elapsedTime / 1000000;
-
-            // Aplica el límite máximo de ROI basado en el tiempo transcurrido desde el último reclamo específico del depósito
+    
             uint256 maxReward = userDeposit.amount * MAX_ROI_PERCENTAGE / 10000;
-            uint256 rewardsSinceLastClaim = depositAmount + user.totalClaimedRewards;
-            if (rewardsSinceLastClaim > maxReward) {
-                depositAmount = maxReward - user.totalClaimedRewards;
+            if (depositAmount > maxReward) {
+                depositAmount = maxReward;
             }
-
+    
+            // Calcular bonificación por tiempo
+            uint256 stakingTime = block.timestamp - userDeposit.timestamp;
+            uint256 timeBonus = calculateTimeBonus(stakingTime);
+            depositAmount = depositAmount + (depositAmount * timeBonus / 10000);
+    
             totalRewards += depositAmount;
         }
-
+    
         return totalRewards;
     }
 
-    function claimRewards() public whenNotPaused {
-        User storage user = users[msg.sender];
+    function withdraw() external nonReentrant whenNotPaused notMigrated {
         uint256 totalRewards = calculateRewards(msg.sender);
+        require(totalRewards > 0, "No rewards to withdraw");
 
-        // Calcula la comisión
-        uint256 commission = totalRewards * COMMISSION_PERCENTAGE / 10000;
-        require(totalPoolBalance >= totalRewards + commission, "Not enough funds in the pool");
-        require(totalRewards > 0, "No rewards to claim");
-        require(totalRewards + getTotalDeposit(msg.sender) <= MAX_DEPOSIT, "Claimed rewards exceed maximum deposit limit");
+        uint256 commission = (totalRewards * 600) / 10000;
+        uint256 netAmount = totalRewards - commission;
 
-        totalRewards -= commission;
-        totalPoolBalance -= totalRewards + commission;
+        User storage user = users[msg.sender];
+        for (uint256 i = 0; i < user.deposits.length; i++) {
+            user.deposits[i].timestamp = block.timestamp;
+        }
 
-        // Actualiza el tiempo del último reclamo DESPUÉS de sumar las recompensas
-        user.lastClaimTime = block.timestamp; 
+        payable(treasury).transfer(commission);
+        payable(msg.sender).transfer(netAmount);
 
-        // Transfiere la comisión al tesoro
-        (bool success, ) = payable(treasury).call{value: commission}("");
-        require(success, "Failed to transfer commission");
-
-        // Agrega las recompensas al saldo del usuario
-        user.totalClaimedRewards += totalRewards;
-
-        emit RewardClaimed(msg.sender, totalRewards);
+        emit WithdrawalMade(msg.sender, netAmount);
     }
 
-    function totalRewardsClaimed(address user) public view returns (uint256) {
-    return users[user].totalClaimedRewards;
+    function emergencyUserWithdraw() external nonReentrant whenPaused {
+        uint256 totalDeposit = getTotalDeposit(msg.sender);
+        require(totalDeposit > 0, "No deposits to withdraw");
+
+        totalPoolBalance -= totalDeposit;
+        delete users[msg.sender];
+
+        payable(msg.sender).transfer(totalDeposit);
+
+        emit EmergencyWithdraw(msg.sender, totalDeposit);
     }
 
-
-    function withdrawRewards() public whenNotPaused {
-        uint256 claimedRewards = users[msg.sender].totalClaimedRewards; // Obtiene las recompensas reclamadas del usuario
-        require(claimedRewards > 0, "No claimed rewards to withdraw"); // Verifica que haya recompensas reclamadas para retirar
-        
-        users[msg.sender].totalClaimedRewards = 0; // Establece las recompensas reclamadas del usuario a cero
-        
-        (bool success, ) = payable(msg.sender).call{value: claimedRewards}(""); // Transfiere las recompensas reclamadas al usuario
-        require(success, "Failed to transfer rewards");
-        
-        emit RewardWithdrawn(msg.sender, claimedRewards); // Emite el evento de retirada de recompensas
+    function emergencyWithdraw(address to) external onlyOwner whenPaused {
+        require(to != address(0), "Invalid address");
+        uint256 balance = address(this).balance;
+        payable(to).transfer(balance);
+        emit EmergencyWithdraw(to, balance);
     }
 
-    function emergencyWithdraw(address to) public onlyOwner whenNotPaused {
-        (bool success, ) = to.call{value: address(this).balance}("");
-        require(success, "Emergency withdraw failed");
-    }
-
-    function pause() public onlyOwner {
+    function pause() external onlyOwner {
         _pause();
         emit ContractPaused(msg.sender);
     }
 
-    function unpause() public onlyOwner {
+    function unpause() external onlyOwner {
         _unpause();
         emit ContractUnpaused(msg.sender);
     }
 
-    function addBalance() public payable onlyOwner {
+    function addBalance() external payable onlyOwner {
         require(msg.value > 0, "Amount must be greater than 0");
-        totalPoolBalance = totalPoolBalance.add(msg.value);
+        totalPoolBalance += msg.value;
         emit BalanceAdded(msg.value);
     }
 
-    receive() external payable {}
+    function getContractBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
 
-    function migrateToNewContract(address _newContractAddress) public onlyOwner {
-        require(!migrated, "Migration has already been done");
+    function migrateToNewContract(address _newContractAddress) external onlyOwner {
+        require(_newContractAddress != address(0), "Invalid address");
+        require(!migrated, "Already migrated");
         newContractAddress = _newContractAddress;
         migrated = true;
     }
+
+    function calculateTimeBonus(uint256 stakingTime) internal pure returns (uint256) {
+        if (stakingTime >= 365 days) return 500;     // +5%
+        if (stakingTime >= 180 days) return 300;     // +3%
+        if (stakingTime >= 90 days) return 100;      // +1%
+        return 0;
+    }
+
+    modifier checkSolvency() {
+    require(address(this).balance >= totalPoolBalance, 
+            "Contract is underfunded");
+    _;
+    }
+
+    receive() external payable {}
 }

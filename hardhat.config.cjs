@@ -1,8 +1,8 @@
+// ha// hardhat.config.cjs
 require('dotenv').config();
-require("@nomiclabs/hardhat-waffle");
-require("@nomiclabs/hardhat-etherscan");
-require("hardhat-gas-reporter");
-
+require('@nomiclabs/hardhat-waffle');
+require('@nomiclabs/hardhat-etherscan');
+require('hardhat-gas-reporter');
 
 const POLYGON_MUMBAI = process.env.POLYGON_MUMBAI;
 const POLYGON_MAINNET = process.env.POLYGON_MAINNET;
@@ -36,7 +36,7 @@ module.exports = {
   },
   paths: {
     sources: "./contracts",
-    tests: "./test",
+    tests: "./test", 
     cache: "./cache",
     artifacts: "./artifacts"
   },
@@ -46,4 +46,4 @@ module.exports = {
     // contractName: "MyContract",
     // initArgs: ["arg1", "arg2"]
   }
-}
+};
