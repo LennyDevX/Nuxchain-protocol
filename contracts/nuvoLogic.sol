@@ -5,11 +5,14 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 /// @title Simplified Staking Contract
 /// @notice This contract allows users to deposit and withdraw POL with automatic reward calculation
 /// @dev Implements pausable and reentrancy protection
-contract StakingContract is Ownable, Pausable, ReentrancyGuard {
+contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
+    using Address for address payable;
+    using SafeMath for uint256;
     using Address for address payable;
 
     uint256 public constant HOURLY_ROI_PERCENTAGE = 200; // 0.02% per hour
@@ -33,7 +36,14 @@ contract StakingContract is Ownable, Pausable, ReentrancyGuard {
         Deposit[] deposits;
     }
 
+    struct UserInfo {
+    uint256 totalDeposited;
+    uint256 pendingRewards;
+    uint256 lastWithdraw;
+}
+
     mapping(address => User) private users;
+    mapping(address => uint256) public lastWithdrawTime;
 
     event DepositMade(
         address indexed user,
@@ -103,6 +113,14 @@ contract StakingContract is Ownable, Pausable, ReentrancyGuard {
         return total;
     }
 
+function getUserInfo(address user) external view returns (UserInfo memory) {
+    return UserInfo({
+        totalDeposited: getTotalDeposit(user),
+        pendingRewards: calculateRewards(user),
+        lastWithdraw: lastWithdrawTime[user]
+    });
+}
+
     function getUserDeposits(address user) external view returns (Deposit[] memory) {
         return users[user].deposits;
     }
@@ -131,17 +149,17 @@ contract StakingContract is Ownable, Pausable, ReentrancyGuard {
     
         return totalRewards;
     }
-
     function withdraw() external nonReentrant whenNotPaused notMigrated {
         uint256 totalRewards = calculateRewards(msg.sender);
+        require(totalRewards > 0, "No rewards to withdraw");
+        lastWithdrawTime[msg.sender] = block.timestamp;
         require(totalRewards > 0, "No rewards to withdraw");
 
         uint256 commission = (totalRewards * 600) / 10000;
         uint256 netAmount = totalRewards - commission;
 
-        User storage user = users[msg.sender];
-        for (uint256 i = 0; i < user.deposits.length; i++) {
-            user.deposits[i].timestamp = block.timestamp;
+        for (uint256 i = 0; i < users[msg.sender].deposits.length; i++) {
+            users[msg.sender].deposits[i].timestamp = block.timestamp;
         }
 
         payable(treasury).transfer(commission);
@@ -167,6 +185,27 @@ contract StakingContract is Ownable, Pausable, ReentrancyGuard {
         uint256 balance = address(this).balance;
         payable(to).transfer(balance);
         emit EmergencyWithdraw(to, balance);
+    }
+
+
+    function withdrawAll() external nonReentrant whenNotPaused notMigrated {
+        uint256 totalDeposit = getTotalDeposit(msg.sender);
+        uint256 totalRewards = calculateRewards(msg.sender);
+        uint256 totalAmount = totalDeposit.add(totalRewards);
+    
+        require(totalAmount > 0, "No funds to withdraw");
+    
+        uint256 commission = totalRewards.mul(COMMISSION_PERCENTAGE).div(10000);
+        uint256 netAmount = totalAmount.sub(commission);
+    
+        totalPoolBalance = totalPoolBalance.sub(totalDeposit);
+        delete users[msg.sender];
+    
+        payable(treasury).sendValue(commission);
+        payable(msg.sender).sendValue(netAmount);
+    
+        emit WithdrawalMade(msg.sender, netAmount);
+        emit EmergencyWithdraw(msg.sender, totalDeposit); // Reusing event for full withdrawal
     }
 
     function pause() external onlyOwner {
@@ -204,9 +243,9 @@ contract StakingContract is Ownable, Pausable, ReentrancyGuard {
     }
 
     modifier checkSolvency() {
-    require(address(this).balance >= totalPoolBalance, 
-            "Contract is underfunded");
-    _;
+        require(address(this).balance >= totalPoolBalance, 
+                "Contract is underfunded");
+        _;
     }
 
     receive() external payable {}
