@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 /// @title Simplified Staking Contract
 /// @notice This contract allows users to deposit and withdraw POL with automatic reward calculation
 /// @dev Implements pausable and reentrancy protection
-contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
+contract NuvoLogicLegacy is Ownable, Pausable, ReentrancyGuard {
     using Address for address payable;
     using SafeMath for uint256;
     using Address for address payable;

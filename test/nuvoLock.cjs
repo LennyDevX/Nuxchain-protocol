@@ -1,16 +1,16 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("StakingContract", function () {
-  let StakingContract, staking;
+describe("NuvoLogic", function () {
+  let NuvoLogic, staking;
   let owner, addr1, addr2, addrs;
   let _treasury;
 
   beforeEach(async function () {
-    StakingContract = await ethers.getContractFactory("StakingContract");
+    NuvoLogic = await ethers.getContractFactory("NuvoLogic");
     [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
     _treasury = owner.address;
-    staking = await StakingContract.deploy(_treasury);
+    staking = await NuvoLogic.deploy(_treasury);
     await staking.deployed();
     
     // Fund contract with initial balance for rewards
