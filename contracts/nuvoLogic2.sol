@@ -36,6 +36,7 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
     struct Deposit {
         uint256 amount;
         uint256 timestamp;
+        uint256 lastClaimTime; // New field for tracking rewards
     }
 
     struct User {
@@ -147,7 +148,8 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
 
         users[msg.sender].deposits.push(Deposit({
             amount: depositAmount,
-            timestamp: block.timestamp
+            timestamp: block.timestamp,
+            lastClaimTime: block.timestamp
         }));
         users[msg.sender].totalDeposited = users[msg.sender].totalDeposited.add(depositAmount);
 
@@ -167,16 +169,17 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
         
         for (uint256 i = 0; i < user.deposits.length; i++) {
             Deposit storage userDeposit = user.deposits[i];
-            uint256 elapsedTime = block.timestamp.sub(userDeposit.timestamp).div(3600);
+            uint256 elapsedTimeForRewards = block.timestamp.sub(userDeposit.lastClaimTime).div(3600);
             
             uint256 reward = userDeposit.amount
                 .mul(HOURLY_ROI_PERCENTAGE)
-                .mul(elapsedTime)
+                .mul(elapsedTimeForRewards)
                 .div(1000000);
 
             uint256 maxReward = userDeposit.amount.mul(MAX_ROI_PERCENTAGE).div(BASIS_POINTS);
             reward = reward > maxReward ? maxReward : reward;
 
+            // Calculate bonus based on total staking time, not last claim time
             uint256 timeBonus = calculateTimeBonus(block.timestamp.sub(userDeposit.timestamp));
             reward = reward.add(reward.mul(timeBonus).div(BASIS_POINTS));
 
@@ -193,6 +196,7 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
         if (stakingTime >= 365 days) return 500;     // 5%
         if (stakingTime >= 180 days) return 300;     // 3%
         if (stakingTime >= 90 days) return 100;      // 1%
+        if (stakingTime >= 30 days) return 50;       // 0.5%
         return 0;
     }
 
@@ -206,9 +210,9 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
 
         require(address(this).balance >= netAmount.add(commission), "Insufficient contract balance");
 
-        // Reset reward calculation timestamp
+        // Only update lastClaimTime, preserve original timestamp
         for (uint256 i = 0; i < users[msg.sender].deposits.length; i++) {
-            users[msg.sender].deposits[i].timestamp = block.timestamp;
+            users[msg.sender].deposits[i].lastClaimTime = block.timestamp;
         }
         users[msg.sender].lastWithdrawTime = block.timestamp;
 
