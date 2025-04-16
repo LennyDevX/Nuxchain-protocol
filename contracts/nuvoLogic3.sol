@@ -8,14 +8,15 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 /// @title NuvoLogic Staking Contract
-/// @notice Secure staking contract with automatic reward calculation
-/// @dev Implements security best practices and optimization patterns
+/// @notice A staking protocol that allows users to earn rewards based on time and amount staked
+/// @dev Implements security measures including reentrancy protection, pausability, and ownership controls
+/// @custom:security-contact security@nuvo.com
 contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
     using Address for address payable;
     using SafeMath for uint256;
 
     // Constants
-    uint256 private constant HOURLY_ROI_PERCENTAGE = 200; // 0.02% per hour
+    uint256 private constant HOURLY_ROI_PERCENTAGE = 100; // 0.01% per hour
     uint16 private constant MAX_ROI_PERCENTAGE = 12500; // 125%
     uint16 private constant COMMISSION_PERCENTAGE = 600; // 6% (in basis points)
     uint256 private constant MAX_DEPOSIT = 10000 ether;
@@ -30,11 +31,13 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
     uint256 public totalPoolBalance;
     bool public migrated;
     address public newContractAddress;
+    uint256 public pendingCommission; // Accumulated commission if transfer fails
 
     // Structs
     struct Deposit {
         uint256 amount;
         uint256 timestamp;
+        uint256 lastClaimTime; // New field for tracking rewards
     }
 
     struct User {
@@ -69,10 +72,15 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
         address indexed newTreasury,
         uint256 timestamp
     );
-    event EmergencyWithdraw(address indexed user, uint256 amount, uint256 timestamp);
+    event EmergencyWithdrawUser(address indexed user, uint256 amount, uint256 timestamp);
+    event EmergencyWithdrawOwner(address indexed owner, address indexed to, uint256 amount, uint256 timestamp);
     event ContractMigrated(address indexed newContract, uint256 timestamp);
-      event CommissionPaid(address indexed receiver, uint256 amount, uint256 timestamp);
+    event CommissionPaid(address indexed receiver, uint256 amount, uint256 timestamp);
 
+    // Custom errors
+    error DepositTooLow(uint256 provided, uint256 minimum);
+    error DepositTooHigh(uint256 provided, uint256 maximum);
+    error MaxDepositsReached(address user, uint16 maxDeposits);
 
     // Modifiers
     modifier notMigrated() {
@@ -109,7 +117,9 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
         emit TreasuryAddressChanged(previousTreasury, _newTreasury, block.timestamp);
     }
 
-    /// @notice Deposit funds into the contract
+    /// @notice Allows users to stake tokens in the protocol
+    /// @dev Implements commission calculation and updates user's deposit history
+    /// @custom:identifier DEPOSIT_FUNCTION_01
     function deposit() 
         external 
         payable 
@@ -118,7 +128,15 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
         notMigrated 
         sufficientDeposit(msg.value) 
     {
-        require(users[msg.sender].deposits.length < MAX_DEPOSITS_PER_USER, "Max deposits reached");
+        if (users[msg.sender].deposits.length >= MAX_DEPOSITS_PER_USER) {
+            revert MaxDepositsReached(msg.sender, MAX_DEPOSITS_PER_USER);
+        }
+        if (msg.value < MIN_DEPOSIT) {
+            revert DepositTooLow(msg.value, MIN_DEPOSIT);
+        }
+        if (msg.value > MAX_DEPOSIT) {
+            revert DepositTooHigh(msg.value, MAX_DEPOSIT);
+        }
 
         uint256 commission = msg.value.mul(COMMISSION_PERCENTAGE).div(BASIS_POINTS);
         uint256 depositAmount = msg.value.sub(commission);
@@ -132,13 +150,18 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
 
         users[msg.sender].deposits.push(Deposit({
             amount: depositAmount,
-            timestamp: block.timestamp
+            timestamp: block.timestamp,
+            lastClaimTime: block.timestamp
         }));
         users[msg.sender].totalDeposited = users[msg.sender].totalDeposited.add(depositAmount);
 
-        payable(treasury).sendValue(commission);
-          emit CommissionPaid(treasury, commission, block.timestamp);
-
+        // Commission transfer with fallback
+        (bool sent, ) = payable(treasury).call{value: commission}("");
+        if (!sent) {
+            // If commission fails, accumulate in contract for later withdrawal
+            pendingCommission = pendingCommission.add(commission);
+        }
+        emit CommissionPaid(treasury, commission, block.timestamp);
         emit DepositMade(msg.sender, depositId, depositAmount, commission, block.timestamp);
     }
 
@@ -153,16 +176,17 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
         
         for (uint256 i = 0; i < user.deposits.length; i++) {
             Deposit storage userDeposit = user.deposits[i];
-            uint256 elapsedTime = block.timestamp.sub(userDeposit.timestamp).div(3600);
+            uint256 elapsedTimeForRewards = block.timestamp.sub(userDeposit.lastClaimTime).div(3600);
             
             uint256 reward = userDeposit.amount
                 .mul(HOURLY_ROI_PERCENTAGE)
-                .mul(elapsedTime)
+                .mul(elapsedTimeForRewards)
                 .div(1000000);
 
             uint256 maxReward = userDeposit.amount.mul(MAX_ROI_PERCENTAGE).div(BASIS_POINTS);
             reward = reward > maxReward ? maxReward : reward;
 
+            // Calculate bonus based on total staking time, not last claim time
             uint256 timeBonus = calculateTimeBonus(block.timestamp.sub(userDeposit.timestamp));
             reward = reward.add(reward.mul(timeBonus).div(BASIS_POINTS));
 
@@ -179,6 +203,7 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
         if (stakingTime >= 365 days) return 500;     // 5%
         if (stakingTime >= 180 days) return 300;     // 3%
         if (stakingTime >= 90 days) return 100;      // 1%
+        if (stakingTime >= 30 days) return 50;       // 0.5%
         return 0;
     }
 
@@ -192,14 +217,20 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
 
         require(address(this).balance >= netAmount.add(commission), "Insufficient contract balance");
 
-        // Reset reward calculation timestamp
+        // Only update lastClaimTime, preserve original timestamp
         for (uint256 i = 0; i < users[msg.sender].deposits.length; i++) {
-            users[msg.sender].deposits[i].timestamp = block.timestamp;
+            users[msg.sender].deposits[i].lastClaimTime = block.timestamp;
         }
         users[msg.sender].lastWithdrawTime = block.timestamp;
 
-        payable(treasury).sendValue(commission);
-          emit CommissionPaid(treasury, commission, block.timestamp);
+        // Commission transfer with fallback
+        (bool sent, ) = payable(treasury).call{value: commission}("");
+        if (!sent) {
+            // If commission fails, accumulate in contract for later withdrawal
+            pendingCommission = pendingCommission.add(commission);
+        }
+        emit CommissionPaid(treasury, commission, block.timestamp);
+
         payable(msg.sender).sendValue(netAmount);
 
         emit WithdrawalMade(msg.sender, netAmount, commission);
@@ -217,7 +248,7 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
 
         payable(msg.sender).sendValue(totalDeposit);
 
-        emit EmergencyWithdraw(msg.sender, totalDeposit, block.timestamp);
+        emit EmergencyWithdrawUser(msg.sender, totalDeposit, block.timestamp);
     }
 
     /// @notice Emergency withdrawal for owner
@@ -225,10 +256,10 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
     function emergencyWithdraw(address to) external onlyOwner whenPaused validAddress(to) {
         uint256 balance = address(this).balance;
         payable(to).sendValue(balance);
-        emit EmergencyWithdraw(to, balance, block.timestamp);
+        emit EmergencyWithdrawOwner(msg.sender, to, balance, block.timestamp);
     }
 
-     /// @notice Withdraw all deposits and rewards
+    /// @notice Withdraw all deposits and rewards
     function withdrawAll() external nonReentrant whenNotPaused notMigrated {
         User storage user = users[msg.sender];
         require(user.totalDeposited > 0, "No deposits to withdraw");
@@ -242,25 +273,27 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
             totalAmount = totalAmount.add(totalRewards.sub(commission));
             
             require(address(this).balance >= totalAmount.add(commission), "Insufficient contract balance");
-             payable(treasury).sendValue(commission);
+            (bool sent, ) = payable(treasury).call{value: commission}("");
+            if (!sent) {
+                // If commission fails, accumulate in contract for later withdrawal
+                pendingCommission = pendingCommission.add(commission);
+            }
             emit CommissionPaid(treasury, commission, block.timestamp);
         }
 
-         
-          payable(msg.sender).sendValue(totalAmount);
+        payable(msg.sender).sendValue(totalAmount);
 
-    
         totalPoolBalance = totalPoolBalance.sub(user.totalDeposited);
-         delete users[msg.sender];
-    
+        delete users[msg.sender];
+
         emit WithdrawalMade(msg.sender, totalAmount, commission);
-        emit EmergencyWithdraw(msg.sender, user.totalDeposited, block.timestamp);
+        emit EmergencyWithdrawUser(msg.sender, user.totalDeposited, block.timestamp);
     }
 
     /// @notice Get total deposits for a user
     /// @param userAddress Address of the user
     /// @return Total deposit amount
-    function getTotalDeposit(address userAddress) public view returns (uint256) {
+    function getTotalDeposit(address userAddress) external view returns (uint256) {
         return users[userAddress].totalDeposited;
     }
 
@@ -281,7 +314,7 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
     /// @return User information struct
     function getUserInfo(address userAddress) external view returns (UserInfo memory) {
         return UserInfo({
-            totalDeposited: getTotalDeposit(userAddress),
+            totalDeposited: users[userAddress].totalDeposited,
             pendingRewards: calculateRewards(userAddress),
             lastWithdraw: users[userAddress].lastWithdrawTime
         });
@@ -324,6 +357,16 @@ contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
         newContractAddress = _newContractAddress;
         migrated = true;
         emit ContractMigrated(_newContractAddress, block.timestamp);
+    }
+
+    /// @notice Withdraw accumulated pending commissions to the treasury
+    function withdrawPendingCommission() external onlyOwner {
+        require(pendingCommission > 0, "No pending commission");
+        uint256 amount = pendingCommission;
+        pendingCommission = 0;
+        (bool sent, ) = payable(treasury).call{value: amount}("");
+        require(sent, "Commission transfer failed");
+        emit CommissionPaid(treasury, amount, block.timestamp);
     }
 
     receive() external payable {
