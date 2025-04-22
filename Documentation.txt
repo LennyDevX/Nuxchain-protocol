@@ -1,0 +1,140 @@
+NuvoLogic Smart Contract - Technical Documentation v2.0.0
+
+1. Executive Summary
+A secure staking protocol implementing automated reward calculations with time-based bonuses. Built with OpenZeppelin's security patterns and gas optimization features.
+
+2. Contract Specifications
+- Network: Polygon (MATIC)
+- Solidity Version: 0.8.24
+- License: UNLICENSED
+- Base Contracts: Ownable, Pausable, ReentrancyGuard
+
+3. Core Mechanics
+3.1 Staking Parameters
+- Minimum Stake: 5 MATIC
+- Maximum Stake: 10,000 MATIC
+- Maximum Deposits per User: 300
+- Base ROI: 0.02% per hour
+- Maximum ROI: 125%
+- Commission: 6%
+
+3.2 Time-Based Bonus Structure
+- 365+ days: +5% bonus
+- 180-364 days: +3% bonus
+- 90-179 days: +1% bonus
+- 0-89 days: no bonus
+
+4. Security Features
+4.1 Access Control
+- Owner-only administrative functions
+- Pausable emergency circuit breaker
+- Reentrancy protection on all state-changing functions
+- Treasury address validation
+- Migration safety controls
+
+4.2 Fund Security
+- Balance verification before transfers
+- Safe math operations
+- Commission calculations using basis points
+- Emergency withdrawal system
+- Treasury-only direct deposits
+
+5. State Management
+5.1 User Data Storage
+- Individual deposit tracking
+- Timestamp-based reward calculation
+- Total deposits accounting
+- Last withdrawal time tracking
+- Deposit count limitations
+
+5.2 Contract State
+- Total pool balance tracking
+- Unique users counting
+- Migration status management
+- Treasury address management
+
+6. Critical Functions
+6.1 Core Operations
+- Deposit processing
+- Reward calculations
+- Withdrawal mechanisms
+- Emergency procedures
+- Migration handling
+
+6.2 View Functions
+- User information retrieval
+- Deposit details
+- Reward calculations
+- Contract balance checks
+
+7. Risk Considerations
+7.1 Technical Risks
+- Timestamp manipulation
+- Gas limitations in loops
+- Contract balance dependency
+- State inconsistency during migration
+
+7.2 Economic Risks
+- ROI sustainability
+- Pool balance requirements
+- Commission impact
+- Maximum reward limitations
+
+8. Gas Optimization Features
+- Efficient storage usage
+- Optimized loop operations
+- Minimal state changes
+- Strategic event emission
+
+9. Testing Requirements
+9.1 Core Test Areas
+- Deposit functionality
+- Reward calculations
+- Withdrawal mechanisms
+- Emergency procedures
+- Access controls
+- Migration process
+
+9.2 Edge Cases
+- Maximum deposits
+- ROI limits
+- Time bonus thresholds
+- Emergency scenarios
+- Migration conditions
+
+10. Upgrade Considerations
+- Migration mechanism
+- State preservation
+- Balance transfer
+- User data handling
+
+11. Events and Monitoring
+Detailed event emission for:
+- Deposits
+- Withdrawals
+- Administrative actions
+- Emergency operations
+- State changes
+
+12. Integration Guidelines
+- Treasury setup
+- Initial funding
+- Administrative controls
+- Frontend integration
+- Event handling
+
+13. Maintenance Procedures
+- Emergency pause
+- Balance management
+- Treasury updates
+- Contract migration
+- User data management
+
+14. Compliance and Limitations
+- Maximum deposit limits
+- User restrictions
+- Administrative controls
+- Treasury management
+- Migration requirements
+
+This documentation provides a comprehensive overview for security auditors to assess the contract's functionality, security measures, and potential risks.
