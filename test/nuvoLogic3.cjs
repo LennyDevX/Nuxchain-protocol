@@ -35,19 +35,48 @@ describe("NuvoLogic", function () {
     it("should revert deposit below minimum", async function () {
         await expect(
             nuvo.connect(user1).deposit({ value: ethers.parseEther("1") })
-        ).to.be.revertedWith("Deposit below minimum");
+        ).to.be.revertedWithCustomError(nuvo, "DepositTooLow").withArgs(ethers.parseEther("1"), MIN_DEPOSIT);
     });
 
     it("should revert deposit above maximum", async function () {
-        // En ethers v6, usamos .staticCall() directamente en la función
         await expect(
-            nuvo.connect(user1).deposit.staticCall({ value: MAX_DEPOSIT })
+            nuvo.connect(user1).deposit({ value: MAX_DEPOSIT })
         ).to.not.be.reverted;
         
         // Para valores que exceden el máximo
         await expect(
-            nuvo.connect(user1).deposit.staticCall({ value: ethers.parseEther("10001") })
-        ).to.be.revertedWith("Deposit exceeds maximum");
+            nuvo.connect(user1).deposit({ value: ethers.parseEther("10001") })
+        ).to.be.revertedWithCustomError(nuvo, "DepositTooHigh").withArgs(ethers.parseEther("10001"), MAX_DEPOSIT);
+    });
+
+    it("should revert if max deposits per user is reached", async function () {
+        const MAX_DEPOSITS_PER_USER = 300; // Constant from contract
+        for (let i = 0; i < MAX_DEPOSITS_PER_USER; i++) {
+            await nuvo.connect(user1).deposit({ value: MIN_DEPOSIT });
+        }
+        await expect(
+            nuvo.connect(user1).deposit({ value: MIN_DEPOSIT })
+        ).to.be.revertedWithCustomError(nuvo, "MaxDepositsReached").withArgs(user1.address, MAX_DEPOSITS_PER_USER);
+    });
+
+    it("should calculate rewards correctly with time bonus", async function () {
+        const initialDeposit = ethers.parseEther("100");
+        const commission = (initialDeposit * BigInt(600)) / BigInt(10000);
+        const depositAmount = initialDeposit - commission;
+
+        await nuvo.connect(user1).deposit({ value: initialDeposit });
+        
+        // Avanzar 30 días para obtener el bonus del 0.5%
+        await ethers.provider.send("evm_increaseTime", [30 * 24 * 3600]);
+        await ethers.provider.send("evm_mine");
+
+        const rewards = await nuvo.calculateRewards(user1.address);
+        const baseReward = (depositAmount * BigInt(100) * BigInt(30 * 24)) / BigInt(1000000);
+        const bonus = (baseReward * BigInt(50)) / BigInt(10000);
+        const expectedRewards = baseReward + bonus;
+
+        // Usamos una tolerancia para comparar por la posible imprecisión
+        expect(rewards).to.be.closeTo(expectedRewards, ethers.parseEther("0.001"));
     });
 
     it("should calculate rewards correctly", async function () {
@@ -70,6 +99,14 @@ describe("NuvoLogic", function () {
         expect(after).to.be.gt(before);
     });
 
+    it("should revert withdraw if no rewards are available", async function () {
+        await nuvo.connect(user1).deposit({ value: MIN_DEPOSIT });
+        // Sin pasar el tiempo, no hay recompensas
+        await expect(
+            nuvo.connect(user1).withdraw()
+        ).to.be.revertedWithCustomError(nuvo, "NoRewardsAvailable");
+    });
+
     it("should allow withdrawAll and delete user", async function () {
         // Depositar y agregar un balance adicional para cubrir las recompensas
         await nuvo.connect(user1).deposit({ value: MIN_DEPOSIT });
@@ -81,6 +118,12 @@ describe("NuvoLogic", function () {
             .to.emit(nuvo, "WithdrawalMade");
         const info = await nuvo.getUserInfo(user1.address);
         expect(info.totalDeposited).to.equal(0);
+    });
+
+    it("should revert withdrawAll if user has no deposits", async function () {
+        await expect(
+            nuvo.connect(user1).withdrawAll()
+        ).to.be.revertedWithCustomError(nuvo, "NoDepositsFound");
     });
 
     it("should allow emergencyUserWithdraw when paused", async function () {
@@ -121,11 +164,19 @@ describe("NuvoLogic", function () {
         expect(await nuvo.treasury()).to.equal(other.address);
     });
 
+    it("should allow unpausing and resume normal operations", async function () {
+        await nuvo.connect(owner).pause();
+        await expect(nuvo.connect(user1).deposit({ value: MIN_DEPOSIT })).to.be.revertedWith("Pausable: paused");
+        
+        await nuvo.connect(owner).unpause();
+        await expect(nuvo.connect(user1).deposit({ value: MIN_DEPOSIT })).to.not.be.reverted;
+    });
+
     it("should migrate contract and block further actions", async function () {
         await nuvo.connect(owner).migrateToNewContract(other.address);
         await expect(
             nuvo.connect(user1).deposit({ value: MIN_DEPOSIT })
-        ).to.be.revertedWith("Contract has been migrated");
+        ).to.be.revertedWithCustomError(nuvo, "ContractIsMigrated");
     });
 
     it("should accumulate pendingCommission if commission transfer fails", async function () {
@@ -161,13 +212,13 @@ describe("NuvoLogic", function () {
 
     it("should revert withdrawPendingCommission if none pending", async function () {
         await expect(nuvo.connect(owner).withdrawPendingCommission())
-            .to.be.revertedWith("No pending commission");
+            .to.be.revertedWithCustomError(nuvo, "NoPendingCommission");
     });
 
     it("should revert if non-treasury sends ETH to contract", async function () {
         await expect(
-            user1.sendTransaction({ to: nuvo.getAddress(), value: ethers.parseEther("1") })
-        ).to.be.revertedWith("Only treasury can send funds directly");
+            user1.sendTransaction({ to: await nuvo.getAddress(), value: ethers.parseEther("1") })
+        ).to.be.revertedWithCustomError(nuvo, "UnauthorizedSender");
     });
 
     it("should allow owner to add balance", async function () {
@@ -186,6 +237,17 @@ describe("NuvoLogic", function () {
     it("should revert addBalance if value is zero", async function () {
         await expect(
             nuvo.connect(owner).addBalance({ value: 0 })
-        ).to.be.revertedWith("Amount must be greater than 0");
+        ).to.be.revertedWithCustomError(nuvo, "DepositTooLow").withArgs(0, 1);
+    });
+
+    it("should return correct contract version", async function () {
+        expect(await nuvo.getContractVersion()).to.equal(3n);
+    });
+
+    it("should revert with InvalidAddress for zero address", async function () {
+        const zeroAddress = ethers.ZeroAddress;
+        await expect(nuvo.connect(owner).changeTreasuryAddress(zeroAddress)).to.be.revertedWithCustomError(nuvo, "InvalidAddress");
+        await expect(nuvo.connect(owner).migrateToNewContract(zeroAddress)).to.be.revertedWithCustomError(nuvo, "InvalidAddress");
     });
 });
+

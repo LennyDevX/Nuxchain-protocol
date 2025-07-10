@@ -10,34 +10,38 @@ describe("TokenizationApp Contract", function () {
   let anotherUser;
   let royaltyReceiver;
   let moderator;
+  let treasury;
   
   // Constants for testing
   const tokenURI = "ipfs://QmXyNMhV8bQFp6wzoVpkz3NUAcbP3Qwx4Cfep1kAh8xjqv";
   let initialPrice;
   let offerAmount;
   const platformFee = 5; // 5%
-  const defaultCategory = "arte";
+  const defaultCategory = "art"; // Updated to English
   const defaultRoyaltyPercentage = 250; // 2.5% (base 10000)
   let ADMIN_ROLE;
   let MODERATOR_ROLE;
+  let DEFAULT_ADMIN_ROLE;
 
   beforeEach(async function () {
-    [owner, creator, buyer, anotherUser, royaltyReceiver, moderator] = await ethers.getSigners();
+    [owner, creator, buyer, anotherUser, royaltyReceiver, moderator, treasury] = await ethers.getSigners();
     
+    // Deploy the contract first
+    const TokenizationAppFactory = await ethers.getContractFactory("TokenizationApp");
+    tokenizationApp = await TokenizationAppFactory.deploy();
+    await tokenizationApp.waitForDeployment();
+
     // Setup constants that require ethers
     initialPrice = ethers.parseEther("0.1");
     offerAmount = ethers.parseEther("0.08");
-    ADMIN_ROLE = ethers.keccak256(ethers.toUtf8Bytes("ADMIN_ROLE"));
-    MODERATOR_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MODERATOR_ROLE"));
-    
-    // Deploy the contract - updated for ethers v6
-    TokenizationApp = await ethers.getContractFactory("TokenizationApp");
-    tokenizationApp = await TokenizationApp.deploy();
-    // Replace deployed() with waitForDeployment() in ethers v6
-    await tokenizationApp.waitForDeployment();
+    ADMIN_ROLE = await tokenizationApp.ADMIN_ROLE();
+    MODERATOR_ROLE = await tokenizationApp.MODERATOR_ROLE();
+    DEFAULT_ADMIN_ROLE = await tokenizationApp.DEFAULT_ADMIN_ROLE();
     
     // Grant moderator role
     await tokenizationApp.grantRole(MODERATOR_ROLE, moderator.address);
+    // Set a separate treasury for testing fee collection
+    await tokenizationApp.setPlatformTreasury(treasury.address);
   });
 
   // Helper function to extract events from transaction receipt in ethers v6
@@ -67,8 +71,8 @@ describe("TokenizationApp Contract", function () {
   }
 
   describe("Deployment", function () {
-    it("Should set the right owner", async function () {
-      expect(await tokenizationApp.owner()).to.equal(owner.address);
+    it("Should set the right admin role", async function () {
+      expect(await tokenizationApp.hasRole(DEFAULT_ADMIN_ROLE, owner.address)).to.be.true;
     });
 
     it("Should set initial platform fee to 5%", async function () {
@@ -82,10 +86,7 @@ describe("TokenizationApp Contract", function () {
     it("Should register initial categories", async function () {
       // Test one of the pre-registered categories
       const testCategory = defaultCategory;
-      await tokenizationApp.connect(creator).createNFT(tokenURI, testCategory, 0);
-      
-      // This should not revert, indicating the category is valid
-      expect(true).to.be.true;
+      await expect(tokenizationApp.connect(creator).createNFT(tokenURI, testCategory, 0)).to.not.be.reverted;
     });
   });
 
@@ -141,34 +142,60 @@ describe("TokenizationApp Contract", function () {
     });
 
     it("Should allow token owner to list a token for sale", async function () {
-      await tokenizationApp.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory);
+      await expect(tokenizationApp.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory))
+        .to.emit(tokenizationApp, "TokenListed")
+        .withArgs(tokenId, creator.address, initialPrice, defaultCategory);
       
       const listedToken = await tokenizationApp.getListedToken(tokenId);
       expect(listedToken[3]).to.equal(initialPrice); // price
       expect(listedToken[4]).to.be.true; // isForSale
     });
 
+    it("Should allow unlisting a token", async function () {
+      await tokenizationApp.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory);
+      await expect(tokenizationApp.connect(creator).unlistedToken(tokenId))
+        .to.emit(tokenizationApp, "TokenUnlisted")
+        .withArgs(tokenId);
+
+      const listedToken = await tokenizationApp.getListedToken(tokenId);
+      expect(listedToken[4]).to.be.false; // isForSale
+    });
+
+    it("Should allow updating the price of a listed token", async function () {
+      const newPrice = ethers.parseEther("0.2");
+      await tokenizationApp.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory);
+      await expect(tokenizationApp.connect(creator).updatePrice(tokenId, newPrice))
+        .to.emit(tokenizationApp, "TokenPriceUpdated")
+        .withArgs(tokenId, newPrice);
+
+      const listedToken = await tokenizationApp.getListedToken(tokenId);
+      expect(listedToken[3]).to.equal(newPrice); // price
+    });
+
     it("Should allow buying a listed token", async function () {
       // List the token
       await tokenizationApp.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory);
       
-      // Creator's initial balance
       const creatorInitialBalance = await ethers.provider.getBalance(creator.address);
+      const treasuryInitialBalance = await ethers.provider.getBalance(treasury.address);
       
       // Buy the token
-      await tokenizationApp.connect(buyer).buyToken(tokenId, {
+      const tx = await tokenizationApp.connect(buyer).buyToken(tokenId, {
         value: initialPrice
       });
+      await tx.wait();
       
       // Check ownership
       expect(await tokenizationApp.ownerOf(tokenId)).to.equal(buyer.address);
       
-      // Check creator's balance increased (minus platform fee)
+      // Check balances
       const creatorFinalBalance = await ethers.provider.getBalance(creator.address);
-      const expectedIncrease = initialPrice * 95n / 100n; // 95% after 5% platform fee
-      
-      // Allow for small discrepancies due to gas costs
-      expect(creatorFinalBalance - creatorInitialBalance).to.be.closeTo(expectedIncrease, ethers.parseEther("0.001"));
+      const treasuryFinalBalance = await ethers.provider.getBalance(treasury.address);
+      const platformFeeAmount = (initialPrice * BigInt(platformFee)) / 100n;
+      const sellerProceeds = initialPrice - platformFeeAmount;
+
+      expect(creatorFinalBalance - creatorInitialBalance).to.equal(sellerProceeds);
+      expect(treasuryFinalBalance - treasuryInitialBalance).to.equal(platformFeeAmount);
     });
 
     it("Should not allow buying a token that's not for sale", async function () {
@@ -218,24 +245,42 @@ describe("TokenizationApp Contract", function () {
     });
 
     it("Should allow token owner to accept an offer", async function () {
-      // Skip this test due to transfer issues in test environment
-      this.skip();
+      const creatorInitialBalance = await ethers.provider.getBalance(creator.address);
+      const treasuryInitialBalance = await ethers.provider.getBalance(treasury.address);
+
+      const tx = await tokenizationApp.connect(creator).acceptOffer(offerId);
+      const receipt = await tx.wait();
+      const gasUsed = receipt.gasUsed * receipt.gasPrice;
+
+      expect(await tokenizationApp.ownerOf(tokenId)).to.equal(buyer.address);
+
+      const creatorFinalBalance = await ethers.provider.getBalance(creator.address);
+      const treasuryFinalBalance = await ethers.provider.getBalance(treasury.address);
+      const platformFeeAmount = (offerAmount * BigInt(platformFee)) / 100n;
+      const sellerProceeds = offerAmount - platformFeeAmount;
+
+      expect(creatorFinalBalance).to.equal(creatorInitialBalance - gasUsed + sellerProceeds);
+      expect(treasuryFinalBalance - treasuryInitialBalance).to.equal(platformFeeAmount);
+    });
+
+    it("Should allow token owner to reject an offer", async function () {
+      await expect(tokenizationApp.connect(creator).rejectOffer(offerId))
+        .to.emit(tokenizationApp, "OfferRejected")
+        .withArgs(offerId);
+      
+      const offer = await tokenizationApp.getOffer(offerId);
+      expect(offer[5]).to.be.false; // isActive
     });
 
     it("Should allow buyer to cancel an offer", async function () {
-      // Buyer's initial balance
-      const buyerInitialBalance = BigInt(await ethers.provider.getBalance(buyer.address));
+      const buyerInitialBalance = await ethers.provider.getBalance(buyer.address);
       
-      // Cancel the offer
-      await tokenizationApp.connect(buyer).cancelOffer(offerId);
-      
-      // Check the offer is inactive
-      const offer = await tokenizationApp.getOffer(offerId);
-      expect(offer[5]).to.be.false; // isActive
-      
-      // Check buyer got refund (balance no menor al inicial)
-      const buyerFinalBalance = BigInt(await ethers.provider.getBalance(buyer.address));
-      expect(buyerFinalBalance >= buyerInitialBalance).to.be.true;
+      const tx = await tokenizationApp.connect(buyer).cancelOffer(offerId);
+      const receipt = await tx.wait();
+      const gasUsed = receipt.gasUsed * receipt.gasPrice;
+
+      const buyerFinalBalance = await ethers.provider.getBalance(buyer.address);
+      expect(buyerFinalBalance).to.equal(buyerInitialBalance - gasUsed + offerAmount);
     });
 
     it("Should not allow non-owner to accept an offer", async function () {
@@ -312,7 +357,7 @@ describe("TokenizationApp Contract", function () {
       
       // Check creator received royalties
       const creatorFinalBalance = await ethers.provider.getBalance(creator.address);
-      const expectedRoyalty = newPrice * 5n / 100n; // 5% royalty
+      const expectedRoyalty = (newPrice * BigInt(royaltyPercentage)) / 10000n;
       
       expect(creatorFinalBalance - creatorInitialBalance).to.equal(expectedRoyalty);
     });
@@ -333,6 +378,12 @@ describe("TokenizationApp Contract", function () {
       expect(await tokenizationApp.defaultRoyaltyPercentage()).to.equal(newRoyalty);
     });
 
+    it("Should allow admin to set platform treasury", async function () {
+      const newTreasury = anotherUser.address;
+      await tokenizationApp.connect(owner).setPlatformTreasury(newTreasury);
+      expect(await tokenizationApp.platformTreasury()).to.equal(newTreasury);
+    });
+
     it("Should allow moderator to blacklist an address", async function () {
       await tokenizationApp.connect(moderator).blacklistAddress(anotherUser.address);
       
@@ -350,10 +401,7 @@ describe("TokenizationApp Contract", function () {
       await tokenizationApp.connect(owner).removeFromBlacklist(anotherUser.address);
       
       // Should now be able to create an NFT
-      await tokenizationApp.connect(anotherUser).createNFT(tokenURI, defaultCategory, 0);
-      
-      // This should not revert
-      expect(true).to.be.true;
+      await expect(tokenizationApp.connect(anotherUser).createNFT(tokenURI, defaultCategory, 0)).to.not.be.reverted;
     });
 
     it("Should allow admin to register new categories", async function () {
@@ -361,10 +409,7 @@ describe("TokenizationApp Contract", function () {
       await tokenizationApp.connect(moderator).registerCategory(newCategory);
       
       // Try to use the new category
-      await tokenizationApp.connect(creator).createNFT(tokenURI, newCategory, 0);
-      
-      // Should not revert
-      expect(true).to.be.true;
+      await expect(tokenizationApp.connect(creator).createNFT(tokenURI, newCategory, 0)).to.not.be.reverted;
     });
 
     it("Should allow pausing and unpausing the contract", async function () {
@@ -380,10 +425,7 @@ describe("TokenizationApp Contract", function () {
       await tokenizationApp.connect(owner).unpause();
       
       // Should now be able to create an NFT
-      await tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, 0);
-      
-      // This should not revert
-      expect(true).to.be.true;
+      await expect(tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, 0)).to.not.be.reverted;
     });
 
     it("Should allow pausing specific sections", async function () {
@@ -399,17 +441,31 @@ describe("TokenizationApp Contract", function () {
       await tokenizationApp.connect(owner).setSectionPaused(3, false);
       
       // Should now be able to create an NFT
-      await tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, 0);
-      
-      // This should not revert
-      expect(true).to.be.true;
+      await expect(tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, 0)).to.not.be.reverted;
     });
   });
 
   describe("Edge Cases", function () {
-    it("Should handle multiple offers on the same token", async function () {
-      // Skip this test due to transfer issues in test environment
-      this.skip();
+    it("Should handle offer cancellation after a sale", async function () {
+      // Create and list a token
+      const tx = await tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, 0);
+      const receipt = await tx.wait();
+      const event = await extractEvent(receipt, 'TokenMinted');
+      const tokenId = event.args.tokenId;
+      await tokenizationApp.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory);
+
+      // anotherUser makes an offer
+      const offerTx = await tokenizationApp.connect(anotherUser).makeOffer(tokenId, 1, { value: offerAmount });
+      const offerReceipt = await offerTx.wait();
+      const offerEvent = await extractEvent(offerReceipt, 'OfferCreated');
+      const offerId = offerEvent.args.offerId;
+
+      // buyer buys the token
+      await tokenizationApp.connect(buyer).buyToken(tokenId, { value: initialPrice });
+
+      // anotherUser tries to cancel their now-inactive offer
+      await expect(tokenizationApp.connect(anotherUser).cancelOffer(offerId))
+        .to.be.revertedWithCustomError(tokenizationApp, "OfferNotActive");
     });
 
     it("Should not allow creating tokens with invalid inputs", async function () {
@@ -428,7 +484,7 @@ describe("TokenizationApp Contract", function () {
       
       // Try to list with price too low
       await expect(
-        tokenizationApp.connect(creator).listTokenForSale(tokenId, 0, defaultCategory)
+        tokenizationApp.connect(creator).listTokenForSale(tokenId, 10, defaultCategory) // price < MIN_PRICE
       ).to.be.revertedWithCustomError(tokenizationApp, "InvalidInput");
     });
   });

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity 0.8.30;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
@@ -17,13 +17,12 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
  * @dev Un contrato para un marketplace de NFTs donde cualquier usuario puede
  * crear, listar y vender sus propios NFTs. Incluye funcionalidades de
  * likes, gestión de ventas y royalties.
- * Actualizado a Solidity 0.8.24 para mayor eficiencia y seguridad.
+ * Actualizado a Solidity 0.8.30 para mayor eficiencia y seguridad.
  */
 contract TokenizationApp is 
     ERC721, 
     ERC721URIStorage, 
     ERC721Royalty,
-    Ownable, 
     ReentrancyGuard,
     Pausable,
     AccessControl 
@@ -40,6 +39,9 @@ contract TokenizationApp is
     Counters.Counter private _tokenIdCounter;
     Counters.Counter private _offerIdCounter;
     
+    // Dirección para recibir las comisiones de la plataforma
+    address public platformTreasury;
+
     // Comisión por ventas para la plataforma (5%)
     uint256 public platformFeePercentage = 5;
     
@@ -116,6 +118,7 @@ contract TokenizationApp is
     error BlacklistedAddress();
     error SectionPaused();
     error RoyaltyTooHigh();
+    error AlreadyListed();
     
     // Eventos
     event TokenMinted(uint256 indexed tokenId, address indexed creator, string tokenURI, string category);
@@ -138,21 +141,22 @@ contract TokenizationApp is
      * @dev Constructor que inicializa el nombre y símbolo del NFT.
      */
     constructor() 
-        ERC721("Community NFT Marketplace", "CNM")
-        Ownable() // Modificado para usar la version correcta de Ownable
+        ERC721("Nuvos NFTs", "NFT+")
     {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);
         _grantRole(MODERATOR_ROLE, msg.sender);
         
-        // Registrar categorías iniciales
-        _registerCategory("arte");
-        _registerCategory("fotografia");
-        _registerCategory("musica");
-        _registerCategory("video");
-        _registerCategory("coleccionables");
-    }
-    
+        platformTreasury = msg.sender; // Por defecto, la tesorería es el deployer
+
+       // Register initial categories
+            _registerCategory("art");
+            _registerCategory("photography");
+            _registerCategory("music");
+            _registerCategory("video");
+            _registerCategory("collectibles");
+        }
+
     // Modificadores
     
     /**
@@ -265,6 +269,44 @@ contract TokenizationApp is
     }
     
     /**
+     * @dev Permite al propietario de un NFT retirarlo de la venta.
+     * @param tokenId ID del token a deslistar.
+     */
+    function unlistedToken(uint256 tokenId)
+        public
+        whenNotPaused
+        notBlacklisted
+        tokenExists(tokenId)
+    {
+        ListedToken storage listedToken = _listedTokens[tokenId];
+        if (ownerOf(tokenId) != msg.sender) revert Unauthorized();
+        if (!listedToken.isForSale) revert TokenNotForSale();
+
+        listedToken.isForSale = false;
+        emit TokenUnlisted(tokenId);
+    }
+
+    /**
+     * @dev Permite al vendedor actualizar el precio de un NFT listado.
+     * @param tokenId ID del token.
+     * @param newPrice Nuevo precio en wei.
+     */
+    function updatePrice(uint256 tokenId, uint256 newPrice)
+        public
+        whenNotPaused
+        notBlacklisted
+        tokenExists(tokenId)
+    {
+        ListedToken storage listedToken = _listedTokens[tokenId];
+        if (ownerOf(tokenId) != msg.sender) revert Unauthorized();
+        if (!listedToken.isForSale) revert TokenNotForSale();
+        if (newPrice < MIN_PRICE) revert InvalidInput();
+
+        listedToken.price = newPrice;
+        emit TokenPriceUpdated(tokenId, newPrice);
+    }
+
+    /**
      * @dev Permite a un usuario comprar un NFT listado.
      * @param tokenId ID del token a comprar.
      */
@@ -285,8 +327,11 @@ contract TokenizationApp is
         address payable seller = listedToken.seller;
         uint256 price = listedToken.price;
         
-        // Calcular comisión de plataforma
+        // Calcular comisión de plataforma y enviarla a la tesorería
         uint256 platformFee = (price * platformFeePercentage) / 100;
+        if (platformFee > 0) {
+            _sendValue(payable(platformTreasury), platformFee);
+        }
         
         // Calcular royalty para el creador original si es venta secundaria
         uint256 royaltyAmount = 0;
@@ -391,8 +436,11 @@ contract TokenizationApp is
         address payable buyer = offer.buyer;
         uint256 offerAmount = offer.offerAmount;
         
-        // Calcular comisión de plataforma
+        // Calcular comisión de plataforma y enviarla a la tesorería
         uint256 platformFee = (offerAmount * platformFeePercentage) / 100;
+        if (platformFee > 0) {
+            _sendValue(payable(platformTreasury), platformFee);
+        }
         
         // Calcular royalty para el creador original
         uint256 royaltyAmount = 0;
@@ -434,6 +482,25 @@ contract TokenizationApp is
         emit OfferAccepted(offerId, tokenId, msg.sender, buyer, offerAmount);
     }
     
+    /**
+     * @dev Permite al propietario de un NFT rechazar una oferta.
+     * @param offerId ID de la oferta a rechazar.
+     */
+    function rejectOffer(uint256 offerId)
+        public
+        whenNotPaused
+        notBlacklisted
+    {
+        Offer storage offer = _offers[offerId];
+        if (!offer.isActive) revert OfferNotActive();
+        if (ownerOf(offer.tokenId) != msg.sender) revert Unauthorized();
+
+        offer.isActive = false;
+        _tokenActiveOffers[offer.tokenId].remove(offerId);
+
+        emit OfferRejected(offerId);
+    }
+
     /**
      * @dev Permite a un usuario cancelar su oferta y recibir reembolso.
      * @param offerId ID de la oferta.
@@ -658,10 +725,22 @@ contract TokenizationApp is
         public 
         onlyRole(ADMIN_ROLE)
     {
-        if (newFeePercentage > 10) revert InvalidInput();
+        if (newFeePercentage > 10) revert InvalidInput(); // Límite del 10%
         platformFeePercentage = newFeePercentage;
     }
     
+    /**
+     * @dev Permite al admin establecer la dirección de la tesorería.
+     * @param _treasury Nueva dirección de la tesorería.
+     */
+    function setPlatformTreasury(address _treasury)
+        public
+        onlyRole(ADMIN_ROLE)
+    {
+        if (_treasury == address(0)) revert InvalidInput();
+        platformTreasury = _treasury;
+    }
+
     /**
      * @dev Permite al dueño de la plataforma cambiar el royalty por defecto.
      * @param newRoyaltyPercentage Nuevo porcentaje de royalty (base 10000).
@@ -685,8 +764,8 @@ contract TokenizationApp is
         uint256 balance = address(this).balance;
         if (balance == 0) revert InvalidInput();
         
-        bool sent = _sendValue(payable(owner()), balance);
-        if (!sent) revert TransferFailed();
+        (bool success, ) = payable(platformTreasury).call{value: balance}("");
+        if (!success) revert TransferFailed();
     }
     
     /**
@@ -802,17 +881,14 @@ contract TokenizationApp is
         
         for (uint256 i = 0; i < activeOffers.length; i++) {
             Offer storage offer = _offers[activeOffers[i]];
-            if (offer.expiresAt > block.timestamp) {
-                // Reembolsar al ofertante
-                bool sent = _sendValue(offer.buyer, offer.offerAmount);
-                if (sent) {
-                    emit OfferCancelled(offer.offerId);
-                }
+            // Solo se marcan como inactivas. El reembolso lo gestiona el usuario con cancelOffer.
+            if (offer.isActive) {
+                offer.isActive = false;
+                emit OfferRejected(offer.offerId); // Se puede usar un evento genérico o uno nuevo
             }
-            offer.isActive = false;
         }
         
-        // Limpiar todas las ofertas
+        // Limpiar todas las ofertas del set para este token
         while (_tokenActiveOffers[tokenId].length() > 0) {
             _tokenActiveOffers[tokenId].remove(_tokenActiveOffers[tokenId].at(0));
         }

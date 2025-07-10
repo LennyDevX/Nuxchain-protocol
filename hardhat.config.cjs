@@ -3,18 +3,33 @@ require("dotenv").config();
 
 module.exports = {
   solidity: {
-    version: "0.8.24",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 200
+    compilers: [
+      {
+        version: "0.8.30",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 800 // Aumentar para reducir impacto de calldata
+          },
+          evmVersion: "prague"
+        }
+      },
+      {
+        version: "0.8.24",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 800
+          },
+          evmVersion: "cancun"
+        }
       }
-    }
+    ]
   },
   networks: {
     hardhat: {
       accounts: {
-        accountsBalance: "10000000000000000000000" // 10000 ETH in wei
+        accountsBalance: "30000000000000000000000" // 30000 ETH in wei
       }
     },
     polygon: {
