@@ -35,7 +35,9 @@ module.exports = {
     polygon: {
       url: `https://polygon-mainnet.g.alchemy.com/v2/${process.env.VITE_ALCHEMY}`,
       accounts: [process.env.PRIVATE_KEY],
-      chainId: 137
+      chainId: 137,
+      gasPrice: 35000000000, // 35 gwei
+      gasMultiplier: 1.2
     }
   },
   etherscan: {

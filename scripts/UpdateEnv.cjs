@@ -16,10 +16,11 @@ async function main() {
   }
 
   const deploymentData = JSON.parse(fs.readFileSync(filePath, "utf8"));
-  const contractAddress = deploymentData.TokenizationApp;
+  const marketplaceAddress = deploymentData.Marketplace;
+  const airdropAddress = deploymentData.Airdrop;
 
-  if (!contractAddress) {
-    console.error(`Dirección del contrato no encontrada para ${networkName}`);
+  if (!marketplaceAddress && !airdropAddress) {
+    console.error(`No se encontraron direcciones de contratos para ${networkName}`);
     process.exit(1);
   }
 
@@ -47,14 +48,22 @@ async function main() {
 
   // Creamos el contenido del archivo .env.local
   const envPath = path.join(__dirname, "..", "frontend", ".env.local");
-  const envContent = `NEXT_PUBLIC_CONTRACT_ADDRESS=${contractAddress}
-NEXT_PUBLIC_CHAIN_ID=${chainId}
-NEXT_PUBLIC_APP_NAME=Nuvos NFT Marketplace
+  let envContent = `NEXT_PUBLIC_CHAIN_ID=${chainId}
+NEXT_PUBLIC_APP_NAME=Nuvos Platform
 NEXT_PUBLIC_NETWORK=${networkName}`;
+
+  if (marketplaceAddress) {
+    envContent += `\nNEXT_PUBLIC_CONTRACT_ADDRESS=${marketplaceAddress}`;
+  }
+
+  if (airdropAddress) {
+    envContent += `\nNEXT_PUBLIC_AIRDROP_CONTRACT_ADDRESS=${airdropAddress}`;
+  }
 
   fs.writeFileSync(envPath, envContent);
   console.log(`Variables de entorno actualizadas en ${envPath}`);
-  console.log(`Contrato configurado: ${contractAddress}`);
+  if (marketplaceAddress) console.log(`Marketplace configurado: ${marketplaceAddress}`);
+  if (airdropAddress) console.log(`Airdrop configurado: ${airdropAddress}`);
 }
 
 main()

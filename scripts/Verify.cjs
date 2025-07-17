@@ -4,9 +4,19 @@ const hre = require("hardhat");
 // Configuración de contratos para verificar
 const CONTRACTS_TO_VERIFY = [
     {
-        name: "TokenizationApp",
+        name: "Marketplace",
         address: "0xe8f1A205ACf4dBbb08d6d8856ae76212B9AE7582",
-        constructorArgs: [] // Removed the token address argument since the contract has no constructor parameters
+        constructorArgs: []
+    },
+    {
+        name: "Airdrop",
+        address: "0x0000000000000000000000000000000000000000", // CAMBIAR por la dirección real del contrato
+        constructorArgs: [
+            "0x0000000000000000000000000000000000000000", // Token address
+            604800, // 7 days registration duration
+            86400,  // 1 day claim delay
+            "100000000000000000000" // 100 tokens per user (en wei)
+        ]
     },
     
     // Agrega más contratos según necesites

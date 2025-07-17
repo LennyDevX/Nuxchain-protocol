@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 /// @custom:security-contact security@nuvo.com
 /// @custom:version 3.0.0
 /// @custom:solc-version 0.8.30
-contract NuvoLogic is Ownable, Pausable, ReentrancyGuard {
+contract SmartStaking is Ownable, Pausable, ReentrancyGuard {
     using Address for address payable;
 
     // ════════════════════════════════════════════════════════════════════════════════════════

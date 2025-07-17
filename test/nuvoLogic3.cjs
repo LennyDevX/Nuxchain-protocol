@@ -1,16 +1,16 @@
 const { expect } = require("chai");
 const hardhat = require("hardhat");
 
-describe("NuvoLogic", function () {
-    let ethers, NuvoLogic, nuvo, owner, treasury, user1, user2, other;
+describe("SmartStaking", function () {
+    let ethers, SmartStaking, nuvo, owner, treasury, user1, user2, other;
     let MIN_DEPOSIT, MAX_DEPOSIT;
 
     beforeEach(async function () {
         ethers = hardhat.ethers;
         [owner, treasury, user1, user2, other] = await ethers.getSigners();
-        NuvoLogic = await ethers.getContractFactory("contracts/nuvoLogic3.sol:NuvoLogic");
-        nuvo = await NuvoLogic.deploy(treasury.address);
-        
+        SmartStaking = await ethers.getContractFactory("SmartStaking");
+        nuvo = await SmartStaking.deploy(treasury.address);
+
         // Usando ethers v6
         MIN_DEPOSIT = ethers.parseEther("5");
         MAX_DEPOSIT = ethers.parseEther("10000");

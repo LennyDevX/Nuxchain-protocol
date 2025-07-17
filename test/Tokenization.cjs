@@ -1,9 +1,9 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("TokenizationApp Contract", function () {
-  let TokenizationApp;
-  let tokenizationApp;
+describe("Marketplace", function () {
+  let Marketplace;
+  let marketplace;
   let owner;
   let creator;
   let buyer;
@@ -27,26 +27,26 @@ describe("TokenizationApp Contract", function () {
     [owner, creator, buyer, anotherUser, royaltyReceiver, moderator, treasury] = await ethers.getSigners();
     
     // Deploy the contract first
-    const TokenizationAppFactory = await ethers.getContractFactory("TokenizationApp");
-    tokenizationApp = await TokenizationAppFactory.deploy();
-    await tokenizationApp.waitForDeployment();
+    const MarketplaceFactory = await ethers.getContractFactory("Marketplace");
+    marketplace = await MarketplaceFactory.deploy();
+    await marketplace.waitForDeployment();
 
     // Setup constants that require ethers
     initialPrice = ethers.parseEther("0.1");
     offerAmount = ethers.parseEther("0.08");
-    ADMIN_ROLE = await tokenizationApp.ADMIN_ROLE();
-    MODERATOR_ROLE = await tokenizationApp.MODERATOR_ROLE();
-    DEFAULT_ADMIN_ROLE = await tokenizationApp.DEFAULT_ADMIN_ROLE();
-    
+    ADMIN_ROLE = await marketplace.ADMIN_ROLE();
+    MODERATOR_ROLE = await marketplace.MODERATOR_ROLE();
+    DEFAULT_ADMIN_ROLE = await marketplace.DEFAULT_ADMIN_ROLE();
+ 
     // Grant moderator role
-    await tokenizationApp.grantRole(MODERATOR_ROLE, moderator.address);
+    await marketplace.grantRole(MODERATOR_ROLE, moderator.address);
     // Set a separate treasury for testing fee collection
-    await tokenizationApp.setPlatformTreasury(treasury.address);
+    await marketplace.setPlatformTreasury(treasury.address);
   });
 
   // Helper function to extract events from transaction receipt in ethers v6
   async function extractEvent(receipt, eventName) {
-    const contractInterface = tokenizationApp.interface;
+    const contractInterface = marketplace.interface;
     
     // Loop through the logs to find the event we're looking for
     for (const log of receipt.logs) {
@@ -72,61 +72,61 @@ describe("TokenizationApp Contract", function () {
 
   describe("Deployment", function () {
     it("Should set the right admin role", async function () {
-      expect(await tokenizationApp.hasRole(DEFAULT_ADMIN_ROLE, owner.address)).to.be.true;
+      expect(await marketplace.hasRole(DEFAULT_ADMIN_ROLE, owner.address)).to.be.true;
     });
 
     it("Should set initial platform fee to 5%", async function () {
-      expect(await tokenizationApp.platformFeePercentage()).to.equal(platformFee);
+      expect(await marketplace.platformFeePercentage()).to.equal(platformFee);
     });
 
     it("Should set initial default royalty to 2.5%", async function () {
-      expect(await tokenizationApp.defaultRoyaltyPercentage()).to.equal(defaultRoyaltyPercentage);
+      expect(await marketplace.defaultRoyaltyPercentage()).to.equal(defaultRoyaltyPercentage);
     });
 
     it("Should register initial categories", async function () {
       // Test one of the pre-registered categories
       const testCategory = defaultCategory;
-      await expect(tokenizationApp.connect(creator).createNFT(tokenURI, testCategory, 0)).to.not.be.reverted;
+      await expect(marketplace.connect(creator).createNFT(tokenURI, testCategory, 0)).to.not.be.reverted;
     });
   });
 
   describe("NFT Creation", function () {
     it("Should allow users to create NFTs", async function () {
-      const tx = await tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, 0);
+      const tx = await marketplace.connect(creator).createNFT(tokenURI, defaultCategory, 0);
       const receipt = await tx.wait();
       
       // Find the TokenMinted event using the helper
       const event = await extractEvent(receipt, 'TokenMinted');
       const tokenId = event.args.tokenId;
       
-      expect(await tokenizationApp.ownerOf(tokenId)).to.equal(creator.address);
-      expect(await tokenizationApp.tokenURI(tokenId)).to.equal(tokenURI);
+      expect(await marketplace.ownerOf(tokenId)).to.equal(creator.address);
+      expect(await marketplace.tokenURI(tokenId)).to.equal(tokenURI);
     });
 
     it("Should allow setting custom royalty percentage", async function () {
       const customRoyaltyPercentage = 500; // 5%
-      const tx = await tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, customRoyaltyPercentage);
+      const tx = await marketplace.connect(creator).createNFT(tokenURI, defaultCategory, customRoyaltyPercentage);
       const receipt = await tx.wait();
       
       const event = await extractEvent(receipt, 'TokenMinted');
       const tokenId = event.args.tokenId;
       
       // Check if royalty info is set correctly
-      const royaltyInfo = await tokenizationApp.royaltyInfo(tokenId, ethers.parseEther("1.0"));
+      const royaltyInfo = await marketplace.royaltyInfo(tokenId, ethers.parseEther("1.0"));
       expect(royaltyInfo[0]).to.equal(creator.address); // Receiver
       expect(royaltyInfo[1]).to.equal(ethers.parseEther("0.05")); // 5% of 1 ETH
     });
 
     it("Should reject creation with invalid category", async function () {
       await expect(
-        tokenizationApp.connect(creator).createNFT(tokenURI, "invalidCategory", 0)
-      ).to.be.revertedWithCustomError(tokenizationApp, "CategoryNotValid");
+        marketplace.connect(creator).createNFT(tokenURI, "invalidCategory", 0)
+      ).to.be.revertedWithCustomError(marketplace, "CategoryNotValid");
     });
 
     it("Should reject creation with too high royalty", async function () {
       await expect(
-        tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, 1001) // > 10%
-      ).to.be.revertedWithCustomError(tokenizationApp, "RoyaltyTooHigh");
+        marketplace.connect(creator).createNFT(tokenURI, defaultCategory, 1001) // > 10%
+      ).to.be.revertedWithCustomError(marketplace, "RoyaltyTooHigh");
     });
   });
 
@@ -135,58 +135,58 @@ describe("TokenizationApp Contract", function () {
 
     beforeEach(async function () {
       // Create a token first
-      const tx = await tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, 0);
+      const tx = await marketplace.connect(creator).createNFT(tokenURI, defaultCategory, 0);
       const receipt = await tx.wait();
       const event = await extractEvent(receipt, 'TokenMinted');
       tokenId = event.args.tokenId;
     });
 
     it("Should allow token owner to list a token for sale", async function () {
-      await expect(tokenizationApp.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory))
-        .to.emit(tokenizationApp, "TokenListed")
+      await expect(marketplace.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory))
+        .to.emit(marketplace, "TokenListed")
         .withArgs(tokenId, creator.address, initialPrice, defaultCategory);
       
-      const listedToken = await tokenizationApp.getListedToken(tokenId);
+      const listedToken = await marketplace.getListedToken(tokenId);
       expect(listedToken[3]).to.equal(initialPrice); // price
       expect(listedToken[4]).to.be.true; // isForSale
     });
 
     it("Should allow unlisting a token", async function () {
-      await tokenizationApp.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory);
-      await expect(tokenizationApp.connect(creator).unlistedToken(tokenId))
-        .to.emit(tokenizationApp, "TokenUnlisted")
+      await marketplace.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory);
+      await expect(marketplace.connect(creator).unlistedToken(tokenId))
+        .to.emit(marketplace, "TokenUnlisted")
         .withArgs(tokenId);
 
-      const listedToken = await tokenizationApp.getListedToken(tokenId);
+      const listedToken = await marketplace.getListedToken(tokenId);
       expect(listedToken[4]).to.be.false; // isForSale
     });
 
     it("Should allow updating the price of a listed token", async function () {
       const newPrice = ethers.parseEther("0.2");
-      await tokenizationApp.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory);
-      await expect(tokenizationApp.connect(creator).updatePrice(tokenId, newPrice))
-        .to.emit(tokenizationApp, "TokenPriceUpdated")
+      await marketplace.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory);
+      await expect(marketplace.connect(creator).updatePrice(tokenId, newPrice))
+        .to.emit(marketplace, "TokenPriceUpdated")
         .withArgs(tokenId, newPrice);
 
-      const listedToken = await tokenizationApp.getListedToken(tokenId);
+      const listedToken = await marketplace.getListedToken(tokenId);
       expect(listedToken[3]).to.equal(newPrice); // price
     });
 
     it("Should allow buying a listed token", async function () {
       // List the token
-      await tokenizationApp.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory);
+      await marketplace.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory);
       
       const creatorInitialBalance = await ethers.provider.getBalance(creator.address);
       const treasuryInitialBalance = await ethers.provider.getBalance(treasury.address);
       
       // Buy the token
-      const tx = await tokenizationApp.connect(buyer).buyToken(tokenId, {
+      const tx = await marketplace.connect(buyer).buyToken(tokenId, {
         value: initialPrice
       });
       await tx.wait();
       
       // Check ownership
-      expect(await tokenizationApp.ownerOf(tokenId)).to.equal(buyer.address);
+      expect(await marketplace.ownerOf(tokenId)).to.equal(buyer.address);
       
       // Check balances
       const creatorFinalBalance = await ethers.provider.getBalance(creator.address);
@@ -200,20 +200,20 @@ describe("TokenizationApp Contract", function () {
 
     it("Should not allow buying a token that's not for sale", async function () {
       await expect(
-        tokenizationApp.connect(buyer).buyToken(tokenId, { value: initialPrice })
-      ).to.be.revertedWithCustomError(tokenizationApp, "TokenNotForSale");
+        marketplace.connect(buyer).buyToken(tokenId, { value: initialPrice })
+      ).to.be.revertedWithCustomError(marketplace, "TokenNotForSale");
     });
 
     it("Should not allow buying with insufficient funds", async function () {
       // List the token
-      await tokenizationApp.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory);
+      await marketplace.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory);
       
       // Try to buy with less than the price
       await expect(
-        tokenizationApp.connect(buyer).buyToken(tokenId, { 
+        marketplace.connect(buyer).buyToken(tokenId, { 
           value: initialPrice / 2n 
         })
-      ).to.be.revertedWithCustomError(tokenizationApp, "InsufficientFunds");
+      ).to.be.revertedWithCustomError(marketplace, "InsufficientFunds");
     });
   });
 
@@ -223,20 +223,20 @@ describe("TokenizationApp Contract", function () {
 
     beforeEach(async function () {
       // Create and list a token
-      const tx = await tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, 0);
+      const tx = await marketplace.connect(creator).createNFT(tokenURI, defaultCategory, 0);
       const receipt = await tx.wait();
       const event = await extractEvent(receipt, 'TokenMinted');
       tokenId = event.args.tokenId;
       
       // Make an offer
-      const offerTx = await tokenizationApp.connect(buyer).makeOffer(tokenId, 7, { value: offerAmount });
+      const offerTx = await marketplace.connect(buyer).makeOffer(tokenId, 7, { value: offerAmount });
       const offerReceipt = await offerTx.wait();
       const offerEvent = await extractEvent(offerReceipt, 'OfferCreated');
       offerId = offerEvent.args.offerId;
     });
 
     it("Should allow making an offer for a token", async function () {
-      const offer = await tokenizationApp.getOffer(offerId);
+      const offer = await marketplace.getOffer(offerId);
       expect(offer[0]).to.equal(offerId); // offerId
       expect(offer[1]).to.equal(tokenId); // tokenId
       expect(offer[2]).to.equal(buyer.address); // buyer
@@ -248,11 +248,11 @@ describe("TokenizationApp Contract", function () {
       const creatorInitialBalance = await ethers.provider.getBalance(creator.address);
       const treasuryInitialBalance = await ethers.provider.getBalance(treasury.address);
 
-      const tx = await tokenizationApp.connect(creator).acceptOffer(offerId);
+      const tx = await marketplace.connect(creator).acceptOffer(offerId);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed * receipt.gasPrice;
 
-      expect(await tokenizationApp.ownerOf(tokenId)).to.equal(buyer.address);
+      expect(await marketplace.ownerOf(tokenId)).to.equal(buyer.address);
 
       const creatorFinalBalance = await ethers.provider.getBalance(creator.address);
       const treasuryFinalBalance = await ethers.provider.getBalance(treasury.address);
@@ -264,18 +264,18 @@ describe("TokenizationApp Contract", function () {
     });
 
     it("Should allow token owner to reject an offer", async function () {
-      await expect(tokenizationApp.connect(creator).rejectOffer(offerId))
-        .to.emit(tokenizationApp, "OfferRejected")
+      await expect(marketplace.connect(creator).rejectOffer(offerId))
+        .to.emit(marketplace, "OfferRejected")
         .withArgs(offerId);
       
-      const offer = await tokenizationApp.getOffer(offerId);
+      const offer = await marketplace.getOffer(offerId);
       expect(offer[5]).to.be.false; // isActive
     });
 
     it("Should allow buyer to cancel an offer", async function () {
       const buyerInitialBalance = await ethers.provider.getBalance(buyer.address);
       
-      const tx = await tokenizationApp.connect(buyer).cancelOffer(offerId);
+      const tx = await marketplace.connect(buyer).cancelOffer(offerId);
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed * receipt.gasPrice;
 
@@ -285,8 +285,8 @@ describe("TokenizationApp Contract", function () {
 
     it("Should not allow non-owner to accept an offer", async function () {
       await expect(
-        tokenizationApp.connect(anotherUser).acceptOffer(offerId)
-      ).to.be.revertedWithCustomError(tokenizationApp, "Unauthorized");
+        marketplace.connect(anotherUser).acceptOffer(offerId)
+      ).to.be.revertedWithCustomError(marketplace, "Unauthorized");
     });
   });
 
@@ -295,36 +295,36 @@ describe("TokenizationApp Contract", function () {
 
     beforeEach(async function () {
       // Create a token
-      const tx = await tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, 0);
+      const tx = await marketplace.connect(creator).createNFT(tokenURI, defaultCategory, 0);
       const receipt = await tx.wait();
       const event = await extractEvent(receipt, 'TokenMinted');
       tokenId = event.args.tokenId;
     });
 
     it("Should allow users to like a token", async function () {
-      await tokenizationApp.connect(buyer).toggleLike(tokenId, true);
+      await marketplace.connect(buyer).toggleLike(tokenId, true);
       
-      expect(await tokenizationApp.getLikesCount(tokenId)).to.equal(1);
-      expect(await tokenizationApp.hasUserLiked(tokenId, buyer.address)).to.be.true;
+      expect(await marketplace.getLikesCount(tokenId)).to.equal(1);
+      expect(await marketplace.hasUserLiked(tokenId, buyer.address)).to.be.true;
     });
 
     it("Should allow users to unlike a token", async function () {
       // Like first
-      await tokenizationApp.connect(buyer).toggleLike(tokenId, true);
+      await marketplace.connect(buyer).toggleLike(tokenId, true);
       
       // Then unlike
-      await tokenizationApp.connect(buyer).toggleLike(tokenId, false);
+      await marketplace.connect(buyer).toggleLike(tokenId, false);
       
-      expect(await tokenizationApp.getLikesCount(tokenId)).to.equal(0);
-      expect(await tokenizationApp.hasUserLiked(tokenId, buyer.address)).to.be.false;
+      expect(await marketplace.getLikesCount(tokenId)).to.equal(0);
+      expect(await marketplace.hasUserLiked(tokenId, buyer.address)).to.be.false;
     });
 
     it("Should allow adding comments to a token", async function () {
       const comment = "This is a great NFT!";
       
-      await tokenizationApp.connect(buyer).addComment(tokenId, comment);
+      await marketplace.connect(buyer).addComment(tokenId, comment);
       
-      const comments = await tokenizationApp.getComments(tokenId, 0, 10);
+      const comments = await marketplace.getComments(tokenId, 0, 10);
       expect(comments[0][0]).to.equal(buyer.address); // commenter
       expect(comments[1][0]).to.equal(comment); // text
     });
@@ -334,26 +334,26 @@ describe("TokenizationApp Contract", function () {
     it("Should pay royalties on secondary sales", async function () {
       // Create a token with 5% royalty
       const royaltyPercentage = 500; // 5%
-      const tx = await tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, royaltyPercentage);
+      const tx = await marketplace.connect(creator).createNFT(tokenURI, defaultCategory, royaltyPercentage);
       const receipt = await tx.wait();
       const event = await extractEvent(receipt, 'TokenMinted');
       const tokenId = event.args.tokenId;
       
       // List the token
-      await tokenizationApp.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory);
+      await marketplace.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory);
       
       // Buy the token (first sale)
-      await tokenizationApp.connect(buyer).buyToken(tokenId, { value: initialPrice });
+      await marketplace.connect(buyer).buyToken(tokenId, { value: initialPrice });
       
       // Buyer lists the token for a higher price
       const newPrice = ethers.parseEther("0.2");
-      await tokenizationApp.connect(buyer).listTokenForSale(tokenId, newPrice, defaultCategory);
+      await marketplace.connect(buyer).listTokenForSale(tokenId, newPrice, defaultCategory);
       
       // Creator's initial balance before secondary sale
       const creatorInitialBalance = await ethers.provider.getBalance(creator.address);
       
       // Another user buys the token (secondary sale)
-      await tokenizationApp.connect(anotherUser).buyToken(tokenId, { value: newPrice });
+      await marketplace.connect(anotherUser).buyToken(tokenId, { value: newPrice });
       
       // Check creator received royalties
       const creatorFinalBalance = await ethers.provider.getBalance(creator.address);
@@ -366,126 +366,126 @@ describe("TokenizationApp Contract", function () {
   describe("Administrative Functions", function () {
     it("Should allow admin to set platform fee", async function () {
       const newFee = 7; // 7%
-      await tokenizationApp.connect(owner).setPlatformFee(newFee);
+      await marketplace.connect(owner).setPlatformFee(newFee);
       
-      expect(await tokenizationApp.platformFeePercentage()).to.equal(newFee);
+      expect(await marketplace.platformFeePercentage()).to.equal(newFee);
     });
 
     it("Should allow admin to set default royalty", async function () {
       const newRoyalty = 300; // 3%
-      await tokenizationApp.connect(owner).setDefaultRoyalty(newRoyalty);
+      await marketplace.connect(owner).setDefaultRoyalty(newRoyalty);
       
-      expect(await tokenizationApp.defaultRoyaltyPercentage()).to.equal(newRoyalty);
+      expect(await marketplace.defaultRoyaltyPercentage()).to.equal(newRoyalty);
     });
 
     it("Should allow admin to set platform treasury", async function () {
       const newTreasury = anotherUser.address;
-      await tokenizationApp.connect(owner).setPlatformTreasury(newTreasury);
-      expect(await tokenizationApp.platformTreasury()).to.equal(newTreasury);
+      await marketplace.connect(owner).setPlatformTreasury(newTreasury);
+      expect(await marketplace.platformTreasury()).to.equal(newTreasury);
     });
 
     it("Should allow moderator to blacklist an address", async function () {
-      await tokenizationApp.connect(moderator).blacklistAddress(anotherUser.address);
+      await marketplace.connect(moderator).blacklistAddress(anotherUser.address);
       
       // Try to create an NFT from blacklisted address
       await expect(
-        tokenizationApp.connect(anotherUser).createNFT(tokenURI, defaultCategory, 0)
-      ).to.be.revertedWithCustomError(tokenizationApp, "BlacklistedAddress");
+        marketplace.connect(anotherUser).createNFT(tokenURI, defaultCategory, 0)
+      ).to.be.revertedWithCustomError(marketplace, "BlacklistedAddress");
     });
 
     it("Should allow admin to remove address from blacklist", async function () {
       // Blacklist first
-      await tokenizationApp.connect(moderator).blacklistAddress(anotherUser.address);
+      await marketplace.connect(moderator).blacklistAddress(anotherUser.address);
       
       // Then remove from blacklist
-      await tokenizationApp.connect(owner).removeFromBlacklist(anotherUser.address);
+      await marketplace.connect(owner).removeFromBlacklist(anotherUser.address);
       
       // Should now be able to create an NFT
-      await expect(tokenizationApp.connect(anotherUser).createNFT(tokenURI, defaultCategory, 0)).to.not.be.reverted;
+      await expect(marketplace.connect(anotherUser).createNFT(tokenURI, defaultCategory, 0)).to.not.be.reverted;
     });
 
     it("Should allow admin to register new categories", async function () {
       const newCategory = "deportes";
-      await tokenizationApp.connect(moderator).registerCategory(newCategory);
+      await marketplace.connect(moderator).registerCategory(newCategory);
       
       // Try to use the new category
-      await expect(tokenizationApp.connect(creator).createNFT(tokenURI, newCategory, 0)).to.not.be.reverted;
+      await expect(marketplace.connect(creator).createNFT(tokenURI, newCategory, 0)).to.not.be.reverted;
     });
 
     it("Should allow pausing and unpausing the contract", async function () {
       // Pause the contract
-      await tokenizationApp.connect(owner).pause();
+      await marketplace.connect(owner).pause();
       
       // Try to create an NFT
       await expect(
-        tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, 0)
+        marketplace.connect(creator).createNFT(tokenURI, defaultCategory, 0)
       ).to.be.revertedWith("Pausable: paused");
       
       // Unpause the contract
-      await tokenizationApp.connect(owner).unpause();
+      await marketplace.connect(owner).unpause();
       
       // Should now be able to create an NFT
-      await expect(tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, 0)).to.not.be.reverted;
+      await expect(marketplace.connect(creator).createNFT(tokenURI, defaultCategory, 0)).to.not.be.reverted;
     });
 
     it("Should allow pausing specific sections", async function () {
       // Pause the NFT creation section (3)
-      await tokenizationApp.connect(owner).setSectionPaused(3, true);
+      await marketplace.connect(owner).setSectionPaused(3, true);
       
       // Try to create an NFT
       await expect(
-        tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, 0)
-      ).to.be.revertedWithCustomError(tokenizationApp, "SectionPaused");
+        marketplace.connect(creator).createNFT(tokenURI, defaultCategory, 0)
+      ).to.be.revertedWithCustomError(marketplace, "SectionPaused");
       
       // Unpause the section
-      await tokenizationApp.connect(owner).setSectionPaused(3, false);
+      await marketplace.connect(owner).setSectionPaused(3, false);
       
       // Should now be able to create an NFT
-      await expect(tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, 0)).to.not.be.reverted;
+      await expect(marketplace.connect(creator).createNFT(tokenURI, defaultCategory, 0)).to.not.be.reverted;
     });
   });
 
   describe("Edge Cases", function () {
     it("Should handle offer cancellation after a sale", async function () {
       // Create and list a token
-      const tx = await tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, 0);
+      const tx = await marketplace.connect(creator).createNFT(tokenURI, defaultCategory, 0);
       const receipt = await tx.wait();
       const event = await extractEvent(receipt, 'TokenMinted');
       const tokenId = event.args.tokenId;
-      await tokenizationApp.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory);
+      await marketplace.connect(creator).listTokenForSale(tokenId, initialPrice, defaultCategory);
 
       // anotherUser makes an offer
-      const offerTx = await tokenizationApp.connect(anotherUser).makeOffer(tokenId, 1, { value: offerAmount });
+      const offerTx = await marketplace.connect(anotherUser).makeOffer(tokenId, 1, { value: offerAmount });
       const offerReceipt = await offerTx.wait();
       const offerEvent = await extractEvent(offerReceipt, 'OfferCreated');
       const offerId = offerEvent.args.offerId;
 
       // buyer buys the token
-      await tokenizationApp.connect(buyer).buyToken(tokenId, { value: initialPrice });
+      await marketplace.connect(buyer).buyToken(tokenId, { value: initialPrice });
 
       // anotherUser tries to cancel their now-inactive offer
-      await expect(tokenizationApp.connect(anotherUser).cancelOffer(offerId))
-        .to.be.revertedWithCustomError(tokenizationApp, "OfferNotActive");
+      await expect(marketplace.connect(anotherUser).cancelOffer(offerId))
+        .to.be.revertedWithCustomError(marketplace, "OfferNotActive");
     });
 
     it("Should not allow creating tokens with invalid inputs", async function () {
       // Empty token URI
       await expect(
-        tokenizationApp.connect(creator).createNFT("", defaultCategory, 0)
-      ).to.be.revertedWithCustomError(tokenizationApp, "InvalidInput");
+        marketplace.connect(creator).createNFT("", defaultCategory, 0)
+      ).to.be.revertedWithCustomError(marketplace, "InvalidInput");
     });
 
     it("Should not allow listing tokens with price too low", async function () {
       // Create a token
-      const tx = await tokenizationApp.connect(creator).createNFT(tokenURI, defaultCategory, 0);
+      const tx = await marketplace.connect(creator).createNFT(tokenURI, defaultCategory, 0);
       const receipt = await tx.wait();
       const event = await extractEvent(receipt, 'TokenMinted');
       const tokenId = event.args.tokenId;
       
       // Try to list with price too low
       await expect(
-        tokenizationApp.connect(creator).listTokenForSale(tokenId, 10, defaultCategory) // price < MIN_PRICE
-      ).to.be.revertedWithCustomError(tokenizationApp, "InvalidInput");
+        marketplace.connect(creator).listTokenForSale(tokenId, 10, defaultCategory) // price < MIN_PRICE
+      ).to.be.revertedWithCustomError(marketplace, "InvalidInput");
     });
   });
 });

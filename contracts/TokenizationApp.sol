@@ -13,13 +13,13 @@ import "@openzeppelin/contracts/token/common/ERC2981.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 /**
- * @title TokenizationApp
+ * @title Marketplace
  * @dev Un contrato para un marketplace de NFTs donde cualquier usuario puede
  * crear, listar y vender sus propios NFTs. Incluye funcionalidades de
  * likes, gestión de ventas y royalties.
  * Actualizado a Solidity 0.8.30 para mayor eficiencia y seguridad.
  */
-contract TokenizationApp is 
+contract Marketplace is 
     ERC721, 
     ERC721URIStorage, 
     ERC721Royalty,
