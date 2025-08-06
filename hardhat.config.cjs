@@ -5,13 +5,13 @@ module.exports = {
   solidity: {
     compilers: [
       {
-        version: "0.8.30",
+        version: "0.8.28",
         settings: {
           optimizer: {
             enabled: true,
-            runs: 800 // Aumentar para reducir impacto de calldata
+            runs: 800
           },
-          evmVersion: "prague"
+          evmVersion: "cancun"
         }
       },
       {

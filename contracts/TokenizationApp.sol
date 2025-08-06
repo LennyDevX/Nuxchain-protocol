@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
@@ -50,6 +50,9 @@ contract Marketplace is
     
     // Límite máximo de NFTs por transacción para prevenir ataques de gas
     uint256 public constant MAX_BATCH_SIZE = 20;
+    
+    // Límite máximo de NFTs por batch de minteo
+    uint256 public constant MAX_BATCH_MINT_SIZE = 1000;
     
     // Precio mínimo para prevenir errores y manipulación
     uint256 public constant MIN_PRICE = 1000 wei;
@@ -232,6 +235,57 @@ contract Marketplace is
         
         emit TokenMinted(newTokenId, msg.sender, _tokenURI, category);
         return newTokenId;
+    }
+    
+    /**
+     * @dev Permite a cualquier usuario crear múltiples copias de un NFT con la misma URI.
+     * @param _tokenURI La URI que apunta a los metadatos del NFT.
+     * @param category La categoría del NFT.
+     * @param royaltyPercentage El porcentaje de royalty para ventas secundarias (base 10000).
+     * @param quantity Número de copias a crear (1-1000).
+     * @return Array con los IDs de los nuevos tokens minteados.
+     */
+    function createNFTBatch(
+        string calldata _tokenURI,
+        string calldata category,
+        uint96 royaltyPercentage,
+        uint256 quantity
+    )
+        public
+        whenNotPaused
+        whenSectionNotPaused(3)
+        notBlacklisted
+        validCategory(category)
+        returns (uint256[] memory)
+    {
+        if (bytes(_tokenURI).length == 0) revert InvalidInput();
+        if (royaltyPercentage > 1000) revert RoyaltyTooHigh(); // Max 10%
+        if (quantity == 0 || quantity > MAX_BATCH_MINT_SIZE) revert InvalidInput();
+        
+        uint256[] memory tokenIds = new uint256[](quantity);
+        
+        // Usar el royalty específico o el predeterminado
+        uint96 finalRoyalty = royaltyPercentage > 0 ? royaltyPercentage : defaultRoyaltyPercentage;
+        
+        for (uint256 i = 0; i < quantity; i++) {
+            _tokenIdCounter.increment();
+            uint256 newTokenId = _tokenIdCounter.current();
+            
+            _setTokenRoyalty(newTokenId, msg.sender, finalRoyalty);
+            _safeMint(msg.sender, newTokenId);
+            _setTokenURI(newTokenId, _tokenURI);
+            
+            // Registrar creator original para royalties
+            _originalCreators[newTokenId] = msg.sender;
+            _creatorTokensSet[msg.sender].add(newTokenId);
+            
+            tokenIds[i] = newTokenId;
+        }
+        
+        // Emitir eventos después del loop para evitar stack too deep
+        _emitBatchMintEvents(tokenIds, _tokenURI, category);
+        
+        return tokenIds;
     }
     
     /**
@@ -927,5 +981,21 @@ contract Marketplace is
         override(ERC721, ERC721URIStorage, ERC721Royalty) 
     {
         super._burn(tokenId);
+    }
+
+    /**
+     * @dev Emite eventos para el minteo en lote para evitar stack too deep.
+     * @param tokenIds Array de IDs de tokens minteados.
+     * @param tokenURIValue URI de los tokens.
+     * @param category Categoría de los tokens.
+     */
+    function _emitBatchMintEvents(
+        uint256[] memory tokenIds,
+        string memory tokenURIValue,
+        string memory category
+    ) internal {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            emit TokenMinted(tokenIds[i], msg.sender, tokenURIValue, category);
+        }
     }
 }

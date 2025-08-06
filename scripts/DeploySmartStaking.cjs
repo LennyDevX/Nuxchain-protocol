@@ -23,7 +23,7 @@ async function main() {
   console.log("Compilación completada");
 
   // Desplegamos el contrato
-  const SmartStaking = await ethers.getContractFactory("NuvoLogic");
+  const SmartStaking = await ethers.getContractFactory("SmartStaking");
   const smartStaking = await SmartStaking.deploy(treasuryAddress);
 
   await smartStaking.waitForDeployment();
@@ -42,7 +42,7 @@ async function main() {
       await run("verify:verify", {
         address: contractAddress,
         constructorArguments: [treasuryAddress],
-        contract: "contracts/SmartStaking.sol:NuvoLogic"
+        contract: "contracts/SmartStaking.sol:SmartStaking"
       });
       console.log("¡Contrato verificado!");
     } catch (error) {
