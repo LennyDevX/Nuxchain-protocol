@@ -14,8 +14,8 @@ async function main() {
     `\nBalance: ${ethers.formatEther(deployerBalance)} ETH`
   );
 
-  // Dirección del treasury - puedes cambiar esta dirección según tus necesidades
-  const treasuryAddress = deployer.address; // Por defecto usa la dirección del deployer
+  // Dirección del treasury - dirección específica para recibir comisiones
+  const treasuryAddress = "0xad14c117b51735c072d42571e30bf2c729cd9593";
   console.log(`Treasury address: ${treasuryAddress}`);
 
   // Compilamos el contrato para asegurarnos que está actualizado

@@ -41,10 +41,10 @@ contract SmartStaking is Ownable, Pausable, ReentrancyGuard {
     uint256 private constant WITHDRAWAL_LIMIT_PERIOD = 1 days; // 24 hours
 
     // Hourly ROI percentages for lock-up periods (in basis points, 100 = 0.01%)
-    uint256 private constant ROI_30_DAYS_LOCKUP = 150; // 0.015% per hour
-    uint256 private constant ROI_90_DAYS_LOCKUP = 200; // 0.02% per hour
-    uint256 private constant ROI_180_DAYS_LOCKUP = 300;  // 0.03% per hour
-    uint256 private constant ROI_365_DAYS_LOCKUP = 410;  // 0.041% per hour
+    uint256 private constant ROI_30_DAYS_LOCKUP = 120; // 0.012% per hour
+    uint256 private constant ROI_90_DAYS_LOCKUP = 160; // 0.016% per hour
+    uint256 private constant ROI_180_DAYS_LOCKUP = 200;  // 0.02% per hour
+    uint256 private constant ROI_365_DAYS_LOCKUP = 300;  // 0.03% per hour
 
     // ════════════════════════════════════════════════════════════════════════════════════════
     // STATE VARIABLES (Optimized packing)
