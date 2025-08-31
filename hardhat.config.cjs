@@ -11,6 +11,7 @@ module.exports = {
             enabled: true,
             runs: 800
           },
+          viaIR: true,
           evmVersion: "cancun"
         }
       },
@@ -21,6 +22,7 @@ module.exports = {
             enabled: true,
             runs: 800
           },
+          viaIR: true,
           evmVersion: "cancun"
         }
       }
