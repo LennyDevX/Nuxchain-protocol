@@ -1,18 +1,26 @@
-const { ethers } = require("hardhat");
+const { ethers, network, run } = require("hardhat");
 const fs = require("fs");
 const path = require("path");
 
 async function main() {
-  console.log("🚀 Iniciando deployment de MinerBot Empire...");
+  console.log(`🚀 Desplegando MinerBot Empire en la red ${network.name}...`);
   
   // Obtener signers
   const [deployer] = await ethers.getSigners();
-  console.log("📝 Deploying contracts with account:", deployer.address);
-  console.log("💰 Account balance:", ethers.formatEther(await deployer.provider.getBalance(deployer.address)), "ETH");
+  const deployerBalance = await ethers.provider.getBalance(deployer.address);
+  
+  console.log(
+    `📝 Cuenta de despliegue: ${deployer.address}`,
+    `\n💰 Balance: ${ethers.formatEther(deployerBalance)} ETH`
+  );
+
+  // Compilamos los contratos para asegurarnos que están actualizados
+  await run("compile");
+  console.log("✅ Compilación completada");
 
   const deployedContracts = {};
   const deploymentInfo = {
-    network: hre.network.name,
+    network: network.name,
     deployer: deployer.address,
     timestamp: new Date().toISOString(),
     contracts: {}
@@ -128,7 +136,11 @@ async function main() {
     console.log("🔑 Authorizing game contract for NFTs...");
     await nft.authorizeGameContract(gameAddress);
     
-    console.log("✅ All authorizations completed!");
+    console.log("✅ Todas las autorizaciones completadas!");
+
+    // Esperamos unos bloques para asegurarnos que las transacciones están confirmadas
+    console.log("⏳ Esperando confirmaciones...");
+    await new Promise(resolve => setTimeout(resolve, 30000)); // 30 segundos
 
     // 7. Verificar configuraciones
     console.log("\n🔍 Verifying configurations...");
@@ -149,90 +161,157 @@ async function main() {
     console.log("👑 Staking owner:", await staking.owner());
     console.log("👑 Marketplace owner:", await marketplace.owner());
 
-    // 8. Guardar información de deployment
-    const deploymentsDir = path.join(__dirname, '..', 'deployments');
-    if (!fs.existsSync(deploymentsDir)) {
-      fs.mkdirSync(deploymentsDir, { recursive: true });
+    // 8. Verificar contratos si no estamos en localhost
+    if (network.name !== "localhost" && network.name !== "hardhat") {
+      try {
+        console.log("\n🔍 Verificando contratos en Etherscan...");
+        
+        console.log("🔍 Verificando MinerBotToken...");
+        await run("verify:verify", {
+          address: tokenAddress,
+          constructorArguments: [],
+          contract: "contracts/MinerBotGame/MinerBotToken.sol:MinerBotToken"
+        });
+        
+        console.log("🔍 Verificando MinerBotNFT...");
+        await run("verify:verify", {
+          address: nftAddress,
+          constructorArguments: [tokenAddress],
+          contract: "contracts/MinerBotGame/MinerBotNFT.sol:MinerBotNFT"
+        });
+        
+        console.log("🔍 Verificando MinerBotGame...");
+        await run("verify:verify", {
+          address: gameAddress,
+          constructorArguments: [tokenAddress, nftAddress],
+          contract: "contracts/MinerBotGame/MinerBotGame.sol:MinerBotGame"
+        });
+        
+        console.log("🔍 Verificando MinerBotStaking...");
+        await run("verify:verify", {
+          address: stakingAddress,
+          constructorArguments: [tokenAddress],
+          contract: "contracts/MinerBotGame/MinerBotStaking.sol:MinerBotStaking"
+        });
+        
+        console.log("🔍 Verificando MinerBotMarketplace...");
+        await run("verify:verify", {
+          address: marketplaceAddress,
+          constructorArguments: [nftAddress, tokenAddress],
+          contract: "contracts/MinerBotGame/MinerBotMarketplace.sol:MinerBotMarketplace"
+        });
+        
+        console.log("✅ ¡Todos los contratos verificados!");
+      } catch (error) {
+        console.log("❌ Error durante la verificación:", error.message);
+      }
     }
-    
-    const deploymentFile = path.join(deploymentsDir, `${hre.network.name}.json`);
-    fs.writeFileSync(deploymentFile, JSON.stringify(deploymentInfo, null, 2));
-    
-    console.log("\n📄 Deployment info saved to:", deploymentFile);
+
+    // 9. Guardar información de deployment
+    saveContractAddresses(network.name, {
+      MinerBotToken: tokenAddress,
+      MinerBotNFT: nftAddress,
+      MinerBotGame: gameAddress,
+      MinerBotStaking: stakingAddress,
+      MinerBotMarketplace: marketplaceAddress
+    });
+
+    // 10. Configurar archivo de entorno para el frontend
+    saveEnvFile({
+      token: tokenAddress,
+      nft: nftAddress,
+      game: gameAddress,
+      staking: stakingAddress,
+      marketplace: marketplaceAddress
+    });
 
     // 9. Mostrar resumen final
-    console.log("\n🎉 ===== DEPLOYMENT COMPLETED SUCCESSFULLY! ===== 🎉");
-    console.log("\n📋 Contract Addresses:");
+    console.log("\n🎉 ===== DESPLIEGUE COMPLETADO EXITOSAMENTE! ===== 🎉");
+    console.log("\n📋 Direcciones de Contratos:");
     console.log("🪙 MinerBotToken:", tokenAddress);
     console.log("🤖 MinerBotNFT:", nftAddress);
     console.log("🎮 MinerBotGame:", gameAddress);
     console.log("🏦 MinerBotStaking:", stakingAddress);
     console.log("🛒 MinerBotMarketplace:", marketplaceAddress);
     
-    console.log("\n🔗 Network:", hre.network.name);
+    console.log("\n🔗 Red:", network.name);
     console.log("👤 Deployer:", deployer.address);
     console.log("⏰ Timestamp:", deploymentInfo.timestamp);
     
-    // 10. Instrucciones post-deployment
-    console.log("\n📝 Next Steps:");
-    console.log("1. Verify contracts on block explorer");
-    console.log("2. Set up frontend with contract addresses");
-    console.log("3. Test basic functionality");
-    console.log("4. Configure any additional parameters");
+    console.log("\n📝 Próximos Pasos:");
+    console.log("1. ✅ Contratos verificados en block explorer");
+    console.log("2. ✅ Variables de entorno configuradas para frontend");
+    console.log("3. 🔄 Probar funcionalidad básica");
+    console.log("4. 🔄 Configurar parámetros adicionales si es necesario");
     
-    if (hre.network.name !== "hardhat" && hre.network.name !== "localhost") {
-      console.log("\n🔍 To verify contracts, run:");
-      console.log(`npx hardhat verify --network ${hre.network.name} ${tokenAddress}`);
-      console.log(`npx hardhat verify --network ${hre.network.name} ${nftAddress} ${tokenAddress}`);
-      console.log(`npx hardhat verify --network ${hre.network.name} ${gameAddress} ${tokenAddress} ${nftAddress}`);
-      console.log(`npx hardhat verify --network ${hre.network.name} ${stakingAddress} ${tokenAddress}`);
-      console.log(`npx hardhat verify --network ${hre.network.name} ${marketplaceAddress} ${nftAddress} ${tokenAddress}`);
-    }
+    console.log("\n🚀 ¡MinerBot Empire está listo para usar!");
     
     return deployedContracts;
     
   } catch (error) {
-    console.error("❌ Deployment failed:", error);
+    console.error("❌ Error en el despliegue:", error);
     throw error;
   }
 }
 
-// Función para deployment en desarrollo con datos de prueba
-async function deployWithTestData() {
-  console.log("\n🧪 Setting up test data...");
-  
-  const contracts = await main();
-  const [deployer, testUser1, testUser2] = await ethers.getSigners();
-  
-  try {
-    // Transferir tokens a usuarios de prueba
-    const transferAmount = ethers.parseEther("10000");
-    
-    if (testUser1) {
-      await contracts.token.transfer(testUser1.address, transferAmount);
-      console.log("💰 Transferred", ethers.formatEther(transferAmount), "MBT to", testUser1.address);
-    }
-    
-    if (testUser2) {
-      await contracts.token.transfer(testUser2.address, transferAmount);
-      console.log("💰 Transferred", ethers.formatEther(transferAmount), "MBT to", testUser2.address);
-    }
-    
-    console.log("✅ Test data setup completed!");
-    
-  } catch (error) {
-    console.error("❌ Test data setup failed:", error);
+function saveContractAddresses(networkName, contracts) {
+  const deploymentsDir = path.join(__dirname, "..", "deployments");
+  if (!fs.existsSync(deploymentsDir)) {
+    fs.mkdirSync(deploymentsDir, { recursive: true });
   }
+
+  const filePath = path.join(deploymentsDir, `${networkName}.json`);
+  let deployments = {};
+
+  if (fs.existsSync(filePath)) {
+    const fileContent = fs.readFileSync(filePath, "utf8");
+    deployments = JSON.parse(fileContent);
+  }
+
+  // Agregar todos los contratos de MinerBot
+  Object.assign(deployments, contracts);
+
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify(deployments, null, 2)
+  );
+
+  console.log(`📄 Direcciones de contratos guardadas en ${filePath}`);
 }
 
-// Ejecutar deployment
-if (require.main === module) {
-  main()
-    .then(() => process.exit(0))
-    .catch((error) => {
-      console.error(error);
-      process.exit(1);
-    });
+function saveEnvFile(contracts) {
+  const envPath = path.join(__dirname, "..", "frontend", ".env.local");
+  
+  // Contenido del archivo .env.local para MinerBot Empire
+  const envContent = `# MinerBot Empire Contract Addresses
+NEXT_PUBLIC_MINERBOT_TOKEN_ADDRESS=${contracts.token}
+NEXT_PUBLIC_MINERBOT_NFT_ADDRESS=${contracts.nft}
+NEXT_PUBLIC_MINERBOT_GAME_ADDRESS=${contracts.game}
+NEXT_PUBLIC_MINERBOT_STAKING_ADDRESS=${contracts.staking}
+NEXT_PUBLIC_MINERBOT_MARKETPLACE_ADDRESS=${contracts.marketplace}
+
+# Network Configuration
+NEXT_PUBLIC_CHAIN_ID=${network.config.chainId}
+NEXT_PUBLIC_NETWORK_NAME=${network.name}
+
+# App Configuration
+NEXT_PUBLIC_APP_NAME=MinerBot Empire
+NEXT_PUBLIC_APP_VERSION=1.0.0`;
+
+  // Crear directorio frontend si no existe
+  const frontendDir = path.join(__dirname, "..", "frontend");
+  if (!fs.existsSync(frontendDir)) {
+    fs.mkdirSync(frontendDir, { recursive: true });
+  }
+
+  fs.writeFileSync(envPath, envContent);
+  console.log(`📄 Variables de entorno guardadas en ${envPath}`);
 }
 
-module.exports = { main, deployWithTestData };
+// Ejecutar la función principal
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error("Error en el despliegue:", error);
+    process.exit(1);
+  });
