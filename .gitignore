@@ -1,5 +1,16 @@
 node_modules
+
+# Environment variables - NEVER commit these files
 .env
+.env.local
+.env.*.local
+*/.env
+*/.env.local
+frontend/.env.local
+
+# Allow example environment files
+!.env.example
+!*/.env.example
 
 # Hardhat files
 /cache
@@ -12,5 +23,3 @@ node_modules
 # solidity-coverage files
 /coverage
 /coverage.json
-
-.env
