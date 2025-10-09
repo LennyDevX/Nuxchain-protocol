@@ -1,0 +1,11 @@
+{
+  "name": "POL Airdrop Agosto 2024",
+  "description": "Airdrop de tokens POL para la comunidad Nuvos",
+  "tokenAddress": "0x0000000000000000000000000000000000001010",
+  "registrationDuration": 604800,
+  "claimDelay": 86400,
+  "claimDuration": 2592000,
+  "fundAmount": "5000000000000000000000",
+  "autoFund": false,
+  "category": "community"
+}
