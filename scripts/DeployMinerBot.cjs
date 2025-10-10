@@ -167,43 +167,24 @@ async function main() {
         console.log("\n🔍 Verificando contratos en Etherscan...");
         
         console.log("🔍 Verificando MinerBotToken...");
-        await run("verify:verify", {
-          address: tokenAddress,
-          constructorArguments: [],
-          contract: "contracts/MinerBotGame/MinerBotToken.sol:MinerBotToken"
-        });
+        await verifyContract(tokenAddress, "contracts/MinerBotGame/MinerBotToken.sol:MinerBotToken", []);
         
         console.log("🔍 Verificando MinerBotNFT...");
-        await run("verify:verify", {
-          address: nftAddress,
-          constructorArguments: [tokenAddress],
-          contract: "contracts/MinerBotGame/MinerBotNFT.sol:MinerBotNFT"
-        });
+        await verifyContract(nftAddress, "contracts/MinerBotGame/MinerBotNFT.sol:MinerBotNFT", [tokenAddress]);
         
         console.log("🔍 Verificando MinerBotGame...");
-        await run("verify:verify", {
-          address: gameAddress,
-          constructorArguments: [tokenAddress, nftAddress],
-          contract: "contracts/MinerBotGame/MinerBotGame.sol:MinerBotGame"
-        });
+        await verifyContract(gameAddress, "contracts/MinerBotGame/MinerBotGame.sol:MinerBotGame", [tokenAddress, nftAddress]);
         
         console.log("🔍 Verificando MinerBotStaking...");
-        await run("verify:verify", {
-          address: stakingAddress,
-          constructorArguments: [tokenAddress],
-          contract: "contracts/MinerBotGame/MinerBotStaking.sol:MinerBotStaking"
-        });
+        await verifyContract(stakingAddress, "contracts/MinerBotGame/MinerBotStaking.sol:MinerBotStaking", [tokenAddress]);
         
         console.log("🔍 Verificando MinerBotMarketplace...");
-        await run("verify:verify", {
-          address: marketplaceAddress,
-          constructorArguments: [nftAddress, tokenAddress],
-          contract: "contracts/MinerBotGame/MinerBotMarketplace.sol:MinerBotMarketplace"
-        });
+        await verifyContract(marketplaceAddress, "contracts/MinerBotGame/MinerBotMarketplace.sol:MinerBotMarketplace", [nftAddress, tokenAddress]);
         
         console.log("✅ ¡Todos los contratos verificados!");
       } catch (error) {
-        console.log("❌ Error durante la verificación:", error.message);
+        console.log("❌ Error durante la verificación:", error && error.message ? error.message : error);
+        console.log("💡 Puedes verificar manualmente más tarde");
       }
     }
 
@@ -281,6 +262,13 @@ function saveContractAddresses(networkName, contracts) {
 
 function saveEnvFile(contracts) {
   const envPath = path.join(__dirname, "..", "frontend", ".env.local");
+  const frontendDir = path.join(__dirname, "..", "frontend");
+
+  // Si la carpeta frontend no existe, no creamos nada (evitar crear carpetas no deseadas)
+  if (!fs.existsSync(frontendDir)) {
+    console.log(`⚠️ La carpeta frontend no existe en ${frontendDir}. Se omite la creación/actualización de .env.local`);
+    return;
+  }
   
   // Contenido del archivo .env.local para MinerBot Empire
   const envContent = `# MinerBot Empire Contract Addresses
@@ -298,14 +286,41 @@ NEXT_PUBLIC_NETWORK_NAME=${network.name}
 NEXT_PUBLIC_APP_NAME=MinerBot Empire
 NEXT_PUBLIC_APP_VERSION=1.0.0`;
 
-  // Crear directorio frontend si no existe
-  const frontendDir = path.join(__dirname, "..", "frontend");
-  if (!fs.existsSync(frontendDir)) {
-    fs.mkdirSync(frontendDir, { recursive: true });
-  }
-
   fs.writeFileSync(envPath, envContent);
   console.log(`📄 Variables de entorno guardadas en ${envPath}`);
+}
+
+// Verifica un contrato en el explorador usando hardhat-etherscan plugin con reintentos
+async function verifyContract(address, fullyQualifiedName, constructorArgs = [], maxAttempts = 3, delayMs = 7000) {
+  let attempt = 0;
+  while (attempt < maxAttempts) {
+    try {
+      attempt++;
+      await run("verify:verify", {
+        address: address,
+        constructorArguments: constructorArgs,
+        contract: fullyQualifiedName
+      });
+      // Si llega aquí, la verificación fue exitosa
+      return true;
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      // Si ya está verificado, considerar éxito
+      if (msg.toLowerCase().includes("already verified") || msg.toLowerCase().includes("reason: already verified")) {
+        console.log("ℹ️ Contrato ya verificado anteriormente.");
+        return true;
+      }
+
+      attempt < maxAttempts
+        ? console.log(`❗ Intento ${attempt} fallido: ${msg}. Reintentando en ${delayMs / 1000}s...`)
+        : console.log(`❌ Intento ${attempt} fallido: ${msg}. No quedan reintentos.`);
+
+      if (attempt >= maxAttempts) throw err;
+
+      // esperar antes de reintentar
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
 }
 
 // Ejecutar la función principal

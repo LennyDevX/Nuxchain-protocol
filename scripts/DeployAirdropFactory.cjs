@@ -27,12 +27,49 @@ async function main() {
   // Desplegamos el contrato
   console.log("\n🚀 Desplegando AirdropFactory...");
   const AirdropFactory = await ethers.getContractFactory("AirdropFactory");
-  const airdropFactory = await AirdropFactory.deploy();
+  
+  // Obtener y mostrar precio de gas actual
+  const feeData = await ethers.provider.getFeeData();
+  console.log(`⛽ Gas recomendado: ${ethers.formatUnits(feeData.maxFeePerGas, "gwei")} Gwei`);
+  
+  // Usar 20% de buffer (más eficiente que 150% o 50%)
+  const maxFeePerGas = (feeData.maxFeePerGas * BigInt(120)) / BigInt(100); // +20%
+  const maxPriorityFeePerGas = (feeData.maxPriorityFeePerGas * BigInt(120)) / BigInt(100);
+  
+  console.log(`🔥 Usando: ${ethers.formatUnits(maxFeePerGas, "gwei")} Gwei (+20% buffer)`);
+  
+  // Estimar costo
+  try {
+    const deployTx = AirdropFactory.getDeployTransaction();
+    const gasEstimate = await ethers.provider.estimateGas({ data: deployTx.data });
+    const estimatedCost = (gasEstimate * maxFeePerGas) / BigInt(10**18);
+    console.log(`💰 Costo estimado: ~${ethers.formatEther(estimatedCost)} POL`);
+    console.log(`📦 Gas estimado: ${gasEstimate.toString()} units`);
+  } catch (e) {
+    console.warn("⚠️  No se pudo estimar gas");
+  }
+  
+  const airdropFactory = await AirdropFactory.deploy({
+    maxFeePerGas: maxFeePerGas,
+    maxPriorityFeePerGas: maxPriorityFeePerGas
+  });
 
+  const txHash = airdropFactory.deploymentTransaction().hash;
+  console.log(`📤 TX: https://polygonscan.com/tx/${txHash}`);
+  console.log("⏳ Esperando confirmación...");
+  
   await airdropFactory.waitForDeployment();
   const contractAddress = await airdropFactory.getAddress();
+  
+  // Obtener información del receipt
+  const receipt = await airdropFactory.deploymentTransaction().wait();
+  const gasUsed = receipt.gasUsed;
+  const gasPrice = receipt.gasPrice || receipt.effectiveGasPrice;
+  const totalCost = gasUsed * gasPrice;
 
-  console.log(`✅ Contrato AirdropFactory desplegado en: ${contractAddress}`);
+  console.log(`\n✅ Contrato AirdropFactory desplegado en: ${contractAddress}`);
+  console.log(`⛽ Gas usado: ${gasUsed.toString()} units`);
+  console.log(`💵 Costo real: ${ethers.formatEther(totalCost)} POL`);
 
   // Verificar que el owner es correcto
   const factoryOwner = await airdropFactory.owner();
@@ -45,16 +82,14 @@ async function main() {
 
   // Verificamos el contrato si no estamos en localhost
   if (network.name !== "localhost" && network.name !== "hardhat") {
+    // Fully qualified name relative to the project structure
+    const fullyQualifiedName = "contracts/Airdrop/AirdropFactory.sol:AirdropFactory";
     try {
       console.log("🔍 Verificando contrato en el explorador de bloques...");
-      await run("verify:verify", {
-        address: contractAddress,
-        constructorArguments: [],
-        contract: "contracts/AirdropFactory.sol:AirdropFactory"
-      });
+      await verifyContract(contractAddress, fullyQualifiedName);
       console.log("✅ ¡Contrato verificado!");
     } catch (error) {
-      console.log("⚠️ Error durante la verificación:", error.message);
+      console.log("⚠️ Error durante la verificación:", error && error.message ? error.message : error);
       console.log("💡 Puedes verificar manualmente más tarde");
     }
   }
@@ -114,7 +149,14 @@ function saveContractAddress(networkName, contractAddress) {
 
 function saveEnvFile(contractAddress) {
   const envPath = path.join(__dirname, "..", "frontend", ".env.local");
-  
+  const frontendDir = path.join(__dirname, "..", "frontend");
+
+  // Si no existe la carpeta frontend, no escribimos archivos ahí (evitar crear carpetas no deseadas)
+  if (!fs.existsSync(frontendDir)) {
+    console.log(`⚠️ La carpeta frontend no existe en ${frontendDir}. Se omite la actualización de .env.local`);
+    return;
+  }
+
   // Leer contenido existente si existe
   let existingContent = "";
   if (fs.existsSync(envPath)) {
@@ -155,6 +197,40 @@ function saveEnvFile(contractAddress) {
   }
 
   console.log(`⚙️ Variables de entorno actualizadas en ${envPath}`);
+}
+
+// Verifica un contrato en el explorador usando hardhat-etherscan plugin con reintentos
+async function verifyContract(address, fullyQualifiedName, maxAttempts = 3, delayMs = 7000) {
+  let attempt = 0;
+  while (attempt < maxAttempts) {
+    try {
+      attempt++;
+      await run("verify:verify", {
+        address: address,
+        constructorArguments: [],
+        contract: fullyQualifiedName
+      });
+      // Si llega aquí, la verificación fue exitosa
+      return true;
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      // Si ya está verificado, considerar éxito
+      if (msg.toLowerCase().includes("already verified") || msg.toLowerCase().includes("reason: already verified")) {
+        console.log("ℹ️ Contrato ya verificado anteriormente.");
+        return true;
+      }
+
+      // Para ciertos errores temporales reintentamos
+      attempt < maxAttempts
+        ? console.log(`❗ Intento ${attempt} fallido: ${msg}. Reintentando en ${delayMs / 1000}s...`)
+        : console.log(`❌ Intento ${attempt} fallido: ${msg}. No quedan reintentos.`);
+
+      if (attempt >= maxAttempts) throw err;
+
+      // esperar antes de reintentar
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
 }
 
 // Ejecutamos la función principal

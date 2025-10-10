@@ -57,16 +57,14 @@ async function main() {
 
   // Verificamos el contrato si no estamos en localhost
   if (network.name !== "localhost" && network.name !== "hardhat") {
+    const fullyQualifiedName = "contracts/Airdrop/Airdrops.sol:Airdrop";
     try {
       console.log("Verificando contrato en Etherscan...");
-      await run("verify:verify", {
-        address: contractAddress,
-        constructorArguments: [tokenAddress, registrationDuration, claimDelay, claimDuration],
-        contract: "contracts/Airdrops.sol:Airdrop"
-      });
+      await verifyContract(contractAddress, fullyQualifiedName, [tokenAddress, registrationDuration, claimDelay, claimDuration]);
       console.log("¡Contrato verificado!");
     } catch (error) {
-      console.log("Error durante la verificación:", error.message);
+      console.log("Error durante la verificación:", error && error.message ? error.message : error);
+      console.log("💡 Puedes verificar manualmente más tarde");
     }
   }
 
@@ -111,6 +109,13 @@ function saveContractAddress(networkName, contractAddress) {
 
 function saveEnvFile(contractAddress, tokenAddress) {
   const envPath = path.join(__dirname, "..", "frontend", ".env.local");
+  const frontendDir = path.join(__dirname, "..", "frontend");
+
+  // Si la carpeta frontend no existe, no creamos nada (evitar crear carpetas no deseadas)
+  if (!fs.existsSync(frontendDir)) {
+    console.log(`⚠️ La carpeta frontend no existe en ${frontendDir}. Se omite la creación/actualización de .env.local`);
+    return;
+  }
   
   // Contenido del archivo .env.local para Airdrop
   const envContent = `NEXT_PUBLIC_AIRDROP_CONTRACT_ADDRESS=${contractAddress}
@@ -120,6 +125,39 @@ NEXT_PUBLIC_APP_NAME=Nuvos Airdrop`;
 
   fs.writeFileSync(envPath, envContent);
   console.log(`Variables de entorno guardadas en ${envPath}`);
+}
+
+// Verifica un contrato en el explorador usando hardhat-etherscan plugin con reintentos
+async function verifyContract(address, fullyQualifiedName, constructorArgs = [], maxAttempts = 3, delayMs = 7000) {
+  let attempt = 0;
+  while (attempt < maxAttempts) {
+    try {
+      attempt++;
+      await run("verify:verify", {
+        address: address,
+        constructorArguments: constructorArgs,
+        contract: fullyQualifiedName
+      });
+      // Si llega aquí, la verificación fue exitosa
+      return true;
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      // Si ya está verificado, considerar éxito
+      if (msg.toLowerCase().includes("already verified") || msg.toLowerCase().includes("reason: already verified")) {
+        console.log("ℹ️ Contrato ya verificado anteriormente.");
+        return true;
+      }
+
+      attempt < maxAttempts
+        ? console.log(`❗ Intento ${attempt} fallido: ${msg}. Reintentando en ${delayMs / 1000}s...`)
+        : console.log(`❌ Intento ${attempt} fallido: ${msg}. No quedan reintentos.`);
+
+      if (attempt >= maxAttempts) throw err;
+
+      // esperar antes de reintentar
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
 }
 
 // Ejecutamos la función principal
