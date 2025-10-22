@@ -9,7 +9,7 @@ module.exports = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 200, // Optimizado para deployment gas efficiency
+            runs: 300, // Optimizado para deployment gas efficiency
             details: {
               yul: true,
               yulDetails: {
@@ -40,7 +40,23 @@ module.exports = {
           evmVersion: "shanghai"
         }
       }
-    ]
+    ],
+    overrides: {
+      "contracts/Marketplace/GameifiedMarketplace.sol": {
+        version: "0.8.28",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 0, // Máxima compresión del código
+            details: {
+              yul: true
+            }
+          },
+          viaIR: true,
+          evmVersion: "shanghai"
+        }
+      }
+    }
   },
   networks: {
     hardhat: {

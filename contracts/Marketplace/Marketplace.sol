@@ -209,6 +209,7 @@ contract Marketplace is
         uint96 royaltyPercentage
     )
         public
+        virtual
         whenNotPaused
         whenSectionNotPaused(3)
         notBlacklisted
