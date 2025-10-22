@@ -1,18 +1,28 @@
 {
   "name": "hardhat-projhect",
-  "type": "module",
   "version": "1.0.0",
   "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
+    "@nomicfoundation/hardhat-ethers": "^3.1.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.1.0",
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.1.1",
     "@openzeppelin/contracts": "^4.9.6",
+    "@typechain/ethers-v6": "^0.5.1",
+    "@typechain/hardhat": "^9.1.0",
     "chai": "^4.5.0",
     "dotenv": "^16.5.0",
     "ethers": "^6.13.5",
-    "hardhat": "^2.23.0",
-    "hardhat-gas-reporter": "^1.0.10"
+    "hardhat": "^2.22.0",
+    "hardhat-gas-reporter": "^1.0.10",
+    "solidity-coverage": "^0.8.16",
+    "typechain": "^8.3.2"
   },
   "scripts": {
     "clean": "rm -rf node_modules package-lock.json",
     "setup": "npm run clean && npm install"
+  },
+  "dependencies": {
+    "@nomicfoundation/edr-win32-x64-msvc": "^0.11.3"
   }
 }

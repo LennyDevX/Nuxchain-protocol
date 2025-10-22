@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 async function main() {
-  console.log(`Desplegando TokenizationApp en la red ${network.name}...`);
+  console.log(`Desplegando Marketplace en la red ${network.name}...`);
 
   // Obtenemos la wallet que hará el despliegue
   const [deployer] = await ethers.getSigners();
@@ -19,13 +19,13 @@ async function main() {
   console.log("Compilación completada");
 
   // Desplegamos el contrato
-  const TokenizationApp = await ethers.getContractFactory("TokenizationApp");
-  const tokenizationApp = await TokenizationApp.deploy();
+  const Marketplace = await ethers.getContractFactory("Marketplace");
+  const marketplace = await Marketplace.deploy();
 
-  await tokenizationApp.waitForDeployment();
-  const contractAddress = await tokenizationApp.getAddress();
+  await marketplace.waitForDeployment();
+  const contractAddress = await marketplace.getAddress();
 
-  console.log(`Contrato TokenizationApp desplegado en: ${contractAddress}`);
+  console.log(`Contrato Marketplace desplegado en: ${contractAddress}`);
 
   // Esperamos unos bloques para asegurarnos que la transacción está confirmada
   console.log("Esperando confirmaciones...");
@@ -34,15 +34,12 @@ async function main() {
   // Verificamos el contrato si no estamos en localhost
   if (network.name !== "localhost" && network.name !== "hardhat") {
     try {
-      console.log("Verificando contrato en Etherscan...");
-      await run("verify:verify", {
-        address: contractAddress,
-        constructorArguments: [],
-        contract: "contracts/TokenizationApp.sol:TokenizationApp"
-      });
+  console.log("Verificando contrato en Etherscan...");
+  const fullyQualifiedName = "contracts/Marketplace/Marketplace.sol:Marketplace";
+  await verifyContract(contractAddress, fullyQualifiedName);
       console.log("¡Contrato verificado!");
     } catch (error) {
-      console.log("Error durante la verificación:", error.message);
+      console.log("Error durante la verificación:", error && error.message ? error.message : error);
     }
   }
 
@@ -69,7 +66,7 @@ function saveContractAddress(networkName, contractAddress) {
     deployments = JSON.parse(fileContent);
   }
 
-  deployments.TokenizationApp = contractAddress;
+  deployments.Marketplace = contractAddress;
 
   fs.writeFileSync(
     filePath,
@@ -79,16 +76,38 @@ function saveContractAddress(networkName, contractAddress) {
   console.log(`Dirección del contrato guardada en ${filePath}`);
 }
 
-function saveEnvFile(contractAddress) {
-  const envPath = path.join(__dirname, "..", "frontend", ".env.local");
-  
-  // Contenido base del archivo .env.local
-  const envContent = `NEXT_PUBLIC_CONTRACT_ADDRESS=${contractAddress}
-NEXT_PUBLIC_CHAIN_ID=${network.config.chainId}
-NEXT_PUBLIC_APP_NAME=Nuvos NFT Marketplace`;
 
-  fs.writeFileSync(envPath, envContent);
-  console.log(`Variables de entorno guardadas en ${envPath}`);
+// Verifica un contrato en el explorador usando hardhat-etherscan plugin con reintentos
+async function verifyContract(address, fullyQualifiedName, maxAttempts = 3, delayMs = 7000) {
+  let attempt = 0;
+  while (attempt < maxAttempts) {
+    try {
+      attempt++;
+      await run("verify:verify", {
+        address: address,
+        constructorArguments: [],
+        contract: fullyQualifiedName
+      });
+      // Si llega aquí, la verificación fue exitosa
+      return true;
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      // Si ya está verificado, considerar éxito
+      if (msg.toLowerCase().includes("already verified") || msg.toLowerCase().includes("reason: already verified")) {
+        console.log("ℹ️ Contrato ya verificado anteriormente.");
+        return true;
+      }
+
+      attempt < maxAttempts
+        ? console.log(`❗ Intento ${attempt} fallido: ${msg}. Reintentando en ${delayMs / 1000}s...`)
+        : console.log(`❌ Intento ${attempt} fallido: ${msg}. No quedan reintentos.`);
+
+      if (attempt >= maxAttempts) throw err;
+
+      // esperar antes de reintentar
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
 }
 
 // Ejecutamos la función principal
