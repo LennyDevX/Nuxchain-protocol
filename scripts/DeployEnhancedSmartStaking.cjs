@@ -3,61 +3,60 @@ const fs = require("fs");
 const path = require("path");
 
 async function main() {
-  console.log(`Desplegando SmartStaking en la red ${network.name}...`);
+  console.log(`\n🚀 Desplegando EnhancedSmartStaking en la red ${network.name}...`);
 
   // Obtenemos la wallet que hará el despliegue
   const [deployer] = await ethers.getSigners();
   const deployerBalance = await ethers.provider.getBalance(deployer.address);
 
   console.log(
-    `Cuenta de despliegue: ${deployer.address}`,
-    `\nBalance: ${ethers.formatEther(deployerBalance)} ETH`
+    `\n👤 Cuenta de despliegue: ${deployer.address}` +
+    `\n💰 Balance: ${ethers.formatEther(deployerBalance)} ETH`
   );
 
   // Dirección del treasury - dirección específica para recibir comisiones
   const treasuryAddress = "0xad14c117b51735c072d42571e30bf2c729cd9593";
-  console.log(`Treasury address: ${treasuryAddress}`);
+  console.log(`\n💼 Treasury address: ${treasuryAddress}`);
 
   // Compilamos el contrato para asegurarnos que está actualizado
   await run("compile");
-  console.log("Compilación completada");
+  console.log("✅ Compilación completada\n");
 
   // Desplegamos el contrato
-  console.log("\n🚀 Desplegando SmartStaking...");
-  const SmartStaking = await ethers.getContractFactory("SmartStaking");
+  console.log("📝 Desplegando EnhancedSmartStaking...");
+  const EnhancedSmartStaking = await ethers.getContractFactory("EnhancedSmartStaking");
   
-  // Obtener precio de gas optimizado para Polygon
+  // Obtener precio de gas optimizado
   console.log("⛽ Obteniendo precio de gas actual...");
   const feeData = await ethers.provider.getFeeData();
-  console.log(`📊 Gas recomendado: ${ethers.formatUnits(feeData.maxFeePerGas, "gwei")} Gwei`);
+  console.log(`   Gas recomendado: ${ethers.formatUnits(feeData.maxFeePerGas, "gwei")} Gwei`);
   
-  // Usar buffer del 20% (en lugar de 3x = 300%)
-  // Esto reduce significativamente los costos de gas
-  const maxFeePerGas = (feeData.maxFeePerGas * BigInt(120)) / BigInt(100); // +20%
+  // Usar buffer del 20%
+  const maxFeePerGas = (feeData.maxFeePerGas * BigInt(120)) / BigInt(100);
   const maxPriorityFeePerGas = (feeData.maxPriorityFeePerGas * BigInt(120)) / BigInt(100);
   
-  console.log(`🔥 Usando: ${ethers.formatUnits(maxFeePerGas, "gwei")} Gwei (+20% buffer)`);
+  console.log(`   Usando: ${ethers.formatUnits(maxFeePerGas, "gwei")} Gwei (+20% buffer)`);
   
   // Estimar costo antes de desplegar
   try {
-    const deployTx = SmartStaking.getDeployTransaction(treasuryAddress);
+    const deployTx = EnhancedSmartStaking.getDeployTransaction(treasuryAddress);
     const gasEstimate = await ethers.provider.estimateGas({ data: deployTx.data });
     const estimatedCost = (gasEstimate * maxFeePerGas) / BigInt(10**18);
-    console.log(`💰 Costo estimado: ~${ethers.formatEther(estimatedCost)} POL`);
-    console.log(`📦 Gas estimado: ${gasEstimate.toString()} units`);
+    console.log(`   💵 Costo estimado: ~${ethers.formatEther(estimatedCost)} ETH`);
+    console.log(`   📦 Gas estimado: ${gasEstimate.toString()} units\n`);
   } catch (e) {
-    console.warn("⚠️  No se pudo estimar gas");
+    console.warn("⚠️  No se pudo estimar gas\n");
   }
   
-  const smartStaking = await SmartStaking.deploy(treasuryAddress, {
+  const smartStaking = await EnhancedSmartStaking.deploy(treasuryAddress, {
     maxFeePerGas,
     maxPriorityFeePerGas
   });
 
   const txHash = smartStaking.deploymentTransaction().hash;
-  console.log(`\n📤 TX enviada: ${txHash}`);
+  console.log(`📤 TX enviada: ${txHash}`);
   console.log(`🔍 Polygonscan: https://polygonscan.com/tx/${txHash}`);
-  console.log("⏳ Esperando confirmación...");
+  console.log("⏳ Esperando confirmación...\n");
 
   await smartStaking.waitForDeployment();
   const contractAddress = await smartStaking.getAddress();
@@ -68,17 +67,27 @@ async function main() {
   const gasPrice = receipt.gasPrice || receipt.effectiveGasPrice;
   const totalCost = gasUsed * gasPrice;
 
-  console.log(`\n✅ Contrato SmartStaking desplegado en: ${contractAddress}`);
+  console.log(`✅ Contrato EnhancedSmartStaking desplegado en: ${contractAddress}`);
   console.log(`⛽ Gas usado: ${gasUsed.toString()} units`);
-  console.log(`💵 Costo real: ${ethers.formatEther(totalCost)} POL`);
+  console.log(`💵 Costo real: ${ethers.formatEther(totalCost)} ETH\n`);
+
+  // Verificar inicialización
+  console.log("📊 Verificando inicialización del contrato...");
+  const owner = await smartStaking.owner();
+  const treasury = await smartStaking.treasury();
+  
+  console.log(`   Owner: ${owner}`);
+  console.log(`   Treasury: ${treasury}`);
+  console.log(`   MIN_DEPOSIT: 10 ETH`);
+  console.log(`   MAX_DEPOSIT: 10000 ETH\n`);
 
   // Esperamos unos bloques para asegurarnos que la transacción está confirmada
-  console.log("Esperando confirmaciones...");
+  console.log("⏳ Esperando confirmaciones adicionales...");
   await new Promise(resolve => setTimeout(resolve, 20000)); // 20 segundos
 
   // Verificamos el contrato en Polygonscan si no estamos en localhost
   if (network.name !== "localhost" && network.name !== "hardhat") {
-    const fullyQualifiedName = "contracts/SmartStaking/SmartStaking.sol:SmartStaking";
+    const fullyQualifiedName = "contracts/SmartStaking/EnhancedSmartStaking.sol:EnhancedSmartStaking";
     try {
       console.log("\n🔍 Verificando contrato en Polygonscan...");
       await verifyContract(contractAddress, fullyQualifiedName, [treasuryAddress]);
@@ -92,27 +101,26 @@ async function main() {
     }
   }
 
-  // Guardamos la dirección del contrato en un archivo para fácil acceso
-  saveContractAddress(network.name, contractAddress);
-
-  // Actualizamos el archivo .env con la dirección del contrato
-  updateEnvFile(contractAddress, treasuryAddress);
+  // Guardamos la dirección del contrato en el archivo de despliegue
+  saveContractAddress(network.name, contractAddress, "EnhancedSmartStaking");
 
   console.log("\n🎉 Despliegue completado exitosamente!");
   console.log(`\n📋 Resumen:`);
   console.log(`   Contrato: ${contractAddress}`);
   console.log(`   Red: ${network.name} (Chain ID: ${network.config.chainId})`);
   console.log(`   Treasury: ${treasuryAddress}`);
-  console.log(`   Polygonscan: https://polygonscan.com/address/${contractAddress}`);
+  console.log(`   Polygonscan: https://polygonscan.com/address/${contractAddress}\n`);
+
+  return contractAddress;
 }
 
-function saveContractAddress(networkName, contractAddress) {
+function saveContractAddress(networkName, contractAddress, contractName) {
   const deploymentsDir = path.join(__dirname, "..", "deployments");
   if (!fs.existsSync(deploymentsDir)) {
     fs.mkdirSync(deploymentsDir);
   }
 
-  const filePath = path.join(deploymentsDir, `${networkName}.json`);
+  const filePath = path.join(deploymentsDir, `${networkName}-deployment.json`);
   let deployments = {};
 
   if (fs.existsSync(filePath)) {
@@ -120,72 +128,24 @@ function saveContractAddress(networkName, contractAddress) {
     deployments = JSON.parse(fileContent);
   }
 
-  deployments.SmartStaking = contractAddress;
+  // Asegurar que existe la estructura de contratos
+  if (!deployments.contracts) {
+    deployments.contracts = {};
+  }
+
+  // Actualizar el contrato específico
+  deployments.contracts[contractName] = {
+    address: contractAddress,
+    deployedAt: new Date().toISOString(),
+    network: networkName
+  };
 
   fs.writeFileSync(
     filePath,
     JSON.stringify(deployments, null, 2)
   );
 
-  console.log(`Dirección del contrato guardada en ${filePath}`);
-}
-
-function updateEnvFile(contractAddress, treasuryAddress) {
-  const envPath = path.join(__dirname, "..", ".env");
-  
-  try {
-    // Leer el archivo .env existente
-    let envContent = "";
-    if (fs.existsSync(envPath)) {
-      envContent = fs.readFileSync(envPath, "utf8");
-    }
-
-    // Variables a actualizar/agregar
-    const newVars = {
-      'SMARTSTAKING_CONTRACT_ADDRESS': contractAddress,
-      'TREASURY_ADDRESS': treasuryAddress,
-      'DEPLOYMENT_DATE': new Date().toISOString()
-    };
-
-    // Actualizar o agregar cada variable
-    let lines = envContent.split('\n');
-    let updatedVars = new Set();
-
-    lines = lines.map(line => {
-      for (const [key, value] of Object.entries(newVars)) {
-        if (line.startsWith(`${key}=`) || line.startsWith(`# ${key}`)) {
-          updatedVars.add(key);
-          return `${key}=${value}`;
-        }
-      }
-      return line;
-    });
-
-    // Agregar variables que no existían
-    const varsToAdd = [];
-    for (const [key, value] of Object.entries(newVars)) {
-      if (!updatedVars.has(key)) {
-        varsToAdd.push(`${key}=${value}`);
-      }
-    }
-
-    if (varsToAdd.length > 0) {
-      // Agregar sección de SmartStaking si no existe
-      if (!envContent.includes('# SmartStaking Contract')) {
-        lines.push('');
-        lines.push('# SmartStaking Contract');
-      }
-      lines = lines.concat(varsToAdd);
-    }
-
-    // Guardar archivo actualizado
-    fs.writeFileSync(envPath, lines.join('\n'));
-    console.log(`\n⚙️  Variables de entorno actualizadas en .env:`);
-    console.log(`   - SMARTSTAKING_CONTRACT_ADDRESS=${contractAddress}`);
-    console.log(`   - TREASURY_ADDRESS=${treasuryAddress}`);
-  } catch (error) {
-    console.warn(`⚠️  No se pudo actualizar .env:`, error.message);
-  }
+  console.log(`💾 Dirección guardada en ${filePath}`);
 }
 
 // Verifica un contrato en el explorador usando hardhat-etherscan plugin con reintentos
@@ -199,11 +159,9 @@ async function verifyContract(address, fullyQualifiedName, constructorArgs = [],
         constructorArguments: constructorArgs,
         contract: fullyQualifiedName
       });
-      // Si llega aquí, la verificación fue exitosa
       return true;
     } catch (err) {
       const msg = err && err.message ? err.message : String(err);
-      // Si ya está verificado, considerar éxito
       if (msg.toLowerCase().includes("already verified") || msg.toLowerCase().includes("reason: already verified")) {
         console.log("ℹ️ Contrato ya verificado anteriormente.");
         return true;
@@ -215,7 +173,6 @@ async function verifyContract(address, fullyQualifiedName, constructorArgs = [],
 
       if (attempt >= maxAttempts) throw err;
 
-      // esperar antes de reintentar
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
@@ -225,6 +182,6 @@ async function verifyContract(address, fullyQualifiedName, constructorArgs = [],
 main()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error("Error en el despliegue:", error);
+    console.error("\n❌ Error en el despliegue:", error);
     process.exit(1);
   });

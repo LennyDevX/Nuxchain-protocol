@@ -47,12 +47,12 @@ module.exports = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 0, // Máxima compresión del código
+            runs: 100, // Menos optimizado para evitar código muy grande
             details: {
               yul: true
             }
           },
-          viaIR: true,
+          viaIR: true, // Necesario para evitar stack too deep
           evmVersion: "shanghai"
         }
       }

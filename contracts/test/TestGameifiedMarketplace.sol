@@ -43,6 +43,11 @@ contract TestGameifiedMarketplace is ERC721, AccessControl, Pausable {
     mapping(address => EnumerableSet.UintSet) private _userActiveSkills;
     address public stakingContractAddress;
     address public platformTreasury;
+    address public stakingTreasuryAddress;
+    
+    // NFT metadata for marketplace functions
+    mapping(uint256 => bool) public isListed;
+    mapping(uint256 => uint256) public listedPrice;
     
     // Events
     event SkillNFTCreated(uint256 indexed tokenId, address indexed creator, IStakingIntegration.SkillType skillType);
@@ -55,6 +60,7 @@ contract TestGameifiedMarketplace is ERC721, AccessControl, Pausable {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ADMIN_ROLE, msg.sender);
         platformTreasury = msg.sender;
+        stakingTreasuryAddress = msg.sender;
     }
 
     function createNFT(string calldata, string calldata, uint256) external whenNotPaused {
@@ -196,6 +202,124 @@ contract TestGameifiedMarketplace is ERC721, AccessControl, Pausable {
 
     function buyTokenEnhanced(uint256 tokenId) external payable {
         // No-op for test
+    }
+
+    // Marketplace core functions
+    function listTokenForSale(uint256 tokenId, uint256 price, string calldata) external {
+        require(ownerOf(tokenId) == msg.sender, "Not owner");
+        isListed[tokenId] = true;
+        listedPrice[tokenId] = price;
+    }
+
+    function buyToken(uint256) external payable {
+        // No-op for test
+    }
+
+    function unlistToken(uint256 tokenId) external {
+        require(ownerOf(tokenId) == msg.sender, "Not owner");
+        isListed[tokenId] = false;
+        listedPrice[tokenId] = 0;
+    }
+
+    function updatePrice(uint256 tokenId, uint256 newPrice) external {
+        require(ownerOf(tokenId) == msg.sender, "Not owner");
+        listedPrice[tokenId] = newPrice;
+    }
+
+    function makeOffer(uint256, uint8) external payable {
+        // No-op for test
+    }
+
+    function acceptOffer(uint256, uint256) external {
+        // No-op for test
+    }
+
+    function cancelOffer(uint256, uint256) external {
+        // No-op for test
+    }
+
+    function toggleLike(uint256 /* tokenId */) external {
+        userProfiles[msg.sender].totalXP += 1;
+    }
+
+    function addComment(uint256 /* tokenId */, string calldata /* comment */) external {
+        userProfiles[msg.sender].totalXP += 2;
+    }
+
+    function notifyRewardsClaimed(address /* user */, uint256 /* rewardAmount */) external pure returns (uint256) {
+        return 0;
+    }
+
+    function checkQuestCompletion(uint256) external {
+        // No-op for test
+    }
+
+    function getMaxActiveSkillsForUser(address user) external view returns (uint8) {
+        uint8 level = uint8(userProfiles[user].totalXP / 100);
+        if (level >= 5) return 5;
+        if (level >= 4) return 4;
+        if (level >= 3) return 3;
+        if (level >= 2) return 2;
+        return 1; // Everyone starts at level 1 with 1 skill slot
+    }
+
+    function getUserSkillsLevel(address user) external view returns (uint8) {
+        uint256 xp = userProfiles[user].totalXP;
+        if (xp >= 3000) return 5;
+        if (xp >= 1500) return 4;
+        if (xp >= 700) return 3;
+        if (xp >= 300) return 2;
+        if (xp >= 100) return 1;
+        return 0;
+    }
+
+    function canUserCreateSkillNFT(address) external pure returns (bool) {
+        return true;
+    }
+
+    function getUserStakingBalance(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function getUserCompleteInfo(address user) external view returns (
+        UserProfile memory profile,
+        uint256 activeSkillsCount,
+        uint8 skillsLevel,
+        uint8 maxSkills
+    ) {
+        profile = userProfiles[user];
+        profile.level = uint8(profile.totalXP / 100);
+        activeSkillsCount = _userActiveSkills[user].length();
+        skillsLevel = uint8(profile.totalXP / 100);
+        maxSkills = 5;
+    }
+
+    function getSkillFeeForRarity(IStakingIntegration.Rarity) external pure returns (uint256) {
+        return 0;
+    }
+
+    function getNFTMetadata(uint256) external pure returns (address, string memory, uint256) {
+        return (address(0), "", 0);
+    }
+
+    function getNFTComments(uint256) external pure returns (string[] memory) {
+        return new string[](0);
+    }
+
+    function getNFTOffers(uint256) external pure returns (address[] memory) {
+        return new address[](0);
+    }
+
+    function setPolTokenAddress(address) external onlyRole(ADMIN_ROLE) {
+        // No-op for test
+    }
+
+    function setStakingTreasuryAddress(address treasuryAddress) external onlyRole(ADMIN_ROLE) {
+        stakingTreasuryAddress = treasuryAddress;
+    }
+
+    function setPlatformTreasury(address treasuryAddress) external onlyRole(ADMIN_ROLE) {
+        platformTreasury = treasuryAddress;
     }
 
     function _rarityToStars(IStakingIntegration.Rarity rarity) internal pure returns (uint8) {

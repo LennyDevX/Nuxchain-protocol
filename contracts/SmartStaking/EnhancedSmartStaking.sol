@@ -22,20 +22,21 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     // CONSTANTS
     // ════════════════════════════════════════════════════════════════════════════════════════
     
-    uint256 private constant HOURLY_ROI_PERCENTAGE = 100; // 0.01% per hour
+    uint256 private constant HOURLY_ROI_PERCENTAGE = 50; // 0.005% per hour
     uint16 private constant MAX_ROI_PERCENTAGE = 12500; // 125%
     uint16 private constant COMMISSION_PERCENTAGE = 600; // 6%
     uint256 private constant MAX_DEPOSIT = 10000 ether;
-    uint256 private constant MIN_DEPOSIT = 5 ether;
+    uint256 private constant MIN_DEPOSIT = 10 ether;
     uint256 private constant BASIS_POINTS = 10000;
     uint256 private constant DAILY_WITHDRAWAL_LIMIT = 1000 ether;
     uint256 private constant WITHDRAWAL_LIMIT_PERIOD = 1 days;
-    
-    // Lock-up ROI percentages
-    uint256 private constant ROI_30_DAYS_LOCKUP = 120;
-    uint256 private constant ROI_90_DAYS_LOCKUP = 160;
-    uint256 private constant ROI_180_DAYS_LOCKUP = 200;
-    uint256 private constant ROI_365_DAYS_LOCKUP = 300;
+
+        // Lock-up ROI percentages (por hora, en basis points: 0.010%, 0.015%, 0.0175%, 0.021%)
+        uint256 private constant ROI_30_DAYS_LOCKUP = 100;    // 0.010% por hora (lockup 30 días)
+        uint256 private constant ROI_90_DAYS_LOCKUP = 140;    // 0.014% por hora (lockup 90 días)
+        uint256 private constant ROI_180_DAYS_LOCKUP = 170;   // 0.0170% por hora (lockup 180 días)
+        uint256 private constant ROI_365_DAYS_LOCKUP = 210;   // 0.021% por hora (lockup 365 días)
+
     
     // ════════════════════════════════════════════════════════════════════════════════════════
     // STRUCTS
@@ -714,6 +715,16 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
         address previousTreasury = treasury;
         treasury = _newTreasury;
         emit TreasuryUpdated(previousTreasury, _newTreasury);
+    }
+    
+    /// @notice Pause contract
+    function pause() external onlyOwner {
+        _pause();
+    }
+    
+    /// @notice Unpause contract
+    function unpause() external onlyOwner {
+        _unpause();
     }
     
     // ════════════════════════════════════════════════════════════════════════════════════════
