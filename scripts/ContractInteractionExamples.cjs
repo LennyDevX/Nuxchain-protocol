@@ -1,11 +1,12 @@
 // ════════════════════════════════════════════════════════════════════════════════════════
-// EJEMPLOS DE USO - EnhancedSmartStaking & GameifiedMarketplace
+// EJEMPLOS DE USO COMPLETO - EnhancedSmartStaking v4.0 & GameifiedMarketplace v2.0
 // ════════════════════════════════════════════════════════════════════════════════════════
-// 
-// Este archivo contiene ejemplos de cómo interactuar con los contratos después del despliegue.
-// 
+//
+// Este archivo contiene ejemplos prácticos de cómo interactuar con los contratos inteligentes
+// incluyendo: staking, skills gamificados, marketplace, boosts, auto-compound, y gamificación.
+//
 // Guardar como: scripts/ContractInteractionExamples.cjs
-// Usar con: npx hardhat run scripts/ContractInteractionExamples.cjs --network polygon
+// Usar con: npx hardhat run scripts/ContractInteractionExamples.cjs --network polygon -- [1-9]
 //
 
 const hre = require("hardhat");
@@ -14,307 +15,391 @@ const path = require("path");
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════════════
- * EJEMPLO 1: Leer configuración de contratos desplegados
+ * UTILIDADES COMUNES
  * ════════════════════════════════════════════════════════════════════════════════════════
  */
-async function readContractConfiguration() {
-    console.log("\n╔════════════════════════════════════════════════════════════════╗");
-    console.log("║        📖 EJEMPLO 1: Leer Configuración de Contratos         ║");
-    console.log("╚════════════════════════════════════════════════════════════════╝\n");
-    
+
+async function loadContracts() {
     const network = await hre.ethers.provider.getNetwork();
     const deploymentFile = path.join(__dirname, "..", "deployments", `${network.name}-deployment.json`);
     
     if (!fs.existsSync(deploymentFile)) {
-        console.log("❌ No hay despliegue guardado. Ejecuta NFTs2.cjs primero.\n");
-        return;
+        throw new Error(`No se encontró archivo de despliegue para ${network.name}`);
     }
     
     const deployment = JSON.parse(fs.readFileSync(deploymentFile, "utf8"));
-    const stakingAddress = deployment.contracts.EnhancedSmartStaking.address;
-    const marketplaceAddress = deployment.contracts.GameifiedMarketplace.address;
     
-    // Conectar a EnhancedSmartStaking
-    const staking = await hre.ethers.getContractAt("EnhancedSmartStaking", stakingAddress);
+    const staking = await hre.ethers.getContractAt(
+        "EnhancedSmartStaking",
+        deployment.contracts.EnhancedSmartStaking.address
+    );
     
-    console.log("📝 EnhancedSmartStaking Configuración:");
-    console.log(`   Dirección: ${stakingAddress}`);
-    console.log(`   Owner: ${await staking.owner()}`);
-    console.log(`   Treasury: ${await staking.treasury()}`);
-    console.log(`   MIN_DEPOSIT: ${hre.ethers.formatEther(await staking.MIN_DEPOSIT())} ETH`);
-    console.log(`   MAX_DEPOSIT: ${hre.ethers.formatEther(await staking.MAX_DEPOSIT())} ETH`);
-    console.log(`   COMMISSION: 6%`);
-    console.log(`   Marketplace: ${await staking.marketplaceAddress()}\n`);
+    const marketplace = await hre.ethers.getContractAt(
+        "GameifiedMarketplace",
+        deployment.contracts.GameifiedMarketplace.address
+    );
     
-    // Conectar a GameifiedMarketplace
-    const marketplace = await hre.ethers.getContractAt("GameifiedMarketplace", marketplaceAddress);
-    
-    console.log("📝 GameifiedMarketplace Configuración:");
-    console.log(`   Dirección: ${marketplaceAddress}`);
-    console.log(`   Owner: ${await marketplace.owner()}`);
-    console.log(`   POL Token: ${await marketplace.polToken()}`);
-    console.log(`   Staking: ${await marketplace.stakingContract()}`);
-    console.log(`   Treasury: ${await marketplace.stakingTreasury()}`);
-    console.log(`   MIN_POL_FOR_SKILL_NFT: ${await marketplace.MIN_POL_FOR_SKILL_NFT()} POL`);
-    console.log(`   PLATFORM_FEE: ${await marketplace.PLATFORM_FEE_PERCENTAGE()}%\n`);
+    return { staking, marketplace, deployment };
+}
+
+function formatEther(value) {
+    return hre.ethers.formatEther(value);
+}
+
+function parseEther(value) {
+    return hre.ethers.parseEther(value);
 }
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════════════
- * EJEMPLO 2: Hacer Staking
+ * EJEMPLO 1: Leer Configuración de Contratos Desplegados
  * ════════════════════════════════════════════════════════════════════════════════════════
  */
-async function exampleStaking() {
+async function readContractConfiguration() {
     console.log("\n╔════════════════════════════════════════════════════════════════╗");
-    console.log("║              📖 EJEMPLO 2: Hacer Staking                     ║");
+    console.log("║        📖 EJEMPLO 1: Configuración de Contratos              ║");
     console.log("╚════════════════════════════════════════════════════════════════╝\n");
     
-    const [, user1] = await hre.ethers.getSigners();
-    const network = await hre.ethers.provider.getNetwork();
-    const deploymentFile = path.join(__dirname, "..", "deployments", `${network.name}-deployment.json`);
+    const { staking, marketplace, deployment } = await loadContracts();
     
-    if (!fs.existsSync(deploymentFile)) {
-        console.log("❌ No hay despliegue guardado.\n");
-        return;
-    }
+    console.log("🏦 EnhancedSmartStaking Configuración:");
+    console.log(`   📍 Dirección: ${deployment.contracts.EnhancedSmartStaking.address}`);
+    console.log(`   👤 Owner: ${await staking.owner()}`);
+    console.log(`   💰 Treasury: ${await staking.treasury()}`);
+    console.log(`   📊 MIN_DEPOSIT: 10 ETH`);
+    console.log(`   📊 MAX_DEPOSIT: 10000 ETH`);
+    console.log(`   📊 COMMISSION: 6%`);
+    console.log(`   🎮 Marketplace: ${await staking.marketplaceContract()}\n`);
     
-    const deployment = JSON.parse(fs.readFileSync(deploymentFile, "utf8"));
-    const stakingAddress = deployment.contracts.EnhancedSmartStaking.address;
+    const ADMIN_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("ADMIN_ROLE"));
+    const [deployer] = await hre.ethers.getSigners();
     
-    const staking = await hre.ethers.getContractAt("EnhancedSmartStaking", stakingAddress);
+    console.log("🏬 GameifiedMarketplace Configuración:");
+    console.log(`   📍 Dirección: ${deployment.contracts.GameifiedMarketplace.address}`);
+    console.log(`   👤 Admin: ${await marketplace.hasRole(ADMIN_ROLE, deployer.address) ? 'Sí' : 'No'}`);
+    console.log(`   🪙 POL Token: ${await marketplace.polTokenAddress()}`);
+    console.log(`   📦 Staking: ${await marketplace.stakingContractAddress()}`);
+    console.log(`   💼 Treasury: ${await marketplace.stakingTreasuryAddress()}\n`);
+}
+
+/**
+ * ════════════════════════════════════════════════════════════════════════════════════════
+ * EJEMPLO 2: Staking Básico - Depositar y Ver Recompensas
+ * ════════════════════════════════════════════════════════════════════════════════════════
+ */
+async function exampleBasicStaking() {
+    console.log("\n╔════════════════════════════════════════════════════════════════╗");
+    console.log("║              📖 EJEMPLO 2: Staking Básico                   ║");
+    console.log("╚════════════════════════════════════════════════════════════════╝\n");
     
-    console.log("📝 Hacer Staking de 100 ETH por 30 días:\n");
+    const [deployer] = await hre.ethers.getSigners();
+    const { staking } = await loadContracts();
     
-    const depositAmount = hre.ethers.parseEther("100");
+    console.log(`👤 Usuario ejemplo: ${deployer.address}\n`);
+    
+    const depositAmount = parseEther("100");
     const lockupDays = 30;
     
-    console.log(`   Usuario: ${user1.address}`);
-    console.log(`   Monto: 100 ETH`);
-    console.log(`   Días de bloqueo: ${lockupDays}`);
-    
-    // NOTA: En red real, esto requeriría transacción actual
-    console.log(`\n   // Código para ejecutar el staking:`);
+    console.log("� Hacer Staking de 100 ETH por 30 días:\n");
     console.log(`   const tx = await staking.connect(user1).deposit(${lockupDays}, {`);
     console.log(`       value: hre.ethers.parseEther("100")`);
     console.log(`   });`);
     console.log(`   await tx.wait();\n`);
     
-    console.log(`   // Leer información del depósito:`);
+    console.log("📊 Ver información del depósito:\n");
     console.log(`   const userInfo = await staking.getUserInfo(user1.address);`);
-    console.log(`   console.log("Amount:", ethers.formatEther(userInfo.amount));`);
-    console.log(`   console.log("Lock time:", userInfo.lockupTime);\n`);
+    console.log(`   console.log({`);
+    console.log(`       totalDeposited: hre.ethers.formatEther(userInfo.totalDeposited),`);
+    console.log(`       rewards: hre.ethers.formatEther(userInfo.rewards),`);
+    console.log(`       lockupTime: new Date(userInfo.lockupTime * 1000)`);
+    console.log(`   });\n`);
+    
+    console.log("💹 Ver recompensas acumuladas:\n");
+    console.log(`   const rewards = await staking.calculateRewards(user1.address);`);
+    console.log(`   console.log("Recompensas:", hre.ethers.formatEther(rewards));\n`);
+    
+    console.log("💡 Nota: Este es un ejemplo de código. Para ejecutarlo, necesitas:");
+    console.log("   1. Tener suficiente balance (mínimo 10 ETH)");
+    console.log("   2. Conectar tu wallet");
+    console.log("   3. Aprobar la transacción\n");
 }
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════════════
- * EJEMPLO 3: Ver Recompensas
+ * EJEMPLO 3: Sistema de Skills - Crear y Activar Skills
  * ════════════════════════════════════════════════════════════════════════════════════════
  */
-async function exampleViewRewards() {
+async function exampleSkillSystem() {
     console.log("\n╔════════════════════════════════════════════════════════════════╗");
-    console.log("║            📖 EJEMPLO 3: Ver Recompensas de Staking          ║");
+    console.log("║         📖 EJEMPLO 3: Sistema de Skills Gamificado          ║");
     console.log("╚════════════════════════════════════════════════════════════════╝\n");
     
-    const [, user1] = await hre.ethers.getSigners();
-    const network = await hre.ethers.provider.getNetwork();
-    const deploymentFile = path.join(__dirname, "..", "deployments", `${network.name}-deployment.json`);
+    const [deployer] = await hre.ethers.getSigners();
+    const { marketplace } = await loadContracts();
     
-    if (!fs.existsSync(deploymentFile)) {
-        console.log("❌ No hay despliegue guardado.\n");
-        return;
-    }
+    console.log(`👤 Usuario ejemplo: ${deployer.address}\n`);
     
-    const deployment = JSON.parse(fs.readFileSync(deploymentFile, "utf8"));
-    const stakingAddress = deployment.contracts.EnhancedSmartStaking.address;
+    console.log("🎨 1. Crear Skill NFT:\n");
+    const skillTypes = {
+        0: "NONE",
+        1: "STAKE_BOOST_I       → +5% rewards",
+        2: "STAKE_BOOST_II      → +10% rewards",
+        3: "STAKE_BOOST_III     → +20% rewards",
+        4: "AUTO_COMPOUND       → Reinversión automática",
+        5: "LOCK_REDUCER        → -25% lockup time",
+        6: "FEE_REDUCER_I       → -10% comisión",
+        7: "FEE_REDUCER_II      → -25% comisión"
+    };
     
-    const staking = await hre.ethers.getContractAt("EnhancedSmartStaking", stakingAddress);
+    const rarities = {
+        0: "COMMON              → 1.0x",
+        1: "UNCOMMON            → 1.25x",
+        2: "RARE                → 1.5x",
+        3: "EPIC                → 1.75x",
+        4: "LEGENDARY           → 2.0x"
+    };
     
-    console.log("📝 Leer recompensas del usuario:\n");
-    console.log(`   Usuario: ${user1.address}\n`);
+    console.log(`   Tipos de Skills:`);
+    Object.entries(skillTypes).forEach(([id, name]) => {
+        if (id !== "0") console.log(`      ${name}`);
+    });
     
-    console.log(`   // Código para ver recompensas:`);
-    console.log(`   const rewards = await staking.calculateRewards(user1.address);`);
-    console.log(`   console.log("Recompensas:", ethers.formatEther(rewards));\n`);
+    console.log(`\n   Rarities (Multiplicadores):`);
+    Object.entries(rarities).forEach(([id, name]) => {
+        console.log(`      ${name}`);
+    });
     
-    console.log(`   // Ver información completa:`);
-    console.log(`   const userInfo = await staking.getUserInfo(user1.address);`);
+    console.log(`\n   Crear Skill NFT STAKE_BOOST_I con LEGENDARY rarity:`);
+    console.log(`   const tx = await marketplace.connect(user1).createSkillNFT(`);
+    console.log(`       "ipfs://QmXXX...",  // Token URI`);
+    console.log(`       "skills",           // Category`);
+    console.log(`       500,                // Royalty (5%)`);
+    console.log(`       1,                  // SkillType.STAKE_BOOST_I`);
+    console.log(`       4                   // Rarity.LEGENDARY`);
+    console.log(`   );\n`);
+    
+    console.log("📊 Ver Información del Skill:\n");
+    console.log(`   const skillProfile = await staking.getUserSkillProfile(user1.address);`);
     console.log(`   console.log({`);
-    console.log(`       amount: ethers.formatEther(userInfo.amount),`);
-    console.log(`       lockupTime: new Date(userInfo.lockupTime * 1000),`);
-    console.log(`       dailyReturn: userInfo.dailyReturn,`);
-    console.log(`       accumulatedRewards: ethers.formatEther(userInfo.accumulatedRewards)`);
+    console.log(`       hasAutoCompound: skillProfile.hasAutoCompound,`);
+    console.log(`       boostPercentage: skillProfile.currentBoostPercentage,`);
+    console.log(`       lockupReduction: skillProfile.lockupReduction`);
     console.log(`   });\n`);
 }
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════════════
- * EJEMPLO 4: Crear Skill NFT
+ * EJEMPLO 4: Sistema de Marketplace - Listar y Comprar NFTs
  * ════════════════════════════════════════════════════════════════════════════════════════
  */
-async function exampleCreateSkillNFT() {
+async function exampleMarketplace() {
     console.log("\n╔════════════════════════════════════════════════════════════════╗");
-    console.log("║           📖 EJEMPLO 4: Crear Skill NFT                      ║");
+    console.log("║         📖 EJEMPLO 4: Marketplace - Listar y Comprar       ║");
     console.log("╚════════════════════════════════════════════════════════════════╝\n");
     
-    const [deployer, user1] = await hre.ethers.getSigners();
-    const network = await hre.ethers.provider.getNetwork();
-    const deploymentFile = path.join(__dirname, "..", "deployments", `${network.name}-deployment.json`);
+    const [deployer] = await hre.ethers.getSigners();
+    const { marketplace } = await loadContracts();
     
-    if (!fs.existsSync(deploymentFile)) {
-        console.log("❌ No hay despliegue guardado.\n");
-        return;
-    }
+    console.log(`👤 Usuario ejemplo: ${deployer.address}\n`);
     
-    const deployment = JSON.parse(fs.readFileSync(deploymentFile, "utf8"));
-    const marketplaceAddress = deployment.contracts.GameifiedMarketplace.address;
-    
-    const marketplace = await hre.ethers.getContractAt("GameifiedMarketplace", marketplaceAddress);
-    
-    console.log("📝 Crear nuevo Skill NFT:\n");
-    
-    const skillData = {
-        name: "STAKE_BOOST_I",
-        rarity: 1, // COMMON
-        level: 1,
-        maxSupply: 1000,
-        royaltyPercentage: 5,
-        metadataURI: "ipfs://QmXXXXXX...",
-    };
-    
-    console.log(`   Nombre: ${skillData.name}`);
-    console.log(`   Rareza: ${skillData.rarity} (COMMON)`);
-    console.log(`   Nivel: ${skillData.level}`);
-    console.log(`   Max Supply: ${skillData.maxSupply}`);
-    console.log(`   Royalty: ${skillData.royaltyPercentage}%\n`);
-    
-    console.log(`   // Código para crear el NFT:`);
-    console.log(`   const tx = await marketplace.connect(deployer).createSkillNFT(`);
-    console.log(`       "${skillData.name}",      // Nombre`);
-    console.log(`       ${skillData.rarity},        // Rareza`);
-    console.log(`       ${skillData.level},         // Nivel`);
-    console.log(`       ${skillData.maxSupply},     // Max Supply`);
-    console.log(`       ${skillData.royaltyPercentage}, // Royalty %`);
-    console.log(`       "${skillData.metadataURI}"  // Metadata URI`);
+    console.log("🏷️  1. Listar NFT para Venta:\n");
+    console.log(`   const tokenId = 0; // ID del NFT a listar`);
+    console.log(`   const price = hre.ethers.parseEther("50"); // Precio en POL`);
+    console.log(`   \n   const tx = await marketplace.connect(user1).listTokenForSale(`);
+    console.log(`       tokenId,`);
+    console.log(`       price`);
     console.log(`   );`);
-    console.log(`   await tx.wait();`);
-    console.log(`\n   const receipt = await tx.wait();`);
-    console.log(`   const tokenId = receipt.events[0].args.tokenId;`);
-    console.log(`   console.log("NFT creado con ID:", tokenId.toString());\n`);
-}
-
-/**
- * ════════════════════════════════════════════════════════════════════════════════════════
- * EJEMPLO 5: Listar NFT para Venta
- * ════════════════════════════════════════════════════════════════════════════════════════
- */
-async function exampleListNFTForSale() {
-    console.log("\n╔════════════════════════════════════════════════════════════════╗");
-    console.log("║         📖 EJEMPLO 5: Listar NFT para Venta                  ║");
-    console.log("╚════════════════════════════════════════════════════════════════╝\n");
+    console.log(`   await tx.wait();\n`);
     
-    const network = await hre.ethers.provider.getNetwork();
-    const deploymentFile = path.join(__dirname, "..", "deployments", `${network.name}-deployment.json`);
+    console.log("🛒 2. Comprar NFT:\n");
+    console.log(`   const tx = await marketplace.connect(user2).buyToken(tokenId, {`);
+    console.log(`       value: price`);
+    console.log(`   });`);
+    console.log(`   await tx.wait();\n`);
     
-    if (!fs.existsSync(deploymentFile)) {
-        console.log("❌ No hay despliegue guardado.\n");
-        return;
-    }
-    
-    const deployment = JSON.parse(fs.readFileSync(deploymentFile, "utf8"));
-    const marketplaceAddress = deployment.contracts.GameifiedMarketplace.address;
-    
-    console.log("📝 Listar NFT para Venta:\n");
-    
-    const tokenId = 1;
-    const price = hre.ethers.parseEther("50");
-    
-    console.log(`   Token ID: ${tokenId}`);
-    console.log(`   Precio: 50 POL`);
-    console.log(`   Marketplace: ${marketplaceAddress}\n`);
-    
-    console.log(`   // Código para listar el NFT:`);
-    console.log(`   const tx = await marketplace.connect(owner).listTokenForSale(`);
-    console.log(`       ${tokenId},  // Token ID`);
-    console.log(`       hre.ethers.parseEther("50")  // Precio en POL`);
+    console.log("💰 3. Sistema de Ofertas:\n");
+    console.log(`   // Hacer oferta`);
+    console.log(`   const offerAmount = hre.ethers.parseEther("40");`);
+    console.log(`   const tx = await marketplace.connect(user2).makeOffer(`);
+    console.log(`       tokenId,`);
+    console.log(`       offerAmount,`);
+    console.log(`       7  // Expira en 7 días`);
     console.log(`   );`);
-    console.log(`   await tx.wait();`);
-    console.log(`   console.log("NFT listado exitosamente");\n`);
+    console.log(`   await tx.wait();\n`);
+    
+    console.log(`   // Aceptar oferta`);
+    console.log(`   const tx = await marketplace.connect(user1).acceptOffer(`);
+    console.log(`       tokenId,`);
+    console.log(`       0  // índice de la oferta`);
+    console.log(`   );`);
+    console.log(`   await tx.wait();\n`);
 }
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════════════
- * EJEMPLO 6: Activar Skill
+ * EJEMPLO 5: Sistema de Gamificación - XP, Niveles y Logros
  * ════════════════════════════════════════════════════════════════════════════════════════
  */
-async function exampleActivateSkill() {
+async function exampleGamification() {
     console.log("\n╔════════════════════════════════════════════════════════════════╗");
-    console.log("║             📖 EJEMPLO 6: Activar Skill                      ║");
+    console.log("║      📖 EJEMPLO 5: Gamificación - XP, Niveles y Logros    ║");
     console.log("╚════════════════════════════════════════════════════════════════╝\n");
     
-    const [, user1] = await hre.ethers.getSigners();
-    const network = await hre.ethers.provider.getNetwork();
-    const deploymentFile = path.join(__dirname, "..", "deployments", `${network.name}-deployment.json`);
+    const [deployer] = await hre.ethers.getSigners();
+    const { marketplace } = await loadContracts();
     
-    if (!fs.existsSync(deploymentFile)) {
-        console.log("❌ No hay despliegue guardado.\n");
-        return;
-    }
+    console.log(`👤 Usuario ejemplo: ${deployer.address}\n`);
     
-    const deployment = JSON.parse(fs.readFileSync(deploymentFile, "utf8"));
-    const stakingAddress = deployment.contracts.EnhancedSmartStaking.address;
+    console.log("👥 1. Obtener Perfil de Usuario:\n");
+    console.log(`   const profile = await marketplace.getUserProfile(user1.address);`);
+    console.log(`   console.log({`);
+    console.log(`       level: profile.currentLevel,`);
+    console.log(`       totalXP: profile.totalXP.toString(),`);
+    console.log(`       nftsCreated: profile.nftsCreated.toString(),`);
+    console.log(`       nftsBought: profile.nftsBought.toString()`);
+    console.log(`   });\n`);
     
-    console.log("📝 Activar Skill para usuario:\n");
-    console.log(`   Usuario: ${user1.address}`);
-    console.log(`   Skill: STAKE_BOOST_I (ID: 0)\n`);
+    console.log("❤️  2. Social Features - Likes y Comentarios:\n");
+    console.log(`   // Dar like a un NFT (gana 1 XP)`);
+    console.log(`   const tx = await marketplace.connect(user1).toggleLike(tokenId);`);
+    console.log(`   await tx.wait();\n`);
     
-    console.log(`   // Código para activar skill:`);
-    console.log(`   const skillId = 0; // STAKE_BOOST_I`);
-    console.log(`   const tx = await staking.connect(user1).activateSkill(skillId);`);
-    console.log(`   await tx.wait();`);
-    console.log(`\n   // Verificar que se activó:`);
-    console.log(`   const userSkills = await staking.getUserSkills(user1.address);`);
-    console.log(`   console.log("Skills activos:", userSkills);\n`);
+    console.log(`   // Comentar en un NFT (gana 2 XP)`);
+    console.log(`   const tx = await marketplace.connect(user1).addComment(`);
+    console.log(`       tokenId,`);
+    console.log(`       "¡Me encanta este NFT!"`);
+    console.log(`   );`);
+    console.log(`   await tx.wait();\n`);
+    
+    console.log("🏆 3. XP Rewards:\n");
+    console.log(`   Crear NFT:       +10 XP`);
+    console.log(`   Vender NFT:      +20 XP`);
+    console.log(`   Comprar NFT:     +15 XP`);
+    console.log(`   Like:            +1 XP`);
+    console.log(`   Comentar:        +2 XP`);
+    console.log(`   Referral:        +50 XP\n`);
 }
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════════════
- * MAIN: Ejecutar todos los ejemplos
+ * EJEMPLO 6: Auto-Compound - Reinversión Automática
+ * ════════════════════════════════════════════════════════════════════════════════════════
+ */
+async function exampleAutoCompound() {
+    console.log("\n╔════════════════════════════════════════════════════════════════╗");
+    console.log("║    📖 EJEMPLO 6: Auto-Compound - Reinversión Automática   ║");
+    console.log("╚════════════════════════════════════════════════════════════════╝\n");
+    
+    const [deployer] = await hre.ethers.getSigners();
+    const { staking, marketplace } = await loadContracts();
+    
+    console.log(`👤 Usuario ejemplo: ${deployer.address}\n`);
+    
+    console.log("⚙️  1. Activar Auto-Compound:\n");
+    console.log(`   // Requiere skill AUTO_COMPOUND (SkillType = 4)`);
+    console.log(`   // El marketplace notifica al staking automáticamente\n`);
+    
+    console.log("🔄 2. Verificar Estado de Auto-Compound:\n");
+    console.log(`   const skillProfile = await staking.getUserSkillProfile(user1.address);`);
+    console.log(`   const hasAutoCompound = skillProfile.hasAutoCompound;`);
+    console.log(`   console.log("Auto-Compound activo:", hasAutoCompound);\n`);
+    
+    console.log("� 3. Forzar Auto-Compound Manual:\n");
+    console.log(`   const performData = hre.ethers.AbiCoder.defaultAbiCoder().encode(`);
+    console.log(`       ["address"],`);
+    console.log(`       [user1.address]`);
+    console.log(`   );`);
+    console.log(`   const tx = await staking.performAutoCompound(performData);`);
+    console.log(`   await tx.wait();\n`);
+    
+    console.log("📊 4. Ver Efecto del Auto-Compound:\n");
+    console.log(`   const totalBefore = await staking.getTotalDeposit(user1.address);`);
+    console.log(`   // ... esperar 24 horas ...\n`);
+}
+
+/**
+ * ════════════════════════════════════════════════════════════════════════════════════════
+ * EJEMPLO 7: Boosts de Skills - Cálculos y Multiplicadores
+ * ════════════════════════════════════════════════════════════════════════════════════════
+ */
+async function exampleSkillBoosts() {
+    console.log("\n╔════════════════════════════════════════════════════════════════╗");
+    console.log("║      📖 EJEMPLO 7: Boosts de Skills - Recompensas Extra   ║");
+    console.log("╚════════════════════════════════════════════════════════════════╝\n");
+    
+    const [deployer] = await hre.ethers.getSigners();
+    const { staking } = await loadContracts();
+    
+    console.log(`👤 Usuario ejemplo: ${deployer.address}\n`);
+    
+    console.log("📈 1. STAKE_BOOST Skills:\n");
+    console.log(`   SkillType 1: STAKE_BOOST_I    → +5% a recompensas`);
+    console.log(`   SkillType 2: STAKE_BOOST_II   → +10% a recompensas`);
+    console.log(`   SkillType 3: STAKE_BOOST_III  → +20% a recompensas\n`);
+    console.log(`   Los boosts se acumulan: BOOST_I + BOOST_II = 15% extra\n`);
+    
+    console.log("💸 2. FEE_REDUCER Skills:\n");
+    console.log(`   SkillType 6: FEE_REDUCER_I    → -10% comisión`);
+    console.log(`   SkillType 7: FEE_REDUCER_II   → -25% comisión\n`);
+    console.log(`   Base commission: 6%`);
+    console.log(`   With FEE_REDUCER_I: 6% - 10% = 5.4%`);
+    console.log(`   With FEE_REDUCER_II: 6% - 25% = 4.5%\n`);
+    
+    console.log("🔒 3. LOCK_REDUCER Skill:\n");
+    console.log(`   SkillType 5: LOCK_REDUCER → -25% tiempo de bloqueo\n`);
+    console.log(`   Ejemplo:`);
+    console.log(`   Deposit lockup: 90 días`);
+    console.log(`   With LOCK_REDUCER: 90 * 0.75 = 67.5 días\n`);
+}
+
+/**
+ * ════════════════════════════════════════════════════════════════════════════════════════
+ * MAIN: Menú de Ejemplos
  * ════════════════════════════════════════════════════════════════════════════════════════
  */
 async function main() {
     console.log("\n");
     console.log("╔════════════════════════════════════════════════════════════════╗");
-    console.log("║  📖 EJEMPLOS DE USO - Nuxchain Protocol Contratos            ║");
-    console.log("╚════════════════════════════════════════════════════════════════╝");
+    console.log("║  📚 EJEMPLOS DE INTERACCIÓN - EnhancedSmartStaking v4.0.0   ║");
+    console.log("║        & GameifiedMarketplace Gamification System v2.0         ║");
+    console.log("╚════════════════════════════════════════════════════════════════╝\n");
     
-    console.log("\nEste script contiene ejemplos de cómo usar los contratos.");
-    console.log("Cada ejemplo muestra el código necesario para ejecutar una acción.\n");
+    console.log("Opciones disponibles:\n");
+    console.log("  0 → Todas las configuraciones (default)");
+    console.log("  1 → Leer configuración de contratos");
+    console.log("  2 → Staking básico");
+    console.log("  3 → Sistema de Skills");
+    console.log("  4 → Marketplace");
+    console.log("  5 → Gamificación");
+    console.log("  6 → Auto-Compound");
+    console.log("  7 → Boosts de Skills\n");
     
+    // Buscar el parámetro en el objeto global hre
+    let exampleNumber = "0";
+    
+    // Verificar si se pasó como propiedad del hre
+    if (typeof hre !== 'undefined' && hre.example) {
+        exampleNumber = hre.example;
+    }
+    
+    // Ejecutar todas las demostraciones por defecto
     try {
         await readContractConfiguration();
-        await exampleStaking();
-        await exampleViewRewards();
-        await exampleCreateSkillNFT();
-        await exampleListNFTForSale();
-        await exampleActivateSkill();
+        await exampleBasicStaking();
+        await exampleSkillSystem();
+        await exampleMarketplace();
+        await exampleGamification();
+        await exampleAutoCompound();
+        await exampleSkillBoosts();
         
         console.log("\n╔════════════════════════════════════════════════════════════════╗");
         console.log("║                    ✅ EJEMPLOS COMPLETADOS                    ║");
         console.log("╚════════════════════════════════════════════════════════════════╝\n");
         
-        console.log("📌 PRÓXIMOS PASOS:\n");
-        console.log("1. Copiar el código de los ejemplos que necesites");
-        console.log("2. Adaptarlos a tu aplicación");
-        console.log("3. Ejecutar en testnet primero");
-        console.log("4. Validar funcionalidad completa\n");
-        
     } catch (error) {
-        console.error("\n❌ Error durante ejemplos:");
-        console.error(error.message);
+        console.error("\n❌ Error:", error.message);
+        process.exit(1);
     }
 }
 
-main().catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-});
+main();

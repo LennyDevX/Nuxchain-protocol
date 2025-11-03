@@ -5,18 +5,14 @@
   "deployer": "0xed639e84179FCEcE1d7BEe91ab1C6888fbBdD0cf",
   "contracts": {
     "EnhancedSmartStaking": {
-      "address": "0xbee828dD8BBf9502b4B41480f85E0de9c33f4509",
-      "constructor": {
-        "treasury": "0xad14c117b51735c072d42571e30bf2c729cd9593"
-      }
+      "address": "0xae57acBf4efE2F6536D992F86145a20e11DB8C3D",
+      "deployedAt": "2025-11-03T03:20:05.455Z",
+      "network": "polygon"
     },
     "GameifiedMarketplace": {
-      "address": "0x559CeAAB4d1e8e9f3faA7d7aF22F7C0505940E8E",
-      "constructor": {
-        "polToken": "0xed639e84179FCEcE1d7BEe91ab1C6888fbBdD0cf",
-        "staking": "0xbee828dD8BBf9502b4B41480f85E0de9c33f4509",
-        "stakingTreasury": "0xad14c117b51735c072d42571e30bf2c729cd9593"
-      }
+      "address": "0xB948cC766CBE97Ce822bF4c915D2319fbc48Ad38",
+      "deployedAt": "2025-11-03T03:22:43.928Z",
+      "network": "polygon"
     }
   },
   "configuration": {

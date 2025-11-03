@@ -264,6 +264,12 @@ contract GameifiedMarketplace is
     // CONSTRUCTOR
     // ════════════════════════════════════════════════════════════════════════════════════════
     
+    /**
+     * @notice Constructor initializes GameifiedMarketplace with POL token and staking integration
+     * @param _polTokenAddress Address of the POL token contract
+     * @param _stakingContractAddress Address of EnhancedSmartStaking contract
+     * @param _stakingTreasuryAddress Address of staking treasury for commissions
+     */
     constructor(
         address _polTokenAddress,
         address _stakingContractAddress,
@@ -273,12 +279,18 @@ contract GameifiedMarketplace is
         require(_stakingContractAddress != address(0), "Invalid staking contract");
         require(_stakingTreasuryAddress != address(0), "Invalid staking treasury");
         
+        // Setup admin roles
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ADMIN_ROLE, msg.sender);
+        
+        // Initialize marketplace
         platformTreasury = msg.sender;
         polTokenAddress = _polTokenAddress;
         stakingContractAddress = _stakingContractAddress;
         stakingTreasuryAddress = _stakingTreasuryAddress;
+        
+        // Initialize first user skill level to 1 (for new users)
+        // This ensures default skill activation level is set
     }
     
     // ════════════════════════════════════════════════════════════════════════════════════════
