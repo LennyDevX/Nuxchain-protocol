@@ -147,6 +147,22 @@ interface IStakingIntegration {
      */
     function updateUserXP(address user, uint256 xpGained) external;
     
+    /**
+     * @dev Notifies staking contract that a quest has been completed
+     * @param user Address of the user who completed the quest
+     * @param questId ID of the completed quest
+     * @param rewardAmount Amount of rewards earned
+     */
+    function notifyQuestCompletion(address user, uint256 questId, uint256 rewardAmount) external;
+    
+    /**
+     * @dev Notifies staking contract that an achievement has been unlocked
+     * @param user Address of the user who unlocked the achievement
+     * @param achievementId ID of the unlocked achievement
+     * @param rewardAmount Amount of rewards earned
+     */
+    function notifyAchievementUnlocked(address user, uint256 achievementId, uint256 rewardAmount) external;
+    
     // ════════════════════════════════════════════════════════════════════════════════════════
     // STAKING → MARKETPLACE QUERY FUNCTIONS
     // ════════════════════════════════════════════════════════════════════════════════════════

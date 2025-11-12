@@ -1,7 +1,7 @@
 const { expect } = require("chai");
-const { ethers, network } = require("hardhat");
+const { ethers } = require("hardhat");
 
-describe("Modular Agent Mining System", function () {
+describe("GameifiedMarketplace Modularized", function () {
     let NUVO, factory, coreContract, marketplaceContract, tournamentContract;
     let owner, user1, user2, user3;
     let ownerAddress, user1Address, user2Address, user3Address;

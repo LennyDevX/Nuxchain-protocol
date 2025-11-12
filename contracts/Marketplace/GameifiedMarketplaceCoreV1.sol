@@ -1,0 +1,363 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Royalty.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+
+/**
+ * @title GameifiedMarketplaceCoreV1
+ * @dev Contrato base UPGRADEABLE para NFT creation, marketplace y XP tracking
+ * - Usar con UUPS Proxy pattern
+ * - Versión 1 del contrato
+ */
+contract GameifiedMarketplaceCoreV1 is
+    ERC721,
+    ERC721URIStorage,
+    ERC721Royalty,
+    AccessControl,
+    ReentrancyGuard,
+    Pausable,
+    Initializable,
+    UUPSUpgradeable
+{
+    using Counters for Counters.Counter;
+    
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() ERC721("GameifiedNFT", "GNFT") {
+        _disableInitializers();
+    }
+
+    Counters.Counter private _tokenIdCounter;
+    
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+    
+    uint256 public constant PLATFORM_FEE_PERCENTAGE = 5;
+    
+    struct NFTMetadata {
+        address creator;
+        string uri;
+        string category;
+        uint256 createdAt;
+        uint96 royaltyPercentage;
+    }
+    
+    struct Offer {
+        address offeror;
+        uint256 amount;
+        uint8 expiresInDays;
+        uint256 timestamp;
+    }
+    
+    struct UserProfile {
+        uint256 totalXP;
+        uint8 level;
+        uint256 nftsCreated;
+        uint256 nftsOwned;
+        uint32 nftsSold;
+        uint32 nftsBought;
+    }
+    
+    mapping(uint256 => NFTMetadata) public nftMetadata;
+    mapping(uint256 => bool) public isListed;
+    mapping(uint256 => uint256) public listedPrice;
+    mapping(uint256 => mapping(address => bool)) public nftLikes;
+    mapping(uint256 => uint256) public nftLikeCount;
+    mapping(uint256 => string[]) public nftComments;
+    mapping(uint256 => Offer[]) public nftOffers;
+    mapping(address => UserProfile) public userProfiles;
+    mapping(address => uint256) public userBalance;
+    
+    address public platformTreasury;
+    address public skillsContractAddress;
+    address public questsContractAddress;
+    address public stakingContractAddress;
+
+    event TokenCreated(address indexed creator, uint256 indexed tokenId, string uri);
+    event TokenListed(address indexed seller, uint256 indexed tokenId, uint256 price);
+    event TokenUnlisted(address indexed seller, uint256 indexed tokenId);
+    event TokenSold(address indexed seller, address indexed buyer, uint256 indexed tokenId, uint256 price);
+    event OfferMade(address indexed offeror, uint256 indexed tokenId, uint256 amount);
+    event OfferAccepted(address indexed seller, address indexed buyer, uint256 indexed tokenId, uint256 amount);
+    event LikeToggled(address indexed user, uint256 indexed tokenId, bool liked);
+    event CommentAdded(address indexed user, uint256 indexed tokenId, string comment);
+    event PriceUpdated(address indexed seller, uint256 indexed tokenId, uint256 newPrice);
+    event XPGained(address indexed user, uint256 amount, string reason);
+    event LevelUp(address indexed user, uint8 newLevel);
+
+    error TokenNotFound();
+    error NotTokenOwner();
+    error TokenNotListed();
+    error InsufficientPayment();
+    error NoOffersAvailable();
+
+    function initialize(address _platformTreasury) public initializer {
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setupRole(ADMIN_ROLE, msg.sender);
+        _setupRole(UPGRADER_ROLE, msg.sender);
+        
+        platformTreasury = _platformTreasury != address(0) ? _platformTreasury : msg.sender;
+    }
+
+    function createStandardNFT(
+        string calldata _tokenURI,
+        string calldata _category,
+        uint96 _royaltyPercentage
+    ) external whenNotPaused returns (uint256) {
+        require(_royaltyPercentage <= 10000, "Invalid royalty");
+        
+        uint256 tokenId = _tokenIdCounter.current();
+        _tokenIdCounter.increment();
+        
+        _safeMint(msg.sender, tokenId);
+        _setTokenURI(tokenId, _tokenURI);
+        
+        nftMetadata[tokenId] = NFTMetadata({
+            creator: msg.sender,
+            uri: _tokenURI,
+            category: _category,
+            createdAt: block.timestamp,
+            royaltyPercentage: _royaltyPercentage
+        });
+        
+        if (_royaltyPercentage > 0) {
+            _setTokenRoyalty(tokenId, msg.sender, _royaltyPercentage);
+        }
+        
+        userProfiles[msg.sender].nftsCreated++;
+        userProfiles[msg.sender].totalXP += 10;
+        
+        emit TokenCreated(msg.sender, tokenId, _tokenURI);
+        emit XPGained(msg.sender, 10, "NFT_CREATED");
+        
+        return tokenId;
+    }
+
+    function listTokenForSale(
+        uint256 _tokenId,
+        uint256 _price,
+        string calldata
+    ) external whenNotPaused {
+        require(ownerOf(_tokenId) == msg.sender, "Not owner");
+        require(_price > 0, "Invalid price");
+        
+        isListed[_tokenId] = true;
+        listedPrice[_tokenId] = _price;
+        
+        emit TokenListed(msg.sender, _tokenId, _price);
+    }
+
+    function unlistToken(uint256 _tokenId) external whenNotPaused {
+        require(ownerOf(_tokenId) == msg.sender, "Not owner");
+        require(isListed[_tokenId], "Not listed");
+        
+        isListed[_tokenId] = false;
+        listedPrice[_tokenId] = 0;
+        
+        emit TokenUnlisted(msg.sender, _tokenId);
+    }
+
+    function updatePrice(uint256 _tokenId, uint256 _newPrice) external whenNotPaused {
+        require(ownerOf(_tokenId) == msg.sender, "Not owner");
+        require(isListed[_tokenId], "Not listed");
+        require(_newPrice > 0, "Invalid price");
+        
+        listedPrice[_tokenId] = _newPrice;
+        emit PriceUpdated(msg.sender, _tokenId, _newPrice);
+    }
+
+    function buyToken(uint256 _tokenId) public payable whenNotPaused nonReentrant {
+        require(isListed[_tokenId], "Not listed");
+        require(msg.value >= listedPrice[_tokenId], "Insufficient payment");
+        
+        address seller = ownerOf(_tokenId);
+        uint256 price = listedPrice[_tokenId];
+        
+        _transfer(seller, msg.sender, _tokenId);
+        
+        uint256 platformFee = (price * PLATFORM_FEE_PERCENTAGE) / 100;
+        uint256 sellerAmount = price - platformFee;
+        
+        userProfiles[seller].nftsSold++;
+        userProfiles[msg.sender].nftsBought++;
+        userProfiles[seller].totalXP += 20;
+        userProfiles[msg.sender].totalXP += 15;
+        
+        isListed[_tokenId] = false;
+        listedPrice[_tokenId] = 0;
+        
+        (bool treasurySuccess, ) = payable(platformTreasury).call{value: platformFee}("");
+        require(treasurySuccess, "Treasury transfer failed");
+        
+        (bool sellerSuccess, ) = payable(seller).call{value: sellerAmount}("");
+        require(sellerSuccess, "Seller transfer failed");
+        
+        emit TokenSold(seller, msg.sender, _tokenId, price);
+        emit XPGained(seller, 20, "NFT_SOLD");
+        emit XPGained(msg.sender, 15, "NFT_BOUGHT");
+    }
+
+    function makeOffer(
+        uint256 _tokenId,
+        uint8 _expiresInDays
+    ) external payable whenNotPaused {
+        require(isListed[_tokenId], "Not listed");
+        require(msg.value > 0, "Invalid offer");
+        require(_expiresInDays > 0 && _expiresInDays <= 30, "Invalid expiry");
+        
+        nftOffers[_tokenId].push(Offer({
+            offeror: msg.sender,
+            amount: msg.value,
+            expiresInDays: _expiresInDays,
+            timestamp: block.timestamp
+        }));
+        
+        emit OfferMade(msg.sender, _tokenId, msg.value);
+    }
+
+    function acceptOffer(uint256 _tokenId, uint256 _offerIndex) external nonReentrant {
+        require(ownerOf(_tokenId) == msg.sender, "Not owner");
+        require(_offerIndex < nftOffers[_tokenId].length, "Invalid offer");
+        
+        Offer memory offer = nftOffers[_tokenId][_offerIndex];
+        require(
+            block.timestamp <= offer.timestamp + (offer.expiresInDays * 1 days),
+            "Offer expired"
+        );
+        
+        address buyer = offer.offeror;
+        uint256 amount = offer.amount;
+        
+        _transfer(msg.sender, buyer, _tokenId);
+        
+        uint256 platformFee = (amount * PLATFORM_FEE_PERCENTAGE) / 100;
+        uint256 sellerAmount = amount - platformFee;
+        
+        userProfiles[msg.sender].nftsSold++;
+        userProfiles[buyer].nftsBought++;
+        userProfiles[msg.sender].totalXP += 20;
+        userProfiles[buyer].totalXP += 15;
+        
+        isListed[_tokenId] = false;
+        listedPrice[_tokenId] = 0;
+        delete nftOffers[_tokenId];
+        
+        (bool treasurySuccess, ) = payable(platformTreasury).call{value: platformFee}("");
+        require(treasurySuccess, "Treasury transfer failed");
+        
+        (bool sellerSuccess, ) = payable(msg.sender).call{value: sellerAmount}("");
+        require(sellerSuccess, "Seller transfer failed");
+        
+        emit OfferAccepted(msg.sender, buyer, _tokenId, amount);
+    }
+
+    function cancelOffer(uint256 _tokenId, uint256 _offerIndex) external nonReentrant {
+        require(_offerIndex < nftOffers[_tokenId].length, "Invalid offer");
+        
+        Offer memory offer = nftOffers[_tokenId][_offerIndex];
+        require(offer.offeror == msg.sender, "Not offeror");
+        
+        uint256 amount = offer.amount;
+        
+        nftOffers[_tokenId][_offerIndex] = nftOffers[_tokenId][nftOffers[_tokenId].length - 1];
+        nftOffers[_tokenId].pop();
+        
+        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        require(success, "Refund failed");
+    }
+
+    function toggleLike(uint256 _tokenId) external whenNotPaused {
+        require(ownerOf(_tokenId) != address(0), "Not exists");
+        
+        if (nftLikes[_tokenId][msg.sender]) {
+            nftLikes[_tokenId][msg.sender] = false;
+            nftLikeCount[_tokenId]--;
+        } else {
+            nftLikes[_tokenId][msg.sender] = true;
+            nftLikeCount[_tokenId]++;
+            userProfiles[msg.sender].totalXP += 1;
+            emit XPGained(msg.sender, 1, "LIKE");
+        }
+        
+        emit LikeToggled(msg.sender, _tokenId, nftLikes[_tokenId][msg.sender]);
+    }
+
+    function addComment(uint256 _tokenId, string calldata _text) external whenNotPaused {
+        require(ownerOf(_tokenId) != address(0), "Not exists");
+        require(bytes(_text).length > 0, "Empty comment");
+        
+        nftComments[_tokenId].push(_text);
+        userProfiles[msg.sender].totalXP += 2;
+        
+        emit CommentAdded(msg.sender, _tokenId, _text);
+        emit XPGained(msg.sender, 2, "COMMENT");
+    }
+
+    function getUserProfile(address _user) external view returns (UserProfile memory) {
+        return userProfiles[_user];
+    }
+
+    function updateUserXP(address _user, uint256 _amount) external onlyRole(ADMIN_ROLE) {
+        userProfiles[_user].totalXP += _amount;
+        
+        uint8 newLevel = uint8(userProfiles[_user].totalXP / 100);
+        if (newLevel > userProfiles[_user].level) {
+            userProfiles[_user].level = newLevel;
+            emit LevelUp(_user, newLevel);
+        }
+        
+        emit XPGained(_user, _amount, "EXTERNAL_SOURCE");
+    }
+
+    function setSkillsContract(address _skillsAddress) external onlyRole(ADMIN_ROLE) {
+        require(_skillsAddress != address(0), "Invalid address");
+        skillsContractAddress = _skillsAddress;
+    }
+
+    function setQuestsContract(address _questsAddress) external onlyRole(ADMIN_ROLE) {
+        require(_questsAddress != address(0), "Invalid address");
+        questsContractAddress = _questsAddress;
+    }
+
+    function setStakingContract(address _stakingAddress) external onlyRole(ADMIN_ROLE) {
+        require(_stakingAddress != address(0), "Invalid address");
+        stakingContractAddress = _stakingAddress;
+    }
+
+    function pause() external onlyRole(ADMIN_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(ADMIN_ROLE) {
+        _unpause();
+    }
+
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        onlyRole(UPGRADER_ROLE)
+    {}
+
+    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage, ERC721Royalty) {
+        super._burn(tokenId);
+    }
+
+    function tokenURI(uint256 tokenId)
+        public view override(ERC721, ERC721URIStorage) returns (string memory)
+    {
+        return super.tokenURI(tokenId);
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public view override(ERC721, ERC721URIStorage, ERC721Royalty, AccessControl) returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+}

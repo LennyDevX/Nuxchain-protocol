@@ -1,5 +1,6 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
+require("@openzeppelin/hardhat-upgrades");
 
 module.exports = {
   solidity: {
@@ -42,12 +43,26 @@ module.exports = {
       }
     ],
     overrides: {
+      "contracts/Marketplace/GameifiedMarketplaceV1.sol": {
+        version: "0.8.28",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 100,
+            details: {
+              yul: true
+            }
+          },
+          viaIR: true,
+          evmVersion: "shanghai"
+        }
+      },
       "contracts/Marketplace/GameifiedMarketplace.sol": {
         version: "0.8.28",
         settings: {
           optimizer: {
             enabled: true,
-            runs: 100, // Menos optimizado para evitar código muy grande
+            runs: 50, // Ultra-optimizado
             details: {
               yul: true
             }
