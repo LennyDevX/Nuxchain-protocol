@@ -1,16 +1,16 @@
 {
   "network": "polygon",
-  "timestamp": "2025-11-11T23:32:45.113Z",
+  "timestamp": "2025-11-13T15:23:03.551Z",
   "deployer": "0xed639e84179FCEcE1d7BEe91ab1C6888fbBdD0cf",
   "contracts": {
     "proxy": {
-      "address": "0xa3Fe859A35126D50257D175e355C7181Bcd1E19b",
+      "address": "0x8ee87263e8BBa54b51FD8FDc70a1E7FE33E7466e",
       "type": "UUPS Proxy (Permanent)",
       "purpose": "Permanent address for all Core interactions",
       "bytecode": "~2KB"
     },
     "implementation": {
-      "address": "0xb5D1Cd6714F6096A95F3991279b42E9D08cCc029",
+      "address": "0xC6f6826Bc957B37Dc35500384f6aB5f8324f516B",
       "type": "GameifiedMarketplaceCoreV1 (Upgradeable)",
       "purpose": "Business logic, swappable via proxy",
       "bytecode": "~11KB",
@@ -23,7 +23,7 @@
       ]
     },
     "skills": {
-      "address": "0x04dFBd72d4fc4080dc258E68a6E7be542035dcc0",
+      "address": "0x9d67c269d17cf330ed3C5f6f5Ff130AE9d2d012C",
       "type": "Skills Management (v2 - Anti-abuse)",
       "bytecode": "~10KB",
       "securityFeatures": [
@@ -41,8 +41,37 @@
         "Renewal System"
       ]
     },
+    "individualSkills": {
+      "address": "0x33Bf614459a5Eeef31803153f20342C707582364",
+      "type": "Individual Skills Marketplace",
+      "bytecode": "~12KB",
+      "features": [
+        "Individual Skill Purchase (No NFT)",
+        "17 Skill Types × 5 Rarities = 85 combinations",
+        "Activate/Deactivate Skills",
+        "Transfer Skills Between Wallets",
+        "30-day Expiration & Renewal",
+        "Notifies Staking of Activations",
+        "Pricing: 0.1 ETH + (rarity × 0.05 ETH)"
+      ],
+      "skillTypes": [
+        "STAKE_BOOST_I/II/III",
+        "AUTO_COMPOUND",
+        "LOCK_REDUCER",
+        "FEE_REDUCER_I/II",
+        "PRIORITY_LISTING",
+        "BATCH_MINTER",
+        "VERIFIED_CREATOR",
+        "INFLUENCER",
+        "CURATOR",
+        "AMBASSADOR",
+        "VIP_ACCESS",
+        "EARLY_ACCESS",
+        "PRIVATE_AUCTIONS"
+      ]
+    },
     "quests": {
-      "address": "0x2F649d16603F38D200CA2b6F24c353a6690F4723",
+      "address": "0xDE4Ad382b2E0A3C1dF2185EDd7d7b966c775E169",
       "type": "Quests System",
       "bytecode": "~8KB",
       "features": [
@@ -53,7 +82,7 @@
       ]
     },
     "staking": {
-      "address": "0x763d036C53dF837B4fF4D80929440f0cF86A1601",
+      "address": "0xe7A0586f2fB63905BbC771Caf62BF0412cf9DbF3",
       "type": "Enhanced Smart Staking",
       "bytecode": "~15KB",
       "features": [
@@ -82,13 +111,14 @@
     }
   },
   "statistics": {
-    "totalBytecode": "~46KB (with proxy and staking)",
+    "totalBytecode": "~60KB (with proxy, skills NFT, individual skills, and staking)",
     "optimizedLimit": "24KB per contract (Polygon)",
     "deploymentMethod": "UUPS Proxy Pattern + Cross-contract Notifications",
     "status": "✅ PRODUCTION READY",
     "upgradeable": true,
     "synchronized": true,
-    "interfaceValidation": "✅ Passed"
+    "interfaceValidation": "✅ Passed",
+    "polygonscanVerification": "✅ Automatic"
   },
   "upgradePath": {
     "description": "To upgrade implementation:",
@@ -100,34 +130,34 @@
     "requirement": "Caller must have UPGRADER_ROLE"
   },
   "interactions": {
-    "permanent_address": "0xa3Fe859A35126D50257D175e355C7181Bcd1E19b",
-    "userCreatesNFT": "0xa3Fe859A35126D50257D175e355C7181Bcd1E19b.createStandardNFT()",
-    "userAddsSkills": "0x04dFBd72d4fc4080dc258E68a6E7be542035dcc0.registerSkillsForNFT()",
-    "systemUpdatesXP": "Skills/Quests -> 0xa3Fe859A35126D50257D175e355C7181Bcd1E19b.updateUserXP()",
-    "userCompletesQuest": "0x2F649d16603F38D200CA2b6F24c353a6690F4723.completeQuest()",
-    "skillsNotifyStaking": "0x04dFBd72d4fc4080dc258E68a6E7be542035dcc0.notifySkillActivation() -> 0x763d036C53dF837B4fF4D80929440f0cF86A1601",
-    "questsNotifyStaking": "0x2F649d16603F38D200CA2b6F24c353a6690F4723.notifyQuestCompletion() -> 0x763d036C53dF837B4fF4D80929440f0cF86A1601",
+    "permanent_address": "0x8ee87263e8BBa54b51FD8FDc70a1E7FE33E7466e",
+    "userCreatesNFT": "0x8ee87263e8BBa54b51FD8FDc70a1E7FE33E7466e.createStandardNFT()",
+    "userAddsSkills": "0x9d67c269d17cf330ed3C5f6f5Ff130AE9d2d012C.registerSkillsForNFT()",
+    "systemUpdatesXP": "Skills/Quests -> 0x8ee87263e8BBa54b51FD8FDc70a1E7FE33E7466e.updateUserXP()",
+    "userCompletesQuest": "0xDE4Ad382b2E0A3C1dF2185EDd7d7b966c775E169.completeQuest()",
+    "skillsNotifyStaking": "0x9d67c269d17cf330ed3C5f6f5Ff130AE9d2d012C.notifySkillActivation() -> 0xe7A0586f2fB63905BbC771Caf62BF0412cf9DbF3",
+    "questsNotifyStaking": "0xDE4Ad382b2E0A3C1dF2185EDd7d7b966c775E169.notifyQuestCompletion() -> 0xe7A0586f2fB63905BbC771Caf62BF0412cf9DbF3",
     "stakingRewardsSync": "Staking rewards synchronized with marketplace activity"
   },
   "synchronizationFlows": {
     "skillActivation": {
       "flow": "Skill registered -> Skills notifies Staking -> Skill boost applied to staking rewards",
       "contracts_involved": [
-        "0x04dFBd72d4fc4080dc258E68a6E7be542035dcc0",
-        "0x763d036C53dF837B4fF4D80929440f0cF86A1601"
+        "0x9d67c269d17cf330ed3C5f6f5Ff130AE9d2d012C",
+        "0xe7A0586f2fB63905BbC771Caf62BF0412cf9DbF3"
       ],
-      "xpGainLocation": "0xa3Fe859A35126D50257D175e355C7181Bcd1E19b",
-      "rewardLocation": "0x763d036C53dF837B4fF4D80929440f0cF86A1601",
+      "xpGainLocation": "0x8ee87263e8BBa54b51FD8FDc70a1E7FE33E7466e",
+      "rewardLocation": "0xe7A0586f2fB63905BbC771Caf62BF0412cf9DbF3",
       "validatedSync": true
     },
     "questCompletion": {
       "flow": "Quest completed -> Quests notifies Staking -> Quest rewards synced",
       "contracts_involved": [
-        "0x2F649d16603F38D200CA2b6F24c353a6690F4723",
-        "0x763d036C53dF837B4fF4D80929440f0cF86A1601"
+        "0xDE4Ad382b2E0A3C1dF2185EDd7d7b966c775E169",
+        "0xe7A0586f2fB63905BbC771Caf62BF0412cf9DbF3"
       ],
-      "xpGainLocation": "0xa3Fe859A35126D50257D175e355C7181Bcd1E19b",
-      "rewardLocation": "0x763d036C53dF837B4fF4D80929440f0cF86A1601",
+      "xpGainLocation": "0x8ee87263e8BBa54b51FD8FDc70a1E7FE33E7466e",
+      "rewardLocation": "0xe7A0586f2fB63905BbC771Caf62BF0412cf9DbF3",
       "validatedSync": true
     },
     "userRewards": {

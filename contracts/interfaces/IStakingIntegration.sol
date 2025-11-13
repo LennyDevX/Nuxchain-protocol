@@ -15,6 +15,8 @@ interface IStakingIntegration {
     
     /**
      * @dev Enum representing different types of NFT skills
+     * @notice Total: 17 skills × 5 rarities = 85 combinations
+     * REMOVED: ROYALTY_BOOSTER (old #9) and AIRDROP_MAGNET (old #18)
      */
     enum SkillType {
         NONE,                   // No skill
@@ -26,7 +28,6 @@ interface IStakingIntegration {
         FEE_REDUCER_I,         // -10% platform fees
         FEE_REDUCER_II,        // -25% platform fees
         PRIORITY_LISTING,      // Featured on homepage
-        ROYALTY_BOOSTER,       // +5% on received royalties
         BATCH_MINTER,          // Mint multiple NFTs
         VERIFIED_CREATOR,      // Verified badge
         INFLUENCER,            // 2x weight on likes/comments
@@ -34,8 +35,7 @@ interface IStakingIntegration {
         AMBASSADOR,            // 2x referral bonus
         VIP_ACCESS,            // Access to exclusive drops
         EARLY_ACCESS,          // 24h early access
-        PRIVATE_AUCTIONS,      // Access to private auctions
-        AIRDROP_MAGNET         // 3x airdrop probability
+        PRIVATE_AUCTIONS       // Access to private auctions
     }
     
     /**

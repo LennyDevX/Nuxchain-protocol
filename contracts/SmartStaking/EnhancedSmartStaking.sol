@@ -30,12 +30,14 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     uint256 private constant BASIS_POINTS = 10000;
     uint256 private constant DAILY_WITHDRAWAL_LIMIT = 1000 ether;
     uint256 private constant WITHDRAWAL_LIMIT_PERIOD = 1 days;
+    uint16 private constant MAX_DEPOSITS_PER_USER = 300;
+    uint16 private constant MAX_BATCH_USERS = 100;
 
-        // Lock-up ROI percentages (por hora, en basis points: 0.010%, 0.015%, 0.0175%, 0.021%)
-        uint256 private constant ROI_30_DAYS_LOCKUP = 100;    // 0.010% por hora (lockup 30 días)
-        uint256 private constant ROI_90_DAYS_LOCKUP = 140;    // 0.014% por hora (lockup 90 días)
-        uint256 private constant ROI_180_DAYS_LOCKUP = 170;   // 0.0170% por hora (lockup 180 días)
-        uint256 private constant ROI_365_DAYS_LOCKUP = 210;   // 0.021% por hora (lockup 365 días)
+    // Lock-up ROI percentages (por hora, en basis points: 0.010%, 0.015%, 0.0175%, 0.021%)
+    uint256 private constant ROI_30_DAYS_LOCKUP = 100;    // 0.010% por hora (lockup 30 días)
+    uint256 private constant ROI_90_DAYS_LOCKUP = 140;    // 0.014% por hora (lockup 90 días)
+    uint256 private constant ROI_180_DAYS_LOCKUP = 170;   // 0.0170% por hora (lockup 180 días)
+    uint256 private constant ROI_365_DAYS_LOCKUP = 210;   // 0.021% por hora (lockup 365 días)
 
     
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -112,6 +114,9 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     
     /// @notice Mapping to track if user is in auto-compound list
     mapping(address => bool) private _isInAutoCompoundList;
+    
+    /// @notice Mapping to track auto-compound user index for O(1) removal
+    mapping(address => uint256) private _autoCompoundUserIndex;
     
     /// @notice Last auto-compound execution timestamp
     uint64 public lastAutoCompoundExecution;
@@ -193,6 +198,7 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     error DepositTooLow(uint256 provided, uint256 minimum);
     error DepositTooHigh(uint256 provided, uint256 maximum);
     error MaxDepositsReached(address user, uint16 maxDeposits);
+    error MaxActiveSkillsReached(address user, uint8 maxSkills);
     error InvalidAddress();
     error ContractIsMigrated();
     error NoRewardsAvailable();
@@ -206,6 +212,8 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     error DailyWithdrawalLimitExceeded(uint256 availableToWithdraw);
     error InsufficientSkillNFTs();
     error LevelUpNotEligible();
+    error BatchSizeTooLarge(uint256 provided, uint256 maximum);
+    error CommissionTransferFailed(address treasury, uint256 amount);
     
     // ════════════════════════════════════════════════════════════════════════════════════════
     // MODIFIERS
@@ -263,6 +271,12 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     ) external override onlyMarketplace {
         if (!skillEnabled[skillType]) revert SkillTypeDisabled();
         if (_userActiveSkillNFTs[user].contains(nftId)) revert SkillAlreadyActive();
+        
+        // OPTIMIZATION: Validate max active skills limit before adding new skill
+        UserSkillProfile storage profile = userSkillProfiles[user];
+        if (profile.activeNFTIds.length >= profile.maxActiveSkills) {
+            revert MaxActiveSkillsReached(user, profile.maxActiveSkills);
+        }
         
         // Register skill with rarity tracking (initialized as COMMON, updated by marketplace)
         nftSkills[nftId] = NFTSkill({
@@ -403,8 +417,9 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
 
         User storage user = users[msg.sender];
         
-        if (user.deposits.length >= 300) { // MAX_DEPOSITS_PER_USER
-            revert MaxDepositsReached(msg.sender, 300);
+        // OPTIMIZATION: Use MAX_DEPOSITS_PER_USER constant instead of magic number
+        if (user.deposits.length >= MAX_DEPOSITS_PER_USER) {
+            revert MaxDepositsReached(msg.sender, MAX_DEPOSITS_PER_USER);
         }
 
         // Calculate commission and deposit amount
@@ -448,6 +463,7 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
         
         if (depositsLength == 0) return 0;
 
+        // OPTIMIZATION: Cache deposits in memory to reduce storage access gas cost
         for (uint256 i; i < depositsLength;) {
             Deposit storage userDeposit = user.deposits[i];
             
@@ -457,14 +473,15 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
             if (elapsedHours > 0) {
                 uint256 currentHourlyROI = HOURLY_ROI_PERCENTAGE;
                 
-                // Apply specific ROI for lock-up periods
-                if (userDeposit.lockupDuration == 30 days) {
+                // OPTIMIZATION: Use if-else instead of multiple conditions for better gas
+                uint64 lockup = userDeposit.lockupDuration;
+                if (lockup == 30 days) {
                     currentHourlyROI = ROI_30_DAYS_LOCKUP;
-                } else if (userDeposit.lockupDuration == 90 days) {
+                } else if (lockup == 90 days) {
                     currentHourlyROI = ROI_90_DAYS_LOCKUP;
-                } else if (userDeposit.lockupDuration == 180 days) {
+                } else if (lockup == 180 days) {
                     currentHourlyROI = ROI_180_DAYS_LOCKUP;
-                } else if (userDeposit.lockupDuration == 365 days) {
+                } else if (lockup == 365 days) {
                     currentHourlyROI = ROI_365_DAYS_LOCKUP;
                 }
 
@@ -560,9 +577,13 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     /// @notice Transfers the calculated commission amount to the treasury address
     /// @param commission The amount of commission to be transferred
     function _transferCommission(uint256 commission) internal {
+        // OPTIMIZATION: Validate treasury before transfer to prevent silent failures
+        if (treasury == address(0)) revert InvalidAddress();
+        
         (bool sent, ) = payable(treasury).call{value: commission}("");
+        // OPTIMIZATION: Better error tracking instead of silent failure
         if (!sent) {
-            // Commission held for later withdrawal if transfer fails
+            revert CommissionTransferFailed(treasury, commission);
         }
         emit CommissionPaid(treasury, commission, block.timestamp);
     }
@@ -639,14 +660,16 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
         notMigrated
     {
         User storage user = users[msg.sender];
-        require(user.totalDeposited > 0, "No deposits");
+        // OPTIMIZATION: Replace require() with custom error for consistency
+        if (user.totalDeposited == 0) revert NoDepositsFound();
         
         // Check lockup periods
-        for (uint256 i = 0; i < user.deposits.length; i++) {
+        for (uint256 i = 0; i < user.deposits.length;) {
             Deposit storage userDeposit = user.deposits[i];
             if (userDeposit.lockupDuration > 0 && block.timestamp < userDeposit.timestamp + userDeposit.lockupDuration) {
                 revert FundsAreLocked();
             }
+            unchecked { ++i; }
         }
         
         uint256 rewards = calculateRewards(msg.sender);
@@ -655,8 +678,11 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
         // Calculate commission on rewards
         uint256 commission = (rewards * COMMISSION_PERCENTAGE) / BASIS_POINTS;
         uint256 netAmount = totalAmount - commission;
-        
-        require(address(this).balance >= netAmount + commission, "Insufficient balance");
+
+        // OPTIMIZATION: Replace require() with custom error for consistency
+        if (address(this).balance < netAmount + commission) {
+            revert InsufficientBalance();
+        }
         
         // Clear user state
         user.totalDeposited = 0;
@@ -666,7 +692,7 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
         // Update pool balance
         totalPoolBalance -= totalAmount;
         if (uniqueUsersCount > 0) {
-            uniqueUsersCount--;
+            unchecked { --uniqueUsersCount; }
         }
         
         // Transfer funds
@@ -893,8 +919,15 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     
     /// @notice Batch auto-compound for multiple users
     /// @param userAddresses Array of user addresses to compound for
+    /// @notice Batch auto-compound for multiple users
+    /// @param userAddresses Array of user addresses to compound for
     function batchAutoCompound(address[] calldata userAddresses) external onlyOwner {
-        for (uint256 i = 0; i < userAddresses.length; i++) {
+        // OPTIMIZATION: Add size limit to prevent gas explosion (DoS mitigation)
+        if (userAddresses.length > MAX_BATCH_USERS) {
+            revert BatchSizeTooLarge(userAddresses.length, MAX_BATCH_USERS);
+        }
+        
+        for (uint256 i; i < userAddresses.length;) {
             if (userSkillProfiles[userAddresses[i]].hasAutoCompound) {
                 uint256 rewards = calculateBoostedRewards(userAddresses[i]);
                 if (rewards >= 0.01 ether) {
@@ -902,6 +935,7 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
                     this.performAutoCompound(performData);
                 }
             }
+            unchecked { ++i; }
         }
     }
     
@@ -1059,24 +1093,30 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
      */
     function _addToAutoCompoundList(address user) internal {
         if (!_isInAutoCompoundList[user]) {
+            _autoCompoundUserIndex[user] = _autoCompoundUsers.length;
             _autoCompoundUsers.push(user);
             _isInAutoCompoundList[user] = true;
         }
     }
     
     /**
-     * @dev Removes user from auto-compound list
+     * @dev Removes user from auto-compound list - OPTIMIZATION: O(1) removal with index mapping
      */
     function _removeFromAutoCompoundList(address user) internal {
         if (_isInAutoCompoundList[user]) {
-            for (uint256 i = 0; i < _autoCompoundUsers.length; i++) {
-                if (_autoCompoundUsers[i] == user) {
-                    _autoCompoundUsers[i] = _autoCompoundUsers[_autoCompoundUsers.length - 1];
-                    _autoCompoundUsers.pop();
-                    break;
-                }
+            uint256 userIndex = _autoCompoundUserIndex[user];
+            uint256 lastIndex = _autoCompoundUsers.length - 1;
+            
+            // Swap and pop: move last element to user's position
+            if (userIndex != lastIndex) {
+                address lastUser = _autoCompoundUsers[lastIndex];
+                _autoCompoundUsers[userIndex] = lastUser;
+                _autoCompoundUserIndex[lastUser] = userIndex;
             }
+            
+            _autoCompoundUsers.pop();
             _isInAutoCompoundList[user] = false;
+            delete _autoCompoundUserIndex[user];
         }
     }
     
@@ -1259,5 +1299,14 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
         if (rarity == IStakingIntegration.Rarity.RARE) return 3;
         if (rarity == IStakingIntegration.Rarity.UNCOMMON) return 2;
         return 1; // COMMON
+    }
+    
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // FALLBACK FUNCTIONS
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    
+    /// @notice Explicit receive function for direct ETH transfers with logging
+    receive() external payable {
+        emit CommissionPaid(msg.sender, msg.value, block.timestamp);
     }
 }

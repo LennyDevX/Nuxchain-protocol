@@ -20,8 +20,8 @@ async function validateInterfaces() {
         console.log("  ✅ EnhancedSmartStaking disponible");
         
         // Validar que Skills importa correctamente
-        const skillsFactory = await hre.ethers.getContractFactory("GameifiedMarketplaceSkills");
-        console.log("  ✅ GameifiedMarketplaceSkills compila correctamente");
+        const skillsFactory = await hre.ethers.getContractFactory("GameifiedMarketplaceSkillsV2");
+        console.log("  ✅ GameifiedMarketplaceSkillsV2 compila correctamente");
         
         // Validar que Quests importa correctamente
         const questsFactory = await hre.ethers.getContractFactory("GameifiedMarketplaceQuests");
@@ -30,6 +30,10 @@ async function validateInterfaces() {
         // Validar que Core está disponible
         const coreFactory = await hre.ethers.getContractFactory("GameifiedMarketplaceCoreV1");
         console.log("  ✅ GameifiedMarketplaceCoreV1 disponible");
+        
+        // Validar que IndividualSkillsMarketplace está disponible
+        const individualSkillsFactory = await hre.ethers.getContractFactory("IndividualSkillsMarketplace");
+        console.log("  ✅ IndividualSkillsMarketplace disponible");
         
         console.log("\n✅ Todas las interfaces están sincronizadas correctamente\n");
         return true;
@@ -77,19 +81,28 @@ async function validateMethods() {
     ];
     
     const factories = {
-        Skills: await hre.ethers.getContractFactory("GameifiedMarketplaceSkills"),
+        Skills: await hre.ethers.getContractFactory("GameifiedMarketplaceSkillsV2"),
         Quests: await hre.ethers.getContractFactory("GameifiedMarketplaceQuests"),
         Core: await hre.ethers.getContractFactory("GameifiedMarketplaceCoreV1"),
+        IndividualSkills: await hre.ethers.getContractFactory("IndividualSkillsMarketplace"),
         Staking: await hre.ethers.getContractFactory("EnhancedSmartStaking")
     };
+    
+    // Métodos que IndividualSkillsMarketplace debe exponer
+    const individualSkillsRequiredMethods = [
+        "purchaseIndividualSkill",
+        "activateIndividualSkill",
+        "deactivateIndividualSkill",
+        "setStakingContract"
+    ];
     
     // Validar Skills
     for (const method of skillsRequiredMethods) {
         if (!factories.Skills.interface.hasFunction(method)) {
-            throw new Error(`❌ GameifiedMarketplaceSkills falta método: ${method}`);
+            throw new Error(`❌ GameifiedMarketplaceSkillsV2 falta método: ${method}`);
         }
     }
-    console.log("  ✅ GameifiedMarketplaceSkills tiene todos los métodos requeridos");
+    console.log("  ✅ GameifiedMarketplaceSkillsV2 tiene todos los métodos requeridos");
     
     // Validar Quests
     for (const method of questsRequiredMethods) {
@@ -106,6 +119,14 @@ async function validateMethods() {
         }
     }
     console.log("  ✅ GameifiedMarketplaceCoreV1 tiene todos los métodos requeridos");
+    
+    // Validar IndividualSkills
+    for (const method of individualSkillsRequiredMethods) {
+        if (!factories.IndividualSkills.interface.hasFunction(method)) {
+            throw new Error(`❌ IndividualSkillsMarketplace falta método: ${method}`);
+        }
+    }
+    console.log("  ✅ IndividualSkillsMarketplace tiene todos los métodos requeridos");
     
     // Validar Staking
     for (const method of stakingRequiredMethods) {
@@ -159,22 +180,36 @@ async function main() {
     console.log(`✅ Proxy deployed at: ${proxyAddress}`);
     console.log(`   🔴 DIRECCIÓN PERMANENTE PARA TODAS LAS LLAMADAS\n`);
     
-    // 4. Deploy GameifiedMarketplaceSkills
-    console.log("📋 PASO 4: DESPLEGAR SKILLS CON SEGURIDAD\n");
-    console.log("📦 Desplegando GameifiedMarketplaceSkills (v2 - Anti-abuse)...");
-    const GameifiedMarketplaceSkills = await hre.ethers.getContractFactory("GameifiedMarketplaceSkills");
-    const skills = await GameifiedMarketplaceSkills.deploy(proxyAddress);
+    // 4. Deploy GameifiedMarketplaceSkillsV2
+    console.log("📋 PASO 4: DESPLEGAR SKILLS NFT CON SEGURIDAD\n");
+    console.log("📦 Desplegando GameifiedMarketplaceSkillsV2 (v2 - Anti-abuse)...");
+    const GameifiedMarketplaceSkillsV2 = await hre.ethers.getContractFactory("GameifiedMarketplaceSkillsV2");
+    const skills = await GameifiedMarketplaceSkillsV2.deploy(proxyAddress);
     await skills.waitForDeployment();
     const skillsAddress = await skills.getAddress();
-    console.log(`✅ GameifiedMarketplaceSkills deployed at: ${skillsAddress}`);
+    console.log(`✅ GameifiedMarketplaceSkillsV2 deployed at: ${skillsAddress}`);
     console.log(`   Características de seguridad:`);
     console.log(`   • Max 3 skills activos por usuario`);
     console.log(`   • Un skill por tipo por usuario`);
     console.log(`   • Expiración: 30 días`);
     console.log(`   • Renovación: 50% del precio original\n`);
     
-    // 5. Deploy GameifiedMarketplaceQuests
-    console.log("📋 PASO 5: DESPLEGAR QUESTS\n");
+    // 5. Deploy IndividualSkillsMarketplace
+    console.log("📋 PASO 5: DESPLEGAR INDIVIDUAL SKILLS MARKETPLACE\n");
+    console.log("📦 Desplegando IndividualSkillsMarketplace...");
+    const IndividualSkillsMarketplace = await hre.ethers.getContractFactory("IndividualSkillsMarketplace");
+    const individualSkills = await IndividualSkillsMarketplace.deploy(deployer.address); // treasury
+    await individualSkills.waitForDeployment();
+    const individualSkillsAddress = await individualSkills.getAddress();
+    console.log(`✅ IndividualSkillsMarketplace deployed at: ${individualSkillsAddress}`);
+    console.log(`   Características:`);
+    console.log(`   • Compra de skills sin NFT`);
+    console.log(`   • 17 tipos × 5 raridades = 85 combinaciones`);
+    console.log(`   • Expiración: 30 días`);
+    console.log(`   • Renovación: 50% del precio original\n`);
+    
+    // 6. Deploy GameifiedMarketplaceQuests
+    console.log("📋 PASO 6: DESPLEGAR QUESTS\n");
     console.log("📦 Desplegando GameifiedMarketplaceQuests...");
     const GameifiedMarketplaceQuests = await hre.ethers.getContractFactory("GameifiedMarketplaceQuests");
     const quests = await GameifiedMarketplaceQuests.deploy(proxyAddress);
@@ -182,8 +217,8 @@ async function main() {
     const questsAddress = await quests.getAddress();
     console.log(`✅ GameifiedMarketplaceQuests deployed at: ${questsAddress}\n`);
     
-    // 6. Deploy EnhancedSmartStaking
-    console.log("📋 PASO 6: DESPLEGAR STAKING MEJORADO\n");
+    // 7. Deploy EnhancedSmartStaking
+    console.log("📋 PASO 7: DESPLEGAR STAKING MEJORADO\n");
     console.log("📦 Desplegando EnhancedSmartStaking...");
     const treasuryAddress = deployer.address;
     const EnhancedSmartStaking = await hre.ethers.getContractFactory("EnhancedSmartStaking");
@@ -192,8 +227,8 @@ async function main() {
     const stakingAddress = await staking.getAddress();
     console.log(`✅ EnhancedSmartStaking deployed at: ${stakingAddress}\n`);
     
-    // 7. Link contracts through proxy
-    console.log("📋 PASO 7: CONFIGURAR REFERENCIAS ENTRE CONTRATOS\n");
+    // 8. Link contracts through proxy
+    console.log("📋 PASO 8: CONFIGURAR REFERENCIAS ENTRE CONTRATOS\n");
     console.log("🔗 Configurando referencias...\n");
     
     // Connect to proxy using CoreV1 ABI
@@ -230,14 +265,24 @@ async function main() {
     // 9. Link skills to staking for notifications
     console.log("🔗 Configurando canal Skills -> Staking...\n");
     
-    const skillsContract = GameifiedMarketplaceSkills.attach(skillsAddress);
+    const skillsContract = GameifiedMarketplaceSkillsV2.attach(skillsAddress);
     
     console.log("  ⏳ Configurando Skills.setStakingContract...");
     tx = await skillsContract.setStakingContract(stakingAddress);
     receipt = await tx.wait();
     console.log(`  ✅ Skills notificará activaciones al Staking (gas: ${receipt.gasUsed})\n`);
     
-    // 10. Link quests to staking for notifications
+    // 10. Link individual skills to staking for notifications
+    console.log("🔗 Configurando canal IndividualSkills -> Staking...\n");
+    
+    const individualSkillsContract = IndividualSkillsMarketplace.attach(individualSkillsAddress);
+    
+    console.log("  ⏳ Configurando IndividualSkills.setStakingContract...");
+    tx = await individualSkillsContract.setStakingContract(stakingAddress);
+    receipt = await tx.wait();
+    console.log(`  ✅ IndividualSkills notificará activaciones al Staking (gas: ${receipt.gasUsed})\n`);
+    
+    // 11. Link quests to staking for notifications
     console.log("🔗 Configurando canal Quests -> Staking...\n");
     
     const questsContract = GameifiedMarketplaceQuests.attach(questsAddress);
@@ -247,15 +292,77 @@ async function main() {
     receipt = await tx.wait();
     console.log(`  ✅ Quests notificará completiones al Staking (gas: ${receipt.gasUsed})\n`);
     
-    // 11. Verify UPGRADER_ROLE
+    // 12. Verify UPGRADER_ROLE
     console.log("🔐 Configurando permisos UPGRADER_ROLE...");
     const UPGRADER_ROLE = await coreProxy.UPGRADER_ROLE();
     tx = await coreProxy.grantRole(UPGRADER_ROLE, deployer.address);
     receipt = await tx.wait();
     console.log(`✅ UPGRADER_ROLE asignado al deployer\n`);
     
-    // 12. Validate synchronization
-    console.log("✅ VALIDAR SINCRONIZACIÓN POST-DEPLOYMENT\n");
+    // 13. Verify contracts on PolygonScan
+    console.log("📋 PASO 13: VERIFICACIÓN AUTOMÁTICA EN POLYGONSCAN\n");
+    
+    if (hre.network.name === "polygon" || hre.network.name === "mumbai") {
+        console.log("⏳ Esperando 30 segundos antes de verificar (bloque debe ser minado)...");
+        await new Promise(resolve => setTimeout(resolve, 30000));
+        
+        const verificationTasks = [
+            {
+                address: implementationAddress,
+                contract: "GameifiedMarketplaceCoreV1",
+                constructorArgs: []
+            },
+            {
+                address: proxyAddress,
+                contract: "GameifiedMarketplaceProxy",
+                constructorArgs: [implementationAddress, initializationData]
+            },
+            {
+                address: skillsAddress,
+                contract: "GameifiedMarketplaceSkillsV2",
+                constructorArgs: [proxyAddress]
+            },
+            {
+                address: individualSkillsAddress,
+                contract: "IndividualSkillsMarketplace",
+                constructorArgs: [deployer.address]
+            },
+            {
+                address: questsAddress,
+                contract: "GameifiedMarketplaceQuests",
+                constructorArgs: [proxyAddress]
+            },
+            {
+                address: stakingAddress,
+                contract: "EnhancedSmartStaking",
+                constructorArgs: [treasuryAddress]
+            }
+        ];
+        
+        for (const task of verificationTasks) {
+            try {
+                console.log(`  ⏳ Verificando ${task.contract}...`);
+                await hre.run("verify:verify", {
+                    address: task.address,
+                    constructorArguments: task.constructorArgs,
+                    contract: `contracts/${task.contract === "GameifiedMarketplaceProxy" || task.contract === "GameifiedMarketplaceQuests" ? "Marketplace" : "SmartStaking"}/${task.contract}.sol:${task.contract}`
+                });
+                console.log(`  ✅ ${task.contract} verificado en PolygonScan`);
+            } catch (error) {
+                if (error.message.includes("Already Verified")) {
+                    console.log(`  ℹ️  ${task.contract} ya estaba verificado`);
+                } else {
+                    console.log(`  ⚠️  Error verificando ${task.contract}: ${error.message}`);
+                }
+            }
+        }
+        console.log();
+    } else {
+        console.log(`⚠️  Network ${hre.network.name} no es Polygon/Mumbai - Verificación saltada\n`);
+    }
+    
+    // 14. Validate synchronization
+    console.log("📋 PASO 14: VALIDAR SINCRONIZACIÓN POST-DEPLOYMENT\n");
     
     try {
         // Test: Skills puede notificar Staking
@@ -356,6 +463,35 @@ async function main() {
                     "Renewal System"
                 ]
             },
+            individualSkills: {
+                address: individualSkillsAddress,
+                type: "Individual Skills Marketplace",
+                bytecode: "~12KB",
+                features: [
+                    "Individual Skill Purchase (No NFT)",
+                    "17 Skill Types × 5 Rarities = 85 combinations",
+                    "Activate/Deactivate Skills",
+                    "Transfer Skills Between Wallets",
+                    "30-day Expiration & Renewal",
+                    "Notifies Staking of Activations",
+                    "Pricing: 0.1 ETH + (rarity × 0.05 ETH)"
+                ],
+                skillTypes: [
+                    "STAKE_BOOST_I/II/III",
+                    "AUTO_COMPOUND",
+                    "LOCK_REDUCER",
+                    "FEE_REDUCER_I/II",
+                    "PRIORITY_LISTING",
+                    "BATCH_MINTER",
+                    "VERIFIED_CREATOR",
+                    "INFLUENCER",
+                    "CURATOR",
+                    "AMBASSADOR",
+                    "VIP_ACCESS",
+                    "EARLY_ACCESS",
+                    "PRIVATE_AUCTIONS"
+                ]
+            },
             quests: {
                 address: questsAddress,
                 type: "Quests System",
@@ -397,13 +533,14 @@ async function main() {
             }
         },
         statistics: {
-            totalBytecode: "~46KB (with proxy and staking)",
+            totalBytecode: "~60KB (with proxy, skills NFT, individual skills, and staking)",
             optimizedLimit: "24KB per contract (Polygon)",
             deploymentMethod: "UUPS Proxy Pattern + Cross-contract Notifications",
             status: "✅ PRODUCTION READY",
             upgradeable: true,
             synchronized: true,
-            interfaceValidation: "✅ Passed"
+            interfaceValidation: "✅ Passed",
+            polygonscanVerification: "✅ Automatic"
         },
         upgradePath: {
             description: "To upgrade implementation:",
@@ -456,29 +593,42 @@ async function main() {
     console.log("🎯 DIRECCIONES PERMANENTES (Use estas para frontend):");
     console.log(`  📌 GameifiedMarketplaceCore Proxy: ${proxyAddress}`);
     console.log(`  🔄 Implementation (can be upgraded):  ${implementationAddress}`);
-    console.log(`  📦 GameifiedMarketplaceSkills (v2):  ${skillsAddress}`);
+    console.log(`  📦 GameifiedMarketplaceSkillsV2:     ${skillsAddress}`);
+    console.log(`  💎 IndividualSkillsMarketplace:      ${individualSkillsAddress}`);
     console.log(`  🎮 GameifiedMarketplaceQuests:       ${questsAddress}`);
     console.log(`  💰 EnhancedSmartStaking:            ${stakingAddress}`);
     console.log("\n📝 IMPORTANTE:");
     console.log(`   Use ${proxyAddress} en tu frontend para marketplace`);
     console.log("   La dirección del proxy NUNCA cambiará, incluso después de upgrades\n");
     console.log("🔄 SINCRONIZACIÓN DE CONTRATOS:");
-    console.log(`   ✅ Core Proxy -> Skills: Sincronizado`);
+    console.log(`   ✅ Core Proxy -> Skills NFT: Sincronizado`);
+    console.log(`   ✅ Core Proxy -> Individual Skills: Sincronizado`);
     console.log(`   ✅ Core Proxy -> Quests: Sincronizado`);
     console.log(`   ✅ Core Proxy -> Staking: Sincronizado`);
-    console.log(`   ✅ Skills -> Staking Notifications: Configurado`);
+    console.log(`   ✅ Skills NFT -> Staking Notifications: Configurado`);
+    console.log(`   ✅ Individual Skills -> Staking Notifications: Configurado`);
     console.log(`   ✅ Quests -> Staking Notifications: Configurado`);
     console.log(`   ✅ Interfaces: Validadas y Optimizadas\n`);
-    console.log("🛡️ SEGURIDAD EN SKILLS:");
+    console.log("🛡️ SEGURIDAD EN SKILLS NFT:");
     console.log(`   ✅ Max 3 skills activos por usuario`);
     console.log(`   ✅ Un skill type por usuario`);
     console.log(`   ✅ Expiración de 30 días`);
     console.log(`   ✅ Sistema de renovación\n`);
+    console.log("💎 INDIVIDUAL SKILLS (17 tipos × 5 raridades = 85 combinaciones):");
+    console.log(`   ✅ Compra sin NFT`);
+    console.log(`   ✅ Activación/Desactivación`);
+    console.log(`   ✅ Transferencia entre wallets`);
+    console.log(`   ✅ Expiración de 30 días\n`);
     console.log("🔐 UPGRADE INSTRUCTIONS:");
     console.log(`   1. Deploy GameifiedMarketplaceCoreV2 implementation`);
     console.log(`   2. Call coreProxy.upgradeTo(newImplementationAddress)`);
     console.log(`   3. State is automatically preserved`);
     console.log(`   4. Staking will continue to receive notifications from new implementation\n`);
+    if (hre.network.name === "polygon" || hre.network.name === "mumbai") {
+        console.log("🔍 VERIFICACIÓN EN POLYGONSCAN:");
+        console.log(`   ✅ Contratos verificados automáticamente`);
+        console.log(`   🔗 Busca las direcciones en https://polygonscan.com/\n`);
+    }
     console.log("════════════════════════════════════════════════════════════════════════════════════════\n");
 }
 

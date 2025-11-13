@@ -40,6 +40,9 @@ contract GameifiedMarketplaceCoreV1 is
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
     
     uint256 public constant PLATFORM_FEE_PERCENTAGE = 5;
+    uint8 private constant MAX_LEVEL = 50;                    // Maximum level cap (synchronized with Quests)
+    uint256 private constant MAX_XP = 5000;                   // Max XP: 50 levels × 100 XP per level
+    uint256 private constant MAX_COMMENTS_PER_NFT = 1000;
     
     struct NFTMetadata {
         address creator;
@@ -73,7 +76,6 @@ contract GameifiedMarketplaceCoreV1 is
     mapping(uint256 => string[]) public nftComments;
     mapping(uint256 => Offer[]) public nftOffers;
     mapping(address => UserProfile) public userProfiles;
-    mapping(address => uint256) public userBalance;
     
     address public platformTreasury;
     address public skillsContractAddress;
@@ -91,6 +93,9 @@ contract GameifiedMarketplaceCoreV1 is
     event PriceUpdated(address indexed seller, uint256 indexed tokenId, uint256 newPrice);
     event XPGained(address indexed user, uint256 amount, string reason);
     event LevelUp(address indexed user, uint8 newLevel);
+    event SkillsContractUpdated(address indexed oldAddress, address indexed newAddress);
+    event QuestsContractUpdated(address indexed oldAddress, address indexed newAddress);
+    event StakingContractUpdated(address indexed oldAddress, address indexed newAddress);
 
     error TokenNotFound();
     error NotTokenOwner();
@@ -142,8 +147,7 @@ contract GameifiedMarketplaceCoreV1 is
 
     function listTokenForSale(
         uint256 _tokenId,
-        uint256 _price,
-        string calldata
+        uint256 _price
     ) external whenNotPaused {
         require(ownerOf(_tokenId) == msg.sender, "Not owner");
         require(_price > 0, "Invalid price");
@@ -192,6 +196,7 @@ contract GameifiedMarketplaceCoreV1 is
         
         isListed[_tokenId] = false;
         listedPrice[_tokenId] = 0;
+        delete nftOffers[_tokenId];
         
         (bool treasurySuccess, ) = payable(platformTreasury).call{value: platformFee}("");
         require(treasurySuccess, "Treasury transfer failed");
@@ -278,10 +283,16 @@ contract GameifiedMarketplaceCoreV1 is
         
         if (nftLikes[_tokenId][msg.sender]) {
             nftLikes[_tokenId][msg.sender] = false;
-            nftLikeCount[_tokenId]--;
+            if (nftLikeCount[_tokenId] > 0) {
+                unchecked {
+                    nftLikeCount[_tokenId]--;
+                }
+            }
         } else {
             nftLikes[_tokenId][msg.sender] = true;
-            nftLikeCount[_tokenId]++;
+            unchecked {
+                nftLikeCount[_tokenId]++;
+            }
             userProfiles[msg.sender].totalXP += 1;
             emit XPGained(msg.sender, 1, "LIKE");
         }
@@ -291,7 +302,8 @@ contract GameifiedMarketplaceCoreV1 is
 
     function addComment(uint256 _tokenId, string calldata _text) external whenNotPaused {
         require(ownerOf(_tokenId) != address(0), "Not exists");
-        require(bytes(_text).length > 0, "Empty comment");
+        require(bytes(_text).length > 0 && bytes(_text).length <= 280, "Invalid comment length");
+        require(nftComments[_tokenId].length < MAX_COMMENTS_PER_NFT, "Too many comments");
         
         nftComments[_tokenId].push(_text);
         userProfiles[msg.sender].totalXP += 2;
@@ -305,9 +317,16 @@ contract GameifiedMarketplaceCoreV1 is
     }
 
     function updateUserXP(address _user, uint256 _amount) external onlyRole(ADMIN_ROLE) {
+        require(userProfiles[_user].totalXP + _amount <= MAX_XP, "XP overflow protection");
+        
         userProfiles[_user].totalXP += _amount;
         
         uint8 newLevel = uint8(userProfiles[_user].totalXP / 100);
+        // Cap level to MAX_LEVEL (50)
+        if (newLevel > MAX_LEVEL) {
+            newLevel = MAX_LEVEL;
+        }
+        
         if (newLevel > userProfiles[_user].level) {
             userProfiles[_user].level = newLevel;
             emit LevelUp(_user, newLevel);
@@ -318,17 +337,23 @@ contract GameifiedMarketplaceCoreV1 is
 
     function setSkillsContract(address _skillsAddress) external onlyRole(ADMIN_ROLE) {
         require(_skillsAddress != address(0), "Invalid address");
+        address oldAddress = skillsContractAddress;
         skillsContractAddress = _skillsAddress;
+        emit SkillsContractUpdated(oldAddress, _skillsAddress);
     }
 
     function setQuestsContract(address _questsAddress) external onlyRole(ADMIN_ROLE) {
         require(_questsAddress != address(0), "Invalid address");
+        address oldAddress = questsContractAddress;
         questsContractAddress = _questsAddress;
+        emit QuestsContractUpdated(oldAddress, _questsAddress);
     }
 
     function setStakingContract(address _stakingAddress) external onlyRole(ADMIN_ROLE) {
         require(_stakingAddress != address(0), "Invalid address");
+        address oldAddress = stakingContractAddress;
         stakingContractAddress = _stakingAddress;
+        emit StakingContractUpdated(oldAddress, _stakingAddress);
     }
 
     function pause() external onlyRole(ADMIN_ROLE) {
@@ -344,6 +369,11 @@ contract GameifiedMarketplaceCoreV1 is
         override
         onlyRole(UPGRADER_ROLE)
     {}
+
+    function _transfer(address from, address to, uint256 tokenId) internal override {
+        require(to != address(0), "Cannot transfer to zero address");
+        super._transfer(from, to, tokenId);
+    }
 
     function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage, ERC721Royalty) {
         super._burn(tokenId);

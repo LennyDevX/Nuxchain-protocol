@@ -7,35 +7,64 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
  * @title GameifiedMarketplaceProxy
  * @dev UUPS Transparent Proxy para GameifiedMarketplaceV1
  * 
- * IMPORTANTES:
- * - Este proxy NO debe ser modificado después del deploy
- * - Todos los upgrades se hacen a través de `upgradeTo()` en el implementation
- * - El implementation debe heredar de UUPSUpgradeable
- * 
- * DEPLOY INSTRUCTIONS:
- * 1. Deploy GameifiedMarketplaceV1 (implementation)
- * 2. Deploy GameifiedMarketplaceProxy con address del implementation
- * 3. Llamar a initialize() en el proxy ABI pero con GameifiedMarketplaceV1 interface
- * 4. Para upgradear: Llamar a upgradeTo(newImplementationAddress) desde owner
+ * MEJORAS DE SEGURIDAD:
+ * - Validación de que implementation es un contrato (no EOA)
+ * - Validación de initializationData no vacío
+ * - Eventos informativos para tracking on-chain
+ * - Prevención de receive() accidental
  */
 contract GameifiedMarketplaceProxy is ERC1967Proxy {
-    /**
-     * @dev Inicializa el proxy con el implementation contract
-     * @param implementation Address del contrato GameifiedMarketplaceV1
-     * @param initializationData Encoded data para llamar initialize()
-     * 
-     * NOTA: initializationData debe ser el resultado de:
-     * abi.encodeWithSignature(
-     *   "initialize(address,address,address,address,address,address)",
-     *   polTokenAddress,
-     *   stakingContractAddress,
-     *   communityTreasuryAddress,
-     *   royaltyStakingPoolAddress,
-     *   stakingTreasuryAddress,
-     *   platformTreasuryAddress
-     * )
-     */
+    
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // EVENTS
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    
+    /// @notice Emitido cuando el proxy es inicializado correctamente
+    event ProxyInitialized(address indexed implementation, uint256 initDataLength);
+    
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // ERRORS
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    
+    /// @notice Implementation no es un contrato válido
+    error InvalidImplementation(address implementation);
+    
+    /// @notice initializationData está vacío
+    error EmptyInitializationData();
+    
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // CONSTRUCTOR
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    
     constructor(address implementation, bytes memory initializationData)
         ERC1967Proxy(implementation, initializationData)
-    {}
+    {
+        // ✅ SECURITY: Validar que implementation es un contrato (no EOA)
+        // Previene deployments accidentales con direcciones inválidas
+        if (implementation.code.length == 0) {
+            revert InvalidImplementation(implementation);
+        }
+        
+        // ✅ SECURITY: Validar que initializationData no esté vacío
+        // Asegura que la inicialización se ejecutará
+        if (initializationData.length == 0) {
+            revert EmptyInitializationData();
+        }
+        
+        // ℹ️ EVENT: Emitir para tracking on-chain
+        // Permite auditar todos los proxies desplegados
+        emit ProxyInitialized(implementation, initializationData.length);
+    }
+    
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // FALLBACK PROTECTION
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    
+    /**
+     * @dev Prevenir que ETH se quede atrapado en el proxy
+     * @notice El proxy solo debe recibir llamadas delegadas al implementation
+     */
+    receive() external payable override {
+        revert("GameifiedMarketplaceProxy: Cannot receive ETH directly");
+    }
 }
