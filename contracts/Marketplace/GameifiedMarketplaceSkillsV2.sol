@@ -52,10 +52,29 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
     // ════════════════════════════════════════════════════════════════════════════════════════
     
     uint256 private constant MIN_STAKING_REQUIREMENT = 250 ether;  // 250 POL minimum
-    uint256 private constant MAX_ACTIVE_SKILLS_PER_USER = 3;
+    uint256 private constant MAX_ACTIVE_SKILLS_PER_USER = 5;        // Global max active skills (can distribute across NFTs)
     uint256 private constant SKILL_DURATION = 30 days;
     uint256 private constant MAX_XP_REWARD_PER_SKILL = 50;          // Max XP per skill (level 1-50 progression)
     uint8 private constant MAX_LEVEL = 50;                           // Synchronized with GameifiedMarketplaceQuests
+    
+    // STAKING SKILLS PRICING (Skills 1-7) - Fixed prices in POL (wei)
+    // COMMON=50, UNCOMMON=80, RARE=100, EPIC=150, LEGENDARY=220
+    uint256 private constant STAKING_COMMON_PRICE = 50 ether;
+    uint256 private constant STAKING_UNCOMMON_PRICE = 80 ether;
+    uint256 private constant STAKING_RARE_PRICE = 100 ether;
+    uint256 private constant STAKING_EPIC_PRICE = 150 ether;
+    uint256 private constant STAKING_LEGENDARY_PRICE = 220 ether;
+    
+    // ACTIVE SKILLS PRICING (Skills 8-17) - 30% markup on STAKING prices
+    // COMMON=65, UNCOMMON=104, RARE=130, EPIC=195, LEGENDARY=286
+    uint256 private constant ACTIVE_COMMON_PRICE = 65 ether;         // 50 * 1.3
+    uint256 private constant ACTIVE_UNCOMMON_PRICE = 104 ether;      // 80 * 1.3
+    uint256 private constant ACTIVE_RARE_PRICE = 130 ether;          // 100 * 1.3
+    uint256 private constant ACTIVE_EPIC_PRICE = 195 ether;          // 150 * 1.3
+    uint256 private constant ACTIVE_LEGENDARY_PRICE = 286 ether;     // 220 * 1.3
+    IStakingIntegration.SkillType private constant DEFAULT_FREE_SKILL_TYPE = IStakingIntegration.SkillType.STAKE_BOOST_I;
+    IStakingIntegration.Rarity private constant DEFAULT_FREE_SKILL_RARITY = IStakingIntegration.Rarity.COMMON;
+    uint256 private constant DEFAULT_FREE_SKILL_LEVEL = 1;
     
     // ════════════════════════════════════════════════════════════════════════════════════════
     // STRUCTURES
@@ -86,11 +105,19 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
     mapping(address => uint256[]) public userSkillNFTs;
     mapping(IStakingIntegration.SkillType => uint256) public skillTypeCount;
     mapping(uint256 => bool) public isFirstSkillFree;
+    mapping(address => bool) public hasClaimedFreeSkill;
     mapping(address => mapping(IStakingIntegration.SkillType => uint256)) public userActiveSkillsByType;
     mapping(address => mapping(IStakingIntegration.SkillType => uint256)) public userSkillNFTId;
     
+    // Track total active skills per user (global count across all NFTs)
+    mapping(address => uint256) public userTotalActiveSkills;
+    
+    // Skill pricing: skillType => rarity => price (in wei/POL)
+    mapping(IStakingIntegration.SkillType => mapping(IStakingIntegration.Rarity => uint256)) public skillPrices;
+    
     address public coreContractAddress;
     address public stakingContractAddress;
+    address public treasuryAddress;
     
     // ════════════════════════════════════════════════════════════════════════════════════════
     // EVENTS
@@ -120,6 +147,10 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
         IStakingIntegration.SkillType skillType
     );
     event StakingContractUpdated(address indexed oldStaking, address indexed newStaking);
+    event TreasuryAddressUpdated(address indexed oldTreasury, address indexed newTreasury);
+    event EmergencyWithdrawal(address indexed admin, uint256 amount, address indexed to);
+    event SkillPaymentProcessed(address indexed user, uint256 indexed tokenId, uint256 amount, string operationType);
+    event FreeSkillClaimed(address indexed user, uint256 indexed tokenId, IStakingIntegration.SkillType skillType);
     
     // ════════════════════════════════════════════════════════════════════════════════════════
     // ERRORS
@@ -133,10 +164,11 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
     error SkillNotExpiredYet(uint256 expiryTime);
     error NotSkillOwner();
     error SkillNFTNotFound();
-    error InvalidPrice();
+    error InvalidPrice(uint256 expected, uint256 provided);
     error InsufficientStakingBalance(uint256 required, uint256 current);
     error DuplicateSkillType();
     error InvalidAddress();
+    error InvalidRarity(uint8 rarity);
     
     // ════════════════════════════════════════════════════════════════════════════════════════
     // CONSTRUCTOR
@@ -147,6 +179,46 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ADMIN_ROLE, msg.sender);
         coreContractAddress = _coreAddress;
+        treasuryAddress = msg.sender;
+        _initializeSkillPricing();
+    }
+    
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // PRICING INITIALIZATION
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    
+    /**
+     * @dev Initialize skill prices for all 17 skills × 5 rarities
+     * Enum values: NONE(0), STAKE_BOOST_I(1)-STAKE_BOOST_III(3), AUTO_COMPOUND(4), LOCK_REDUCER(5),
+     * FEE_REDUCER_I(6)-FEE_REDUCER_II(7), PRIORITY_LISTING(8)-PRIVATE_AUCTIONS(16)
+     */
+    function _initializeSkillPricing() internal {
+        // STAKING SKILLS (1-7)
+        for (uint8 skillType = 1; skillType <= 7; skillType++) {
+            IStakingIntegration.SkillType st = IStakingIntegration.SkillType(skillType);
+            skillPrices[st][IStakingIntegration.Rarity.COMMON] = STAKING_COMMON_PRICE;
+            skillPrices[st][IStakingIntegration.Rarity.UNCOMMON] = STAKING_UNCOMMON_PRICE;
+            skillPrices[st][IStakingIntegration.Rarity.RARE] = STAKING_RARE_PRICE;
+            skillPrices[st][IStakingIntegration.Rarity.EPIC] = STAKING_EPIC_PRICE;
+            skillPrices[st][IStakingIntegration.Rarity.LEGENDARY] = STAKING_LEGENDARY_PRICE;
+        }
+        
+        // ACTIVE SKILLS (8-16)
+        for (uint8 skillType = 8; skillType <= 16; skillType++) {
+            IStakingIntegration.SkillType st = IStakingIntegration.SkillType(skillType);
+            skillPrices[st][IStakingIntegration.Rarity.COMMON] = ACTIVE_COMMON_PRICE;
+            skillPrices[st][IStakingIntegration.Rarity.UNCOMMON] = ACTIVE_UNCOMMON_PRICE;
+            skillPrices[st][IStakingIntegration.Rarity.RARE] = ACTIVE_RARE_PRICE;
+            skillPrices[st][IStakingIntegration.Rarity.EPIC] = ACTIVE_EPIC_PRICE;
+            skillPrices[st][IStakingIntegration.Rarity.LEGENDARY] = ACTIVE_LEGENDARY_PRICE;
+        }
+    }
+    
+    /**
+     * @dev Calculate skill price based on type and rarity
+     */
+    function _calculateSkillPrice(IStakingIntegration.SkillType _skillType, IStakingIntegration.Rarity _rarity) internal view returns (uint256) {
+        return skillPrices[_skillType][_rarity];
     }
     
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -160,16 +232,21 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
      * - No duplicate skill types per NFT
      * - Max 5 skills per NFT
      * - Each skill type can only be active once per user
+     * - First skill is FREE, others are paid per fixed pricing
      */
     function registerSkillsForNFT(
         uint256 _tokenId,
         IStakingIntegration.SkillType[] calldata _skillTypes,
         IStakingIntegration.Rarity[] calldata _rarities,
-        uint256[] calldata _levels,
-        uint256 _basePrice
-    ) external whenNotPaused nonReentrant returns (uint256) {
+        uint256[] calldata _levels
+    ) external payable whenNotPaused nonReentrant returns (uint256) {
         if (coreContractAddress == address(0)) revert CoreContractNotSet();
-        if (_skillTypes.length == 0 || _skillTypes.length > 5) revert InvalidSkillCount();
+
+        bool includeFreeSkill = !hasClaimedFreeSkill[msg.sender];
+        uint256 providedSkillCount = _skillTypes.length;
+        uint256 totalSkillCount = providedSkillCount + (includeFreeSkill ? 1 : 0);
+
+        if (totalSkillCount == 0 || totalSkillCount > 5) revert InvalidSkillCount();
         if (_skillTypes.length != _rarities.length || _skillTypes.length != _levels.length) {
             revert InvalidSkillCount();
         }
@@ -183,26 +260,35 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
             } catch {}
         }
         
-        // Validate active skills limit
-        uint256 activeSkillsCount = 0;
-        for (uint256 k = 0; k < userSkillNFTs[msg.sender].length; k++) {
-            if (block.timestamp < _getSkillExpiryTime(userSkillNFTs[msg.sender][k])) {
-                activeSkillsCount++;
+        // Validate global active skills limit (max 5 total, distributed across NFTs)
+        // Count how many skill types the user currently has active
+        uint256 currentActiveCount = 0;
+        for (uint256 i = 0; i < _skillTypes.length; i++) {
+            if (includeFreeSkill && _skillTypes[i] == DEFAULT_FREE_SKILL_TYPE) {
+                revert DuplicateSkillType();
+            }
+            if (userActiveSkillsByType[msg.sender][_skillTypes[i]] != 0) {
+                // This skill type is already active
+                emit SkillTypeAlreadyActive(msg.sender, _skillTypes[i]);
+                revert SkillTypeAlreadyActiveDuplicate(_skillTypes[i]);
             }
         }
-        if (activeSkillsCount >= MAX_ACTIVE_SKILLS_PER_USER) revert MaxActiveSkillsReached();
         
-        // Validate no duplicate skill types and check if user already has each skill type active
+        // Count existing active skill types
+        currentActiveCount = userTotalActiveSkills[msg.sender];
+        
+        // Check if adding these skills would exceed the global limit
+        if (currentActiveCount + totalSkillCount > MAX_ACTIVE_SKILLS_PER_USER) {
+            revert MaxActiveSkillsReached();
+        }
+        
+        // Validate no duplicate skill types within this registration
         for (uint256 i = 0; i < _skillTypes.length; i++) {
-            if (uint8(_skillTypes[i]) < 1 || uint8(_skillTypes[i]) > 17) revert InvalidSkillType();
+            if (uint8(_skillTypes[i]) < 1 || uint8(_skillTypes[i]) > 16) revert InvalidSkillType();
+            if (uint8(_rarities[i]) > 4) revert InvalidRarity(uint8(_rarities[i]));
             
             for (uint256 j = i + 1; j < _skillTypes.length; j++) {
                 if (_skillTypes[i] == _skillTypes[j]) revert DuplicateSkillType();
-            }
-            
-            if (userActiveSkillsByType[msg.sender][_skillTypes[i]] != 0) {
-                emit SkillTypeAlreadyActive(msg.sender, _skillTypes[i]);
-                revert SkillTypeAlreadyActiveDuplicate(_skillTypes[i]);
             }
         }
         
@@ -210,19 +296,36 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
         SkillNFT storage nft = skillNFTs[_tokenId];
         nft.creator = msg.sender;
         nft.createdAt = block.timestamp;
-        nft.basePrice = _basePrice;
         
         uint256 totalXP = 0;
         uint256 expiryTime = block.timestamp + SKILL_DURATION;
+        uint256 totalPrice = 0;
+        
+        // Calculate total price and validate amounts
+        for (uint256 i = 0; i < _skillTypes.length; i++) {
+            uint256 skillPrice = _calculateSkillPrice(_skillTypes[i], _rarities[i]);
+            totalPrice += skillPrice;
+        }
+        
+        isFirstSkillFree[_tokenId] = includeFreeSkill;
+        
+        // Verify payment if not free
+        if (msg.value < totalPrice) {
+            revert InvalidPrice(totalPrice, msg.value);
+        }
+
+        uint256 excessPayment = msg.value - totalPrice;
+        
+        nft.basePrice = totalPrice;
         
         for (uint256 i = 0; i < _skillTypes.length; i++) {
-            Skill memory skill = Skill({
-                skillType: _skillTypes[i],
-                rarity: _rarities[i],
-                level: _levels[i],
-                createdAt: block.timestamp,
-                expiresAt: expiryTime
-            });
+            Skill memory skill = Skill(
+                _skillTypes[i],
+                _rarities[i],
+                _levels[i],
+                block.timestamp,
+                expiryTime
+            );
             
             nft.skills.push(skill);
             skillTypeCount[_skillTypes[i]]++;
@@ -230,8 +333,10 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
             userActiveSkillsByType[msg.sender][_skillTypes[i]] = _tokenId;
             userSkillNFTId[msg.sender][_skillTypes[i]] = _tokenId;
             
+            // Update global active skills count
+            userTotalActiveSkills[msg.sender]++;
+            
             if (i == 0) {
-                isFirstSkillFree[_tokenId] = true;
                 totalXP += 15;
             } else {
                 // XP capped to MAX_XP_REWARD_PER_SKILL (50) per skill
@@ -241,8 +346,40 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
             
             emit SkillAdded(_tokenId, _skillTypes[i], _rarities[i]);
         }
+
+        if (includeFreeSkill) {
+            Skill memory freeSkill = Skill(
+                DEFAULT_FREE_SKILL_TYPE,
+                DEFAULT_FREE_SKILL_RARITY,
+                DEFAULT_FREE_SKILL_LEVEL,
+                block.timestamp,
+                expiryTime
+            );
+
+            nft.skills.push(freeSkill);
+            skillTypeCount[DEFAULT_FREE_SKILL_TYPE]++;
+            userActiveSkillsByType[msg.sender][DEFAULT_FREE_SKILL_TYPE] = _tokenId;
+            userSkillNFTId[msg.sender][DEFAULT_FREE_SKILL_TYPE] = _tokenId;
+            userTotalActiveSkills[msg.sender]++;
+            totalXP += 15;
+            hasClaimedFreeSkill[msg.sender] = true;
+            emit SkillAdded(_tokenId, DEFAULT_FREE_SKILL_TYPE, DEFAULT_FREE_SKILL_RARITY);
+            emit FreeSkillClaimed(msg.sender, _tokenId, DEFAULT_FREE_SKILL_TYPE);
+        }
         
         userSkillNFTs[msg.sender].push(_tokenId);
+
+        if (excessPayment > 0) {
+            (bool refunded, ) = payable(msg.sender).call{value: excessPayment}("");
+            require(refunded, "Refund failed");
+        }
+        
+        // Transfer payment to treasury if needed
+        if (totalPrice > 0 && treasuryAddress != address(0)) {
+            (bool success, ) = payable(treasuryAddress).call{value: totalPrice}("");
+            if (!success) revert InvalidAddress();
+            emit SkillPaymentProcessed(msg.sender, _tokenId, totalPrice, "REGISTER_SKILLS");
+        }
         
         IGameifiedMarketplaceCore(coreContractAddress).updateUserXP(msg.sender, totalXP);
         
@@ -285,6 +422,10 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
             if (userActiveSkillsByType[nft.creator][skillType] == _tokenId) {
                 userActiveSkillsByType[nft.creator][skillType] = 0;
                 userSkillNFTId[nft.creator][skillType] = 0;
+                // Decrement global active skills count
+                if (userTotalActiveSkills[nft.creator] > 0) {
+                    userTotalActiveSkills[nft.creator]--;
+                }
             }
             
             emit SkillExpired(nft.creator, _tokenId, skillType);
@@ -302,8 +443,9 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
         uint256 expiryTime = _getSkillExpiryTime(_tokenId);
         if (block.timestamp < expiryTime) revert SkillNotExpiredYet(expiryTime);
         
+        // Calculate 50% renewal price
         uint256 renewalPrice = nft.basePrice / 2;
-        if (msg.value < renewalPrice) revert InvalidPrice();
+        if (msg.value < renewalPrice) revert InvalidPrice(renewalPrice, msg.value);
         
         uint256 newExpiryTime = block.timestamp + SKILL_DURATION;
         for (uint256 i = 0; i < nft.skills.length; i++) {
@@ -329,10 +471,11 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
             }
         }
         
-        // Transfer payment
-        if (msg.value > 0) {
-            (bool success, ) = payable(coreContractAddress).call{value: msg.value}("");
+        // Transfer payment to treasury
+        if (renewalPrice > 0 && treasuryAddress != address(0)) {
+            (bool success, ) = payable(treasuryAddress).call{value: renewalPrice}("");
             if (!success) revert InvalidAddress();
+            emit SkillPaymentProcessed(msg.sender, _tokenId, renewalPrice, "RENEW_SKILLS");
         }
         
         emit SkillRenewed(msg.sender, _tokenId, newExpiryTime);
@@ -384,7 +527,7 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
         
         // Calculate and verify switch fee (25% of original price)
         uint256 switchPrice = oldNFT.basePrice / 4;
-        if (msg.value < switchPrice) revert InvalidPrice();
+        if (msg.value < switchPrice) revert InvalidPrice(switchPrice, msg.value);
         
         // Deactivate old and activate new
         if (stakingContractAddress != address(0)) {
@@ -419,10 +562,11 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
         userActiveSkillsByType[msg.sender][_skillType] = _newTokenId;
         userSkillNFTId[msg.sender][_skillType] = _newTokenId;
         
-        // Transfer payment
-        if (msg.value > 0) {
-            (bool success, ) = payable(coreContractAddress).call{value: msg.value}("");
+        // Transfer payment to treasury
+        if (switchPrice > 0 && treasuryAddress != address(0)) {
+            (bool success, ) = payable(treasuryAddress).call{value: switchPrice}("");
             if (!success) revert InvalidAddress();
+            emit SkillPaymentProcessed(msg.sender, _newTokenId, switchPrice, "SWITCH_SKILLS");
         }
         
         emit SkillSwitched(msg.sender, _oldTokenId, _newTokenId, _skillType, switchPrice);
@@ -463,6 +607,11 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
         
         userActiveSkillsByType[msg.sender][_skillType] = 0;
         userSkillNFTId[msg.sender][_skillType] = 0;
+        
+        // Decrement global active skills count
+        if (userTotalActiveSkills[msg.sender] > 0) {
+            userTotalActiveSkills[msg.sender]--;
+        }
         
         emit SkillDeactivatedManually(msg.sender, _tokenId, _skillType);
     }
@@ -613,6 +762,74 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
         }
     }
     
+    /**
+     * @dev Get all NFTs with skills (across all users)
+     * @return Array of all skill NFT token IDs
+     */
+    function getAllSkillNFTs() external view returns (uint256[] memory) {
+        uint256 totalCounter = _skillNFTCounter.current();
+        uint256 validCount = 0;
+        
+        // Count valid skill NFTs
+        for (uint256 i = 0; i < totalCounter; i++) {
+            if (skillNFTs[i].creator != address(0)) {
+                validCount++;
+            }
+        }
+        
+        uint256[] memory result = new uint256[](validCount);
+        uint256 index = 0;
+        
+        // Populate with valid skill NFT IDs
+        for (uint256 i = 0; i < totalCounter; i++) {
+            if (skillNFTs[i].creator != address(0)) {
+                result[index] = i;
+                index++;
+            }
+        }
+        
+        return result;
+    }
+    
+    /**
+     * @dev Get all user's skill NFTs with detailed information
+     * @param _user User address
+     * @return tokenIds Array of token IDs
+     * @return skillNFTDetails Array of SkillNFT details
+     * @return expiryTimes Array of expiry timestamps
+     * @return isExpired Array of expiration status
+     */
+    function getUserSkillNFTsWithDetails(address _user) external view returns (
+        uint256[] memory tokenIds,
+        SkillNFT[] memory skillNFTDetails,
+        uint256[] memory expiryTimes,
+        bool[] memory isExpired
+    ) {
+        uint256[] memory userNFTs = userSkillNFTs[_user];
+        uint256 count = userNFTs.length;
+        
+        tokenIds = new uint256[](count);
+        skillNFTDetails = new SkillNFT[](count);
+        expiryTimes = new uint256[](count);
+        isExpired = new bool[](count);
+        
+        for (uint256 i = 0; i < count; i++) {
+            uint256 nftId = userNFTs[i];
+            tokenIds[i] = nftId;
+            skillNFTDetails[i] = skillNFTs[nftId];
+            
+            uint256 expiryTime = _getSkillExpiryTime(nftId);
+            expiryTimes[i] = expiryTime;
+            isExpired[i] = block.timestamp >= expiryTime;
+        }
+        
+        return (tokenIds, skillNFTDetails, expiryTimes, isExpired);
+    }
+    
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // ADMIN FUNCTIONS
+    // ════════════════════════════════════════════════════════════════════════════════════════
+
     // ════════════════════════════════════════════════════════════════════════════════════════
     // ADMIN FUNCTIONS
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -622,6 +839,111 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
         address oldStaking = stakingContractAddress;
         stakingContractAddress = _stakingAddress;
         emit StakingContractUpdated(oldStaking, _stakingAddress);
+    }
+    
+    function setTreasuryAddress(address _treasuryAddress) external onlyRole(ADMIN_ROLE) {
+        if (_treasuryAddress == address(0)) revert InvalidAddress();
+        address oldTreasury = treasuryAddress;
+        treasuryAddress = _treasuryAddress;
+        emit TreasuryAddressUpdated(oldTreasury, _treasuryAddress);
+    }
+    
+    /**
+     * @dev Emergency withdraw stuck funds to treasury
+     * USAGE: If treasury transfer fails during registerSkillsForNFT, renewSkill, or switchSkill,
+     * funds are held in contract. Admin can withdraw them with this function.
+     * 
+     * FUNDS SOURCE:
+     * - registerSkillsForNFT: First skill free, rest paid (2+ skills = price collected)
+     * - renewSkill: 50% of original registration price
+     * - switchSkill: 25% of original registration price
+     * 
+     * @param _amount Amount to withdraw in wei/POL
+     */
+    function emergencyWithdraw(uint256 _amount) external onlyRole(ADMIN_ROLE) {
+        if (_amount == 0) revert InvalidPrice(_amount, 0);
+        if (_amount > address(this).balance) revert InvalidPrice(_amount, address(this).balance);
+        if (treasuryAddress == address(0)) revert InvalidAddress();
+        
+        (bool success, ) = payable(treasuryAddress).call{value: _amount}("");
+        if (!success) revert InvalidAddress();
+    }
+    
+    /**
+     * @dev Withdraw all stuck funds to treasury
+     * Transfers entire contract balance to treasury address
+     */
+    function emergencyWithdrawAll() external onlyRole(ADMIN_ROLE) {
+        if (treasuryAddress == address(0)) revert InvalidAddress();
+        uint256 balance = address(this).balance;
+        if (balance == 0) revert InvalidPrice(0, balance);
+        
+        (bool success, ) = payable(treasuryAddress).call{value: balance}("");
+        if (!success) revert InvalidAddress();
+    }
+    
+    /**
+     * @dev Update individual skill price (admin only)
+     */
+    function updateSkillPrice(IStakingIntegration.SkillType _skillType, IStakingIntegration.Rarity _rarity, uint256 _newPrice) external onlyRole(ADMIN_ROLE) {
+        if (uint8(_skillType) < 1 || uint8(_skillType) > 16) revert InvalidSkillType();
+        if (uint8(_rarity) > 4) revert InvalidRarity(uint8(_rarity));
+        skillPrices[_skillType][_rarity] = _newPrice;
+    }
+    
+    /**
+     * @dev Update all staking skills pricing (skills 1-7)
+     */
+    function updateStakingSkillsPricing(uint256 _common, uint256 _uncommon, uint256 _rare, uint256 _epic, uint256 _legendary) external onlyRole(ADMIN_ROLE) {
+        for (uint8 skillType = 1; skillType <= 7; skillType++) {
+            IStakingIntegration.SkillType st = IStakingIntegration.SkillType(skillType);
+            skillPrices[st][IStakingIntegration.Rarity.COMMON] = _common;
+            skillPrices[st][IStakingIntegration.Rarity.UNCOMMON] = _uncommon;
+            skillPrices[st][IStakingIntegration.Rarity.RARE] = _rare;
+            skillPrices[st][IStakingIntegration.Rarity.EPIC] = _epic;
+            skillPrices[st][IStakingIntegration.Rarity.LEGENDARY] = _legendary;
+        }
+    }
+    
+    /**
+     * @dev Update all active skills pricing (skills 8-16)
+     */
+    function updateActiveSkillsPricing(uint256 _common, uint256 _uncommon, uint256 _rare, uint256 _epic, uint256 _legendary) external onlyRole(ADMIN_ROLE) {
+        for (uint8 skillType = 8; skillType <= 16; skillType++) {
+            IStakingIntegration.SkillType st = IStakingIntegration.SkillType(skillType);
+            skillPrices[st][IStakingIntegration.Rarity.COMMON] = _common;
+            skillPrices[st][IStakingIntegration.Rarity.UNCOMMON] = _uncommon;
+            skillPrices[st][IStakingIntegration.Rarity.RARE] = _rare;
+            skillPrices[st][IStakingIntegration.Rarity.EPIC] = _epic;
+            skillPrices[st][IStakingIntegration.Rarity.LEGENDARY] = _legendary;
+        }
+    }
+    
+    /**
+     * @dev Get skill price (public view)
+     */
+    function getSkillPrice(IStakingIntegration.SkillType _skillType, IStakingIntegration.Rarity _rarity) external view returns (uint256) {
+        return skillPrices[_skillType][_rarity];
+    }
+    
+    /**
+     * @dev Get all prices for a skill across all rarities
+     */
+    function getSkillPricesAllRarities(IStakingIntegration.SkillType _skillType) external view returns (uint256[5] memory) {
+        uint256[5] memory prices;
+        prices[0] = skillPrices[_skillType][IStakingIntegration.Rarity.COMMON];
+        prices[1] = skillPrices[_skillType][IStakingIntegration.Rarity.UNCOMMON];
+        prices[2] = skillPrices[_skillType][IStakingIntegration.Rarity.RARE];
+        prices[3] = skillPrices[_skillType][IStakingIntegration.Rarity.EPIC];
+        prices[4] = skillPrices[_skillType][IStakingIntegration.Rarity.LEGENDARY];
+        return prices;
+    }
+    
+    /**
+     * @dev Get user's total active skills count
+     */
+    function getUserTotalActiveSkills(address _user) external view returns (uint256) {
+        return userTotalActiveSkills[_user];
     }
     
     function pause() external onlyRole(ADMIN_ROLE) {

@@ -214,6 +214,7 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     error LevelUpNotEligible();
     error BatchSizeTooLarge(uint256 provided, uint256 maximum);
     error CommissionTransferFailed(address treasury, uint256 amount);
+    error InvalidPrice(uint256 expected, uint256 provided);
     
     // ════════════════════════════════════════════════════════════════════════════════════════
     // MODIFIERS
@@ -750,7 +751,36 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     
     /// @notice Unpause contract
     function unpause() external onlyOwner {
-        _unpause();
+        _pause();
+    }
+    
+    /// @notice Emergency withdraw specific amount from trapped funds (only commissions/stuck funds)
+    /// @dev IMPORTANT: This is ONLY for commissions or funds stuck due to transfer failures
+    /// @dev User deposits are NEVER withdrawn - they belong to users in the staking pool
+    /// @param _amount Amount to withdraw
+    function emergencyWithdraw(uint256 _amount) external onlyOwner {
+        if (_amount == 0) revert InvalidPrice(_amount, 0);
+        if (_amount > address(this).balance) revert InvalidPrice(_amount, address(this).balance);
+        if (treasury == address(0)) revert InvalidAddress();
+        
+        (bool success, ) = payable(treasury).call{value: _amount}("");
+        if (!success) revert CommissionTransferFailed(treasury, _amount);
+        
+        emit EmergencyWithdrawal(msg.sender, _amount);
+    }
+    
+    /// @notice Emergency withdraw all funds from contract (only if stuck due to transfer failure)
+    /// @dev IMPORTANT: This is ONLY for commissions or funds stuck - never for user deposits
+    /// @dev This should be extremely rare - only if treasury.call() fails repeatedly
+    function emergencyWithdrawAll() external onlyOwner {
+        uint256 balance = address(this).balance;
+        if (balance == 0) revert InvalidPrice(balance, 0);
+        if (treasury == address(0)) revert InvalidAddress();
+        
+        (bool success, ) = payable(treasury).call{value: balance}("");
+        if (!success) revert CommissionTransferFailed(treasury, balance);
+        
+        emit EmergencyWithdrawal(msg.sender, balance);
     }
     
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -1026,6 +1056,30 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     /// @notice Gets auto-compound user list
     function getAutoCompoundUsers() external view returns (address[] memory) {
         return _autoCompoundUsers;
+    }
+    
+    /// @notice Returns a windowed slice of the auto-compound list for pagination
+    function getAutoCompoundUsersPage(uint256 cursor, uint256 size)
+        external
+        view
+        returns (address[] memory pagedUsers, uint256 nextCursor)
+    {
+        uint256 len = _autoCompoundUsers.length;
+        if (cursor >= len || size == 0) {
+            return (new address[](0), cursor);
+        }
+
+        uint256 end = cursor + size;
+        if (end > len) {
+            end = len;
+        }
+
+        pagedUsers = new address[](end - cursor);
+        for (uint256 i = cursor; i < end; i++) {
+            pagedUsers[i - cursor] = _autoCompoundUsers[i];
+        }
+
+        nextCursor = end;
     }
     
     // ════════════════════════════════════════════════════════════════════════════════════════

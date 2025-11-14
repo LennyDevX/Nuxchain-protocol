@@ -257,8 +257,9 @@ contract GameifiedMarketplaceQuests is AccessControl, Pausable, ReentrancyGuard 
      * @dev Obtener información de una quest
      */
     function getQuest(uint256 _questId) external view returns (Quest memory) {
-        if (!quests[_questId].active) revert QuestNotFound();
-        return quests[_questId];
+        Quest memory quest = quests[_questId];
+        if (quest.questId != _questId) revert QuestNotFound();
+        return quest;
     }
 
     /**
@@ -279,6 +280,101 @@ contract GameifiedMarketplaceQuests is AccessControl, Pausable, ReentrancyGuard 
      */
     function getUserSocialActions(address _user) external view returns (uint256) {
         return userSocialActions[_user];
+    }
+    
+    /**
+     * @dev Get all active quests
+     * @return Array of all active quests
+     */
+    function getAllActiveQuests() external view returns (Quest[] memory) {
+        uint256 totalQuests = _questIdCounter.current();
+        uint256 activeCount = 0;
+        
+        // Count active quests
+        for (uint256 i = 0; i < totalQuests; i++) {
+            if (quests[i].active) {
+                activeCount++;
+            }
+        }
+        
+        Quest[] memory result = new Quest[](activeCount);
+        uint256 index = 0;
+        
+        // Populate active quests
+        for (uint256 i = 0; i < totalQuests; i++) {
+            if (quests[i].active) {
+                result[index] = quests[i];
+                index++;
+            }
+        }
+        
+        return result;
+    }
+    
+    /**
+     * @dev Get all quests filtered by type
+     * @param _questType Quest type to filter by (PURCHASE, CREATE, SOCIAL, LEVEL_UP, TRADING)
+     * @return Array of quests of the specified type
+     */
+    function getQuestsByType(QuestType _questType) external view returns (Quest[] memory) {
+        uint256 totalQuests = _questIdCounter.current();
+        uint256 typeCount = 0;
+        
+        // Count quests of specified type
+        for (uint256 i = 0; i < totalQuests; i++) {
+            if (quests[i].active && quests[i].questType == _questType) {
+                typeCount++;
+            }
+        }
+        
+        Quest[] memory result = new Quest[](typeCount);
+        uint256 index = 0;
+        
+        // Populate quests of specified type
+        for (uint256 i = 0; i < totalQuests; i++) {
+            if (quests[i].active && quests[i].questType == _questType) {
+                result[index] = quests[i];
+                index++;
+            }
+        }
+        
+        return result;
+    }
+    
+    /**
+     * @dev Get user's quest progress for all quests of a specific type
+     * @param _user User address
+     * @param _questType Quest type to filter by
+     * @return questIds Array of quest IDs of the specified type
+     * @return progresses Array of user progress for each quest
+     */
+    function getUserQuestProgressByType(address _user, QuestType _questType) 
+        external view returns (uint256[] memory questIds, UserQuestProgress[] memory progresses)
+    {
+        uint256 totalQuests = _questIdCounter.current();
+        uint256 typeCount = 0;
+        
+        // Count quests of specified type
+        for (uint256 i = 0; i < totalQuests; i++) {
+            if (quests[i].questType == _questType) {
+                typeCount++;
+            }
+        }
+        
+        questIds = new uint256[](typeCount);
+        progresses = new UserQuestProgress[](typeCount);
+        uint256 index = 0;
+        
+        // Populate quest progress for specified type
+        for (uint256 i = 0; i < totalQuests; i++) {
+            if (quests[i].questType == _questType) {
+                questIds[index] = i;
+                progresses[index] = userQuestProgress[_user][i];
+                index++;
+            }
+        }
+        
+        return (questIds, progresses);
     }
 
     // ════════════════════════════════════════════════════════════════════════════════════════

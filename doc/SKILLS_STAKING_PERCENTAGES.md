@@ -218,7 +218,7 @@ Total: +27% APY boost (suma aritmética)
 
 ### Límites de Skills Activos
 ```solidity
-- Max 3 skills activos por usuario
+- Max 5 skills activos por usuario
 - Un skill type por usuario (no puedes tener STAKE_BOOST_I y BOOST_II simultáneamente)
 - Requisito: 250 POL mínimo en staking para activar
 ```

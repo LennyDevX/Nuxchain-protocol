@@ -3,6 +3,7 @@
 const hre = require("hardhat");
 const fs = require("fs");
 const path = require("path");
+require("dotenv").config();
 
 // ════════════════════════════════════════════════════════════════════════════════════════
 // VALIDACIÓN DE INTERFACES Y ENUMS
@@ -139,9 +140,34 @@ async function validateMethods() {
     console.log("\n✅ Todos los métodos requeridos están implementados\n");
 }
 
+async function waitForContractCode(address, options = {}) {
+    const { retries = 30, delay = 5000 } = options;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        const code = await hre.ethers.provider.getCode(address);
+        if (code && code !== "0x") {
+            console.log(`   ✅ Bytecode confirmed at ${address}`);
+            return;
+        }
+
+        console.log(`   ⏳ Waiting for bytecode at ${address} (attempt ${attempt}/${retries})...`);
+        if (attempt < retries) {
+            await new Promise(res => setTimeout(res, delay));
+        }
+    }
+
+    throw new Error(`❌ Contract at ${address} still has no code after ${retries * delay / 1000}s`);
+}
+
 async function main() {
     console.log("🚀 DEPLOYMENT MODULARIZADO CON PROXY Y SINCRONIZACIÓN\n");
     console.log("════════════════════════════════════════════════════════════════════════════════════════\n");
+    
+    // 🏦 LOAD TREASURY ADDRESS FROM .ENV
+    const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS;
+    if (!TREASURY_ADDRESS) {
+        throw new Error("❌ TREASURY_ADDRESS no configurado en .env. Configurar antes de deployment.");
+    }
+    console.log(`🏦 Treasury Address (desde .env): ${TREASURY_ADDRESS}\n`);
     
     // PASO 0: Validar interfaces antes del deployment
     console.log("📋 PASO 0: VALIDACIÓN DE INTERFACES\n");
@@ -150,46 +176,87 @@ async function main() {
     
     const [deployer] = await hre.ethers.getSigners();
     console.log(`📍 Deployer: ${deployer.address}`);
-    console.log(`🌐 Network: ${hre.network.name}\n`);
+    console.log(`🌐 Network: ${hre.network.name}`);
+    console.log(`⛓️  Chain ID: ${(await hre.ethers.provider.getNetwork()).chainId}\n`);
+    
+    // Get initial nonce for tracking deployments
+    const initialNonce = await hre.ethers.provider.getTransactionCount(deployer.address);
+    console.log(`📊 Deployer Nonce: ${initialNonce}\n`);
     
     // 1. Deploy GameifiedMarketplaceCoreV1 (Implementation)
     console.log("📋 PASO 1: DESPLEGAR CORE V1 (Implementation)\n");
     console.log("📦 Desplegando GameifiedMarketplaceCoreV1 (Implementation)...");
     const GameifiedMarketplaceCoreV1 = await hre.ethers.getContractFactory("GameifiedMarketplaceCoreV1");
     const implementation = await GameifiedMarketplaceCoreV1.deploy();
+    const implTx = implementation.deploymentTransaction();
     await implementation.waitForDeployment();
     const implementationAddress = await implementation.getAddress();
-    console.log(`✅ Implementation deployed at: ${implementationAddress}\n`);
+    console.log(`✅ Implementation deployed at: ${implementationAddress}`);
+    console.log(`   📝 TX Hash: ${implTx ? implTx.hash : 'N/A'}\n`);
+
+    console.log("⏳ Esperando confirmación de bytecode en Polygon...");
+    await waitForContractCode(implementationAddress);
     
     // 2. Create initialization data
-    console.log("📋 PASO 2: PREPARAR DATOS DE INICIALIZACIÓN\n");
+    console.log("\n📋 PASO 2: PREPARAR DATOS DE INICIALIZACIÓN\n");
     console.log("📝 Preparando datos de inicialización...");
     const initializationData = GameifiedMarketplaceCoreV1.interface.encodeFunctionData(
         'initialize',
-        [deployer.address] // platformTreasury
+        [TREASURY_ADDRESS] // platformTreasury from .env
     );
-    console.log(`✅ Datos de inicialización codificados\n`);
+    console.log(`✅ Datos de inicialización codificados`);
+    console.log(`   🏦 Treasury configurado a: ${TREASURY_ADDRESS}\n`);
     
     // 3. Deploy Proxy
     console.log("📋 PASO 3: DESPLEGAR UUPS PROXY\n");
-    console.log("📦 Desplegando UUPS Proxy...");
+    console.log(`📦 Desplegando UUPS Proxy con implementación: ${implementationAddress}...`);
+    const implCodeVerify = await hre.ethers.provider.getCode(implementationAddress);
+    console.log(`   ℹ️ Implementation code length: ${implCodeVerify.length} bytes`);
+    if (implCodeVerify === '0x') {
+        throw new Error(`❌ Implementation has no bytecode yet! Address: ${implementationAddress}`);
+    }
     const GameifiedMarketplaceProxy = await hre.ethers.getContractFactory("GameifiedMarketplaceProxy");
     const proxy = await GameifiedMarketplaceProxy.deploy(implementationAddress, initializationData);
+    const proxyTx = proxy.deploymentTransaction();
     await proxy.waitForDeployment();
     const proxyAddress = await proxy.getAddress();
     console.log(`✅ Proxy deployed at: ${proxyAddress}`);
+    console.log(`   📝 TX Hash: ${proxyTx ? proxyTx.hash : 'N/A'}`);
     console.log(`   🔴 DIRECCIÓN PERMANENTE PARA TODAS LAS LLAMADAS\n`);
+    
+    // Validate that proxy is actually deployed
+    const proxyCode = await hre.ethers.provider.getCode(proxyAddress);
+    if (proxyCode === '0x') {
+        throw new Error(`❌ Proxy no fue desplegado correctamente: ${proxyAddress}`);
+    }
+    console.log(`   ✅ Validado: Proxy contiene bytecode\n`);
     
     // 4. Deploy GameifiedMarketplaceSkillsV2
     console.log("📋 PASO 4: DESPLEGAR SKILLS NFT CON SEGURIDAD\n");
     console.log("📦 Desplegando GameifiedMarketplaceSkillsV2 (v2 - Anti-abuse)...");
     const GameifiedMarketplaceSkillsV2 = await hre.ethers.getContractFactory("GameifiedMarketplaceSkillsV2");
     const skills = await GameifiedMarketplaceSkillsV2.deploy(proxyAddress);
+    const skillsTx = skills.deploymentTransaction();
     await skills.waitForDeployment();
     const skillsAddress = await skills.getAddress();
     console.log(`✅ GameifiedMarketplaceSkillsV2 deployed at: ${skillsAddress}`);
+    console.log(`   📝 TX Hash: ${skillsTx ? skillsTx.hash : 'N/A'}`);
+    
+    // Validate
+    const skillsCode = await hre.ethers.provider.getCode(skillsAddress);
+    if (skillsCode === '0x') {
+        throw new Error(`❌ Skills NFT no fue desplegado correctamente: ${skillsAddress}`);
+    }
+    console.log(`   ✅ Validado: Skills NFT contiene bytecode`);
+    
+    // Set treasury address for skills contract
+    console.log(`  ⏳ Configurando treasury en Skills NFT...`);
+    const skillsSetTreasuryTx = await skills.setTreasuryAddress(TREASURY_ADDRESS);
+    const skillsReceipt = await skillsSetTreasuryTx.wait();
+    console.log(`  ✅ Treasury configurado en Skills NFT: ${TREASURY_ADDRESS}`);
+    
     console.log(`   Características de seguridad:`);
-    console.log(`   • Max 3 skills activos por usuario`);
+    console.log(`   • Max 5 skills activos por usuario`)
     console.log(`   • Un skill por tipo por usuario`);
     console.log(`   • Expiración: 30 días`);
     console.log(`   • Renovación: 50% del precio original\n`);
@@ -198,10 +265,11 @@ async function main() {
     console.log("📋 PASO 5: DESPLEGAR INDIVIDUAL SKILLS MARKETPLACE\n");
     console.log("📦 Desplegando IndividualSkillsMarketplace...");
     const IndividualSkillsMarketplace = await hre.ethers.getContractFactory("IndividualSkillsMarketplace");
-    const individualSkills = await IndividualSkillsMarketplace.deploy(deployer.address); // treasury
+    const individualSkills = await IndividualSkillsMarketplace.deploy(TREASURY_ADDRESS); // treasury from .env
     await individualSkills.waitForDeployment();
     const individualSkillsAddress = await individualSkills.getAddress();
     console.log(`✅ IndividualSkillsMarketplace deployed at: ${individualSkillsAddress}`);
+    console.log(`   🏦 Treasury configurado a: ${TREASURY_ADDRESS}`);
     console.log(`   Características:`);
     console.log(`   • Compra de skills sin NFT`);
     console.log(`   • 17 tipos × 5 raridades = 85 combinaciones`);
@@ -220,12 +288,12 @@ async function main() {
     // 7. Deploy EnhancedSmartStaking
     console.log("📋 PASO 7: DESPLEGAR STAKING MEJORADO\n");
     console.log("📦 Desplegando EnhancedSmartStaking...");
-    const treasuryAddress = deployer.address;
     const EnhancedSmartStaking = await hre.ethers.getContractFactory("EnhancedSmartStaking");
-    const staking = await EnhancedSmartStaking.deploy(treasuryAddress);
+    const staking = await EnhancedSmartStaking.deploy(TREASURY_ADDRESS); // treasury from .env
     await staking.waitForDeployment();
     const stakingAddress = await staking.getAddress();
-    console.log(`✅ EnhancedSmartStaking deployed at: ${stakingAddress}\n`);
+    console.log(`✅ EnhancedSmartStaking deployed at: ${stakingAddress}`);
+    console.log(`   🏦 Treasury configurado a: ${TREASURY_ADDRESS}\n`);
     
     // 8. Link contracts through proxy
     console.log("📋 PASO 8: CONFIGURAR REFERENCIAS ENTRE CONTRATOS\n");
@@ -325,7 +393,7 @@ async function main() {
             {
                 address: individualSkillsAddress,
                 contract: "IndividualSkillsMarketplace",
-                constructorArgs: [deployer.address]
+                constructorArgs: [TREASURY_ADDRESS]
             },
             {
                 address: questsAddress,
@@ -335,7 +403,7 @@ async function main() {
             {
                 address: stakingAddress,
                 contract: "EnhancedSmartStaking",
-                constructorArgs: [treasuryAddress]
+                constructorArgs: [TREASURY_ADDRESS]
             }
         ];
         
@@ -610,7 +678,7 @@ async function main() {
     console.log(`   ✅ Quests -> Staking Notifications: Configurado`);
     console.log(`   ✅ Interfaces: Validadas y Optimizadas\n`);
     console.log("🛡️ SEGURIDAD EN SKILLS NFT:");
-    console.log(`   ✅ Max 3 skills activos por usuario`);
+    console.log(`   ✅ Max 5 skills activos por usuario`);
     console.log(`   ✅ Un skill type por usuario`);
     console.log(`   ✅ Expiración de 30 días`);
     console.log(`   ✅ Sistema de renovación\n`);

@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 /**
  * @title GameifiedMarketplaceCoreV1
@@ -28,6 +29,7 @@ contract GameifiedMarketplaceCoreV1 is
     UUPSUpgradeable
 {
     using Counters for Counters.Counter;
+    using EnumerableSet for EnumerableSet.UintSet;
     
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() ERC721("GameifiedNFT", "GNFT") {
@@ -76,6 +78,9 @@ contract GameifiedMarketplaceCoreV1 is
     mapping(uint256 => string[]) public nftComments;
     mapping(uint256 => Offer[]) public nftOffers;
     mapping(address => UserProfile) public userProfiles;
+    mapping(address => EnumerableSet.UintSet) private _ownedTokens;
+    mapping(address => EnumerableSet.UintSet) private _createdTokens;
+    EnumerableSet.UintSet private _listedTokenIds;
     
     address public platformTreasury;
     address public skillsContractAddress;
@@ -96,6 +101,7 @@ contract GameifiedMarketplaceCoreV1 is
     event SkillsContractUpdated(address indexed oldAddress, address indexed newAddress);
     event QuestsContractUpdated(address indexed oldAddress, address indexed newAddress);
     event StakingContractUpdated(address indexed oldAddress, address indexed newAddress);
+    event PlatformFeeTransferred(address indexed from, uint256 amount, address indexed to, string operation);
 
     error TokenNotFound();
     error NotTokenOwner();
@@ -138,6 +144,7 @@ contract GameifiedMarketplaceCoreV1 is
         
         userProfiles[msg.sender].nftsCreated++;
         userProfiles[msg.sender].totalXP += 10;
+        _createdTokens[msg.sender].add(tokenId);
         
         emit TokenCreated(msg.sender, tokenId, _tokenURI);
         emit XPGained(msg.sender, 10, "NFT_CREATED");
@@ -154,6 +161,7 @@ contract GameifiedMarketplaceCoreV1 is
         
         isListed[_tokenId] = true;
         listedPrice[_tokenId] = _price;
+        _listedTokenIds.add(_tokenId);
         
         emit TokenListed(msg.sender, _tokenId, _price);
     }
@@ -164,6 +172,7 @@ contract GameifiedMarketplaceCoreV1 is
         
         isListed[_tokenId] = false;
         listedPrice[_tokenId] = 0;
+        _listedTokenIds.remove(_tokenId);
         
         emit TokenUnlisted(msg.sender, _tokenId);
     }
@@ -196,6 +205,7 @@ contract GameifiedMarketplaceCoreV1 is
         
         isListed[_tokenId] = false;
         listedPrice[_tokenId] = 0;
+        _listedTokenIds.remove(_tokenId);
         delete nftOffers[_tokenId];
         
         (bool treasurySuccess, ) = payable(platformTreasury).call{value: platformFee}("");
@@ -204,6 +214,7 @@ contract GameifiedMarketplaceCoreV1 is
         (bool sellerSuccess, ) = payable(seller).call{value: sellerAmount}("");
         require(sellerSuccess, "Seller transfer failed");
         
+        emit PlatformFeeTransferred(msg.sender, platformFee, platformTreasury, "TOKEN_SALE");
         emit TokenSold(seller, msg.sender, _tokenId, price);
         emit XPGained(seller, 20, "NFT_SOLD");
         emit XPGained(msg.sender, 15, "NFT_BOUGHT");
@@ -260,6 +271,7 @@ contract GameifiedMarketplaceCoreV1 is
         (bool sellerSuccess, ) = payable(msg.sender).call{value: sellerAmount}("");
         require(sellerSuccess, "Seller transfer failed");
         
+        emit PlatformFeeTransferred(buyer, platformFee, platformTreasury, "OFFER_ACCEPTED");
         emit OfferAccepted(msg.sender, buyer, _tokenId, amount);
     }
 
@@ -312,8 +324,193 @@ contract GameifiedMarketplaceCoreV1 is
         emit XPGained(msg.sender, 2, "COMMENT");
     }
 
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // VIEW FUNCTIONS - NFT DETAILS & MARKETPLACE
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    
+    /**
+     * @dev Get user profile (XP, level, NFTs stats)
+     */
     function getUserProfile(address _user) external view returns (UserProfile memory) {
         return userProfiles[_user];
+    }
+    
+    /**
+     * @dev Get NFT metadata by token ID
+     * @param _tokenId Token ID
+     * @return NFT metadata including creator, URI, category, created at, royalty
+     */
+    function getNFTMetadata(uint256 _tokenId) external view returns (NFTMetadata memory) {
+        require(_exists(_tokenId), "NFT does not exist");
+        return nftMetadata[_tokenId];
+    }
+    
+    /**
+     * @dev Get like count for an NFT
+     * @param _tokenId Token ID
+     * @return Number of likes
+     */
+    function getNFTLikeCount(uint256 _tokenId) external view returns (uint256) {
+        require(_exists(_tokenId), "NFT does not exist");
+        return nftLikeCount[_tokenId];
+    }
+    
+    /**
+     * @dev Get all comments for an NFT
+     * @param _tokenId Token ID
+     * @return Array of comment strings
+     */
+    function getNFTComments(uint256 _tokenId) external view returns (string[] memory) {
+        require(_exists(_tokenId), "NFT does not exist");
+        return nftComments[_tokenId];
+    }
+    
+    /**
+     * @dev Get all offers for an NFT
+     * @param _tokenId Token ID
+     * @return Array of offers with offeror, amount, expiry, timestamp
+     */
+    function getNFTOffers(uint256 _tokenId) external view returns (Offer[] memory) {
+        require(_exists(_tokenId), "NFT does not exist");
+        return nftOffers[_tokenId];
+    }
+    
+    /**
+     * @dev Paginate a set of token IDs.
+     * @param set The EnumerableSet to paginate.
+     * @param cursor The starting index.
+     * @param size The number of items to return.
+     * @return tokens Array of token IDs in the page.
+     * @return newCursor The next cursor position.
+     */
+    function _paginateTokenSet(
+        EnumerableSet.UintSet storage set,
+        uint256 cursor,
+        uint256 size
+    ) internal view returns (uint256[] memory tokens, uint256 newCursor) {
+        uint256 length = set.length();
+        if (cursor >= length) {
+            return (new uint256[](0), length);
+        }
+
+        uint256 end = cursor + size;
+        if (end > length) {
+            end = length;
+        }
+
+        uint256 pageSize = end - cursor;
+        tokens = new uint256[](pageSize);
+
+        for (uint256 i = 0; i < pageSize; i++) {
+            tokens[i] = set.at(cursor + i);
+        }
+
+        return (tokens, end);
+    }
+
+    function getUserNFTs(address _user) external view returns (uint256[] memory) {
+        uint256 balance = _ownedTokens[_user].length();
+        uint256[] memory result = new uint256[](balance);
+        for (uint256 i = 0; i < balance; i++) {
+            result[i] = _ownedTokens[_user].at(i);
+        }
+        return result;
+    }
+
+    function getUserNFTsPage(address _user, uint256 cursor, uint256 size)
+        external
+        view
+        returns (uint256[] memory tokens, uint256 nextCursor)
+    {
+        return _paginateTokenSet(_ownedTokens[_user], cursor, size);
+    }
+
+    /**
+     * @dev Get all NFTs created by a user
+     * @param _user User address (creator)
+     * @return tokens Array of token IDs created by user
+     */
+    function getUserCreatedNFTs(address _user) external view returns (uint256[] memory) {
+        uint256 createdCount = _createdTokens[_user].length();
+        uint256[] memory result = new uint256[](createdCount);
+        for (uint256 i = 0; i < createdCount; i++) {
+            result[i] = _createdTokens[_user].at(i);
+        }
+        return result;
+    }
+
+    function getUserCreatedNFTsPage(address _user, uint256 cursor, uint256 size)
+        external
+        view
+        returns (uint256[] memory tokens, uint256 nextCursor)
+    {
+        return _paginateTokenSet(_createdTokens[_user], cursor, size);
+    }
+
+    /**
+     * @dev Get all currently listed NFTs for sale
+     * @return tokens Array of token IDs that are listed
+     */
+    function getListedNFTs() external view returns (uint256[] memory) {
+        uint256 listedCount = _listedTokenIds.length();
+        uint256[] memory result = new uint256[](listedCount);
+        for (uint256 i = 0; i < listedCount; i++) {
+            result[i] = _listedTokenIds.at(i);
+        }
+        return result;
+    }
+
+    function getListedNFTsPage(uint256 cursor, uint256 size)
+        external
+        view
+        returns (uint256[] memory tokens, uint256 nextCursor)
+    {
+        return _paginateTokenSet(_listedTokenIds, cursor, size);
+    }
+
+    /**
+     * @dev Get all NFTs owned by a user with their metadata and listing info
+     * @param _user User address
+     * @return Array of NFT metadata for all user's NFTs
+     */
+    function getUserNFTsDetailed(address _user) external view returns (NFTMetadata[] memory) {
+        uint256 balance = _ownedTokens[_user].length();
+        NFTMetadata[] memory result = new NFTMetadata[](balance);
+        for (uint256 i = 0; i < balance; i++) {
+            uint256 tokenId = _ownedTokens[_user].at(i);
+            result[i] = nftMetadata[tokenId];
+        }
+
+        return result;
+    }
+    
+    /**
+     * @dev Check if a user has liked an NFT
+     * @param _tokenId Token ID
+     * @param _user User address
+     * @return Boolean indicating if user liked the NFT
+     */
+    function getUserNFTLike(uint256 _tokenId, address _user) external view returns (bool) {
+        require(_exists(_tokenId), "NFT does not exist");
+        return nftLikes[_tokenId][_user];
+    }
+    
+    /**
+     * @dev Get NFT market info (price, owner, listing status)
+     * @param _tokenId Token ID
+     * @return owner Address of NFT owner
+     * @return isListedStatus Whether NFT is listed for sale
+     * @return price Current listing price (0 if not listed)
+     */
+    function getNFTMarketInfo(uint256 _tokenId) external view returns (
+        address owner,
+        bool isListedStatus,
+        uint256 price
+    ) {
+        require(_exists(_tokenId), "NFT does not exist");
+        owner = ownerOf(_tokenId);
+        isListedStatus = isListed[_tokenId];
+        price = isListed[_tokenId] ? listedPrice[_tokenId] : 0;
     }
 
     function updateUserXP(address _user, uint256 _amount) external onlyRole(ADMIN_ROLE) {
@@ -369,6 +566,27 @@ contract GameifiedMarketplaceCoreV1 is
         override
         onlyRole(UPGRADER_ROLE)
     {}
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 firstTokenId,
+        uint256 batchSize
+    ) internal override {
+        super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
+
+        if (from != address(0)) {
+            for (uint256 i = 0; i < batchSize; i++) {
+                _ownedTokens[from].remove(firstTokenId + i);
+            }
+        }
+
+        if (to != address(0)) {
+            for (uint256 i = 0; i < batchSize; i++) {
+                _ownedTokens[to].add(firstTokenId + i);
+            }
+        }
+    }
 
     function _transfer(address from, address to, uint256 tokenId) internal override {
         require(to != address(0), "Cannot transfer to zero address");

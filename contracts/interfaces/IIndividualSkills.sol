@@ -154,7 +154,7 @@ interface IIndividualSkills {
      * @param _rarity Rarity level
      * @return price Price in wei
      */
-    function getIndividualSkillPrice(IStakingIntegration.Rarity _rarity) external pure returns (uint256 price);
+    function getIndividualSkillPrice(IStakingIntegration.Rarity _rarity) external view returns (uint256 price);
     
     /**
      * @dev Get detailed individual skills for user (including status)
