@@ -43,6 +43,20 @@ module.exports = {
       }
     ],
     overrides: {
+      "contracts/Marketplace/GameifiedMarketplaceCoreV1.sol": {
+        version: "0.8.28",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 50, // Ultra-optimized for code size
+            details: {
+              yul: true
+            }
+          },
+          viaIR: true,
+          evmVersion: "shanghai"
+        }
+      },
       "contracts/Marketplace/GameifiedMarketplaceV1.sol": {
         version: "0.8.28",
         settings: {

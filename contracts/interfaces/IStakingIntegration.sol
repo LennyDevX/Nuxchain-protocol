@@ -67,7 +67,7 @@ interface IStakingIntegration {
     struct UserSkillProfile {
         uint256[] activeNFTIds;           // NFT token IDs with active skills
         uint256 totalXP;                  // Total experience points
-        uint8 level;                      // User level
+        uint16 level;                     // User level (changed from uint8 to uint16 to support up to level 1000; all related code now uses uint16 consistently)
         uint8 maxActiveSkills;            // Maximum skills that can be active
         uint16 stakingBoostTotal;         // Total staking boost percentage
         uint16 feeDiscountTotal;          // Total fee discount percentage
@@ -102,7 +102,7 @@ interface IStakingIntegration {
      */
     event SkillProfileUpdated(
         address indexed user,
-        uint8 level,
+        uint16 level,
         uint8 maxActiveSkills,
         uint16 stakingBoostTotal
     );
