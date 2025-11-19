@@ -282,64 +282,64 @@ async function main() {
         }
 
         // ═════════════════════════════════════════════════════════════════════════════════
-        // FASE 2: DESPLEGAR GAMEIFIED MARKETPLACE (UUPS Proxy + 4 MÓDULOS)
+        // FASE 2: DESPLEGAR GAMEIFIED MARKETPLACE (UUPS Proxy + 6 MÓDULOS)
         // ═════════════════════════════════════════════════════════════════════════════════
         console.log("╔════════════════════════════════════════════════════════════════════════════════╗");
-        console.log("║  FASE 2: GAMEIFIED MARKETPLACE DEPLOYMENT (UUPS Proxy + 4 Sub-modules)       ║");
+        console.log("║  FASE 2: GAMEIFIED MARKETPLACE DEPLOYMENT (UUPS Proxy + 6 Sub-modules)       ║");
         console.log("╚════════════════════════════════════════════════════════════════════════════════╝\n");
 
-        // 2.1 Deploy Core Implementation (UUPS Proxy Logic)
-        console.log("📦 2.1 Deploying GameifiedMarketplaceCoreV1 (Implementation - UUPS)...");
+        // 2.0.1 Deploy LevelingSystem (UUPS via upgrades plugin)
+        console.log("📦 2.0.1 Deploying LevelingSystem (UUPS)...");
+        const LevelingFactory = await ethers.getContractFactory("LevelingSystem");
+        const levelingProxy = await upgrades.deployProxy(LevelingFactory, [deployer.address], {
+            initializer: 'initialize',
+            kind: 'uups'
+        });
+        await levelingProxy.waitForDeployment();
+        const levelingProxyAddress = await levelingProxy.getAddress();
+        console.log(`   ✅ Leveling Proxy: ${levelingProxyAddress}\n`);
+        deploymentData.marketplace.leveling = levelingProxyAddress;
+
+        // 2.0.2 Deploy ReferralSystem (UUPS via upgrades plugin)
+        console.log("📦 2.0.2 Deploying ReferralSystem (UUPS)...");
+        const ReferralFactory = await ethers.getContractFactory("ReferralSystem");
+        const referralProxy = await upgrades.deployProxy(ReferralFactory, [deployer.address], {
+            initializer: 'initialize',
+            kind: 'uups'
+        });
+        await referralProxy.waitForDeployment();
+        const referralProxyAddress = await referralProxy.getAddress();
+        console.log(`   ✅ Referral Proxy: ${referralProxyAddress}\n`);
+        deploymentData.marketplace.referral = referralProxyAddress;
+
+        // 2.1 Deploy GameifiedMarketplaceCoreV1 (UUPS Proxy via upgrades plugin)
+        console.log("📦 2.1 Deploying GameifiedMarketplaceCoreV1 (UUPS Proxy)...");
         const MarketplaceCoreFactory = await ethers.getContractFactory("GameifiedMarketplaceCoreV1");
-        let implementation;
-        let implTx;
+        let marketplaceProxy;
         try {
-            console.log(`   ⏳ Sending deployment transaction...`);
-            implementation = await MarketplaceCoreFactory.deploy(gasOptions);
-            implTx = implementation.deploymentTransaction();
-            console.log(`   📡 TX Hash: ${implTx?.hash || 'pending'}`);
-            console.log(`   🔗 View: https://polygonscan.com/tx/${implTx?.hash || 'pending'}`);
-            console.log(`   ⏳ Waiting for 1 confirmation...`);
-            await implementation.waitForDeployment();
-            const implAddress = await implementation.getAddress();
-            console.log(`✅ Implementation (Logic Layer): ${implAddress}\n`);
-            deploymentData.marketplace.implementation = implAddress;
-            await waitForContractCode(implAddress, { retries: 20, delay: 3000, name: "Implementation" });
-        } catch (error) {
-            console.error(`❌ Error deploying Implementation: ${error.message}`);
-            throw error;
-        }
-
-        // 2.2 Create initialization data for proxy
-        console.log("📝 2.2 Preparing Proxy Initialization Data...");
-        const implAddress = deploymentData.marketplace.implementation;
-        const initData = MarketplaceCoreFactory.interface.encodeFunctionData(
-            'initialize',
-            [TREASURY_ADDRESS]
-        );
-        console.log(`✅ Initialization data encoded`);
-        console.log(`⏳ Waiting 10 seconds for implementation to be indexed on chain...\n`);
-        await new Promise(resolve => setTimeout(resolve, 10000));
-
-        // 2.3 Deploy UUPS Proxy
-        console.log("📦 2.3 Deploying GameifiedMarketplaceProxy (UUPS Proxy - Permanent Address)...");
-        const ProxyFactory = await ethers.getContractFactory("GameifiedMarketplaceProxy");
-        let proxy;
-        let proxyTx;
-        try {
-            console.log(`   ⏳ Sending deployment transaction...`);
-            proxy = await ProxyFactory.deploy(implAddress, initData, gasOptions);
-            proxyTx = proxy.deploymentTransaction();
-            console.log(`   📡 TX Hash: ${proxyTx?.hash || 'pending'}`);
-            console.log(`   🔗 View: https://polygonscan.com/tx/${proxyTx?.hash || 'pending'}`);
-            console.log(`   ⏳ Waiting for 1 confirmation...`);
-            await proxy.waitForDeployment();
-            const proxyAddress = await proxy.getAddress();
-            console.log(`✅ Proxy Address (USE THIS FOR ALL INTERACTIONS): ${proxyAddress}\n`);
+            console.log(`   ⏳ Deploying with upgrades.deployProxy()...`);
+            console.log(`   Using treasury: ${TREASURY_ADDRESS}`);
+            
+            // Deploy with proper error handling
+            marketplaceProxy = await upgrades.deployProxy(
+                MarketplaceCoreFactory,
+                [TREASURY_ADDRESS],
+                {
+                    initializer: 'initialize',
+                    kind: 'uups',
+                    timeout: 120000  // 2 minute timeout
+                }
+            );
+            
+            await marketplaceProxy.waitForDeployment();
+            const proxyAddress = await marketplaceProxy.getAddress();
+            console.log(`✅ Marketplace Core Proxy: ${proxyAddress}\n`);
             deploymentData.marketplace.proxy = proxyAddress;
-            await waitForContractCode(proxyAddress, { retries: 20, delay: 3000, name: "Proxy" });
+            deploymentData.marketplace.implementation = proxyAddress; // Track proxy as implementation for consistency
+            await waitForContractCode(proxyAddress, { retries: 20, delay: 3000, name: "Marketplace Proxy" });
         } catch (error) {
-            console.error(`❌ Error deploying Proxy: ${error.message}`);
+            console.error(`❌ Error deploying Marketplace Proxy: ${error.message}`);
+            console.error(`Full error:`, error);
             throw error;
         }
 
@@ -453,21 +453,46 @@ async function main() {
         const skillsNFTContract = SkillsNFTFactory.attach(skillsNFTAddress);
         const individualSkillsContract = IndividualSkillsFactory.attach(individualSkillsAddress);
         const questsContract = QuestsFactory.attach(questsAddress);
+        
+        const levelingProxyContract = LevelingFactory.attach(deploymentData.marketplace.leveling);
+        const referralProxyContract = ReferralFactory.attach(deploymentData.marketplace.referral);
 
         // 3.1 Configure Marketplace -> Module References
         console.log("🔗 3.1 Configuring Marketplace -> Module References...");
         try {
-            let tx = await coreProxy.setSkillsContract(skillsNFTAddress, gasOptions);
+            // Grant MARKETPLACE_ROLE to Core Proxy on Leveling & Referral
+            const MARKETPLACE_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MARKETPLACE_ROLE"));
+            
+            let tx = await levelingProxyContract.grantRole(MARKETPLACE_ROLE, proxyAddress, gasOptions);
+            await tx.wait();
+            console.log("   ✅ Leveling -> Granted MARKETPLACE_ROLE to Proxy");
+
+            tx = await referralProxyContract.grantRole(MARKETPLACE_ROLE, proxyAddress, gasOptions);
+            await tx.wait();
+            console.log("   ✅ Referral -> Granted MARKETPLACE_ROLE to Proxy");
+
+            // Set references in Core Proxy
+            tx = await coreProxy.setLevelingSystem(deploymentData.marketplace.leveling, gasOptions);
+            await tx.wait();
+            console.log("   ✅ Core Proxy -> Leveling System");
+
+            tx = await coreProxy.setReferralSystem(deploymentData.marketplace.referral, gasOptions);
+            await tx.wait();
+            console.log("   ✅ Core Proxy -> Referral System");
+
+            tx = await coreProxy.setSkillsContract(skillsNFTAddress, gasOptions);
             await tx.wait();
             console.log("   ✅ Core Proxy -> Skills NFT");
 
-            tx = await coreProxy.setQuestsContract(questsAddress, gasOptions);
+            // Configure Quests Contract
+            tx = await questsContract.setLevelingContract(deploymentData.marketplace.leveling, gasOptions);
             await tx.wait();
-            console.log("   ✅ Core Proxy -> Quests");
+            console.log("   ✅ Quests -> Leveling System");
 
-            tx = await coreProxy.setStakingContract(coreAddress, gasOptions);
-            await tx.wait();
-            console.log("   ✅ Core Proxy -> Staking Core\n");
+            // Quests contract is standalone, Core doesn't need to know about it directly
+            // tx = await coreProxy.setQuestsContract(questsAddress, gasOptions);
+            // await tx.wait();
+            // console.log("   ✅ Core Proxy -> Quests");
         } catch (error) {
             console.error(`❌ Error configuring Marketplace references: ${error.message}`);
             throw error;
@@ -536,13 +561,13 @@ async function main() {
             if (coreSkills.toLowerCase() !== skillsNFTAddress.toLowerCase()) throw new Error("Skills ref mismatch");
             console.log(`  ✅ Skills: ${coreSkills}`);
 
-            let coreQuests = await coreProxy.questsContractAddress();
-            if (coreQuests.toLowerCase() !== questsAddress.toLowerCase()) throw new Error("Quests ref mismatch");
-            console.log(`  ✅ Quests: ${coreQuests}`);
+            let coreLeveling = await coreProxy.levelingSystemAddress();
+            if (coreLeveling.toLowerCase() !== deploymentData.marketplace.leveling.toLowerCase()) throw new Error("Leveling ref mismatch");
+            console.log(`  ✅ Leveling: ${coreLeveling}`);
 
-            let coreStaking = await coreProxy.stakingContractAddress();
-            if (coreStaking.toLowerCase() !== coreAddress.toLowerCase()) throw new Error("Staking ref mismatch");
-            console.log(`  ✅ Staking: ${coreStaking}\n`);
+            let coreReferral = await coreProxy.referralSystemAddress();
+            if (coreReferral.toLowerCase() !== deploymentData.marketplace.referral.toLowerCase()) throw new Error("Referral ref mismatch");
+            console.log(`  ✅ Referral: ${coreReferral}\n`);
 
             console.log("✓ Validating Staking -> Marketplace References...");
             let stakingMarketplace = await stakingCore.marketplaceContract();
@@ -593,8 +618,7 @@ async function main() {
                 { address: gamificationAddress, name: "EnhancedSmartStakingGamification", path: "contracts/SmartStaking/EnhancedSmartStakingGamification.sol:EnhancedSmartStakingGamification", args: [] },
                 { address: deploymentData.staking.view, name: "EnhancedSmartStakingView", path: "contracts/SmartStaking/EnhancedSmartStakingView.sol:EnhancedSmartStakingView", args: [] },
                 { address: coreAddress, name: "EnhancedSmartStaking", path: "contracts/SmartStaking/EnhancedSmartStakingCore.sol:EnhancedSmartStaking", args: [TREASURY_ADDRESS] },
-                { address: implAddress, name: "GameifiedMarketplaceCoreV1", path: "contracts/Marketplace/GameifiedMarketplaceCoreV1.sol:GameifiedMarketplaceCoreV1", args: [] },
-                { address: proxyAddress, name: "GameifiedMarketplaceProxy", path: "contracts/Marketplace/GameifiedMarketplaceProxy.sol:GameifiedMarketplaceProxy", args: [implAddress, initData] },
+                { address: proxyAddress, name: "GameifiedMarketplaceCoreV1 (Proxy)", path: "contracts/Marketplace/GameifiedMarketplaceCoreV1.sol:GameifiedMarketplaceCoreV1", args: [] },
                 { address: skillsNFTAddress, name: "GameifiedMarketplaceSkillsV2", path: "contracts/Marketplace/GameifiedMarketplaceSkillsV2.sol:GameifiedMarketplaceSkillsV2", args: [proxyAddress] },
                 { address: individualSkillsAddress, name: "IndividualSkillsMarketplace", path: "contracts/Marketplace/IndividualSkillsMarketplace.sol:IndividualSkillsMarketplace", args: [TREASURY_ADDRESS] },
                 { address: questsAddress, name: "GameifiedMarketplaceQuests", path: "contracts/Marketplace/GameifiedMarketplaceQuests.sol:GameifiedMarketplaceQuests", args: [proxyAddress] }
@@ -687,6 +711,18 @@ async function main() {
                     name: "GameifiedMarketplaceCoreV1",
                     contract: "GameifiedMarketplaceCoreV1",
                     description: "Implementation logic (UUPS)"
+                },
+                leveling: {
+                    address: deploymentData.marketplace.leveling,
+                    name: "LevelingSystem",
+                    contract: "LevelingSystem",
+                    description: "Leveling System (UUPS Proxy)"
+                },
+                referral: {
+                    address: deploymentData.marketplace.referral,
+                    name: "ReferralSystem",
+                    contract: "ReferralSystem",
+                    description: "Referral System (UUPS Proxy)"
                 },
                 skillsNFT: {
                     address: deploymentData.marketplace.skillsNFT,

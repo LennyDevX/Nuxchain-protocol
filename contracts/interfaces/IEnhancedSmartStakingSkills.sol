@@ -28,7 +28,11 @@ interface IEnhancedSmartStakingSkills {
     
     struct UserSkillProfile {
         uint256[] activeSkillNFTIds;
-        uint16 totalBoost;
+        uint16 totalBoost;          // Deprecated/Legacy generic boost
+        uint16 stakingBoostTotal;   // Specific APY boost
+        uint16 feeDiscountTotal;    // Specific Fee discount
+        uint16 lockTimeReduction;   // Specific Lock time reduction
+        bool hasAutoCompound;       // Auto compound status
         uint16 rarityMultiplier;
         uint16 level;
         uint8 activeSkillCount;

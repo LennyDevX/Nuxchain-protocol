@@ -190,6 +190,25 @@ contract EnhancedSmartStakingSkills is Ownable, IEnhancedSmartStakingSkills {
             profile.rarityMultiplier = rarityMult;
         }
         
+        // Categorize boost for the new skill
+        uint16 effectiveValue = uint16((uint256(resolvedBoost) * rarityMult) / 100);
+        
+        if (skillType == IStakingIntegration.SkillType.STAKE_BOOST_I || 
+            skillType == IStakingIntegration.SkillType.STAKE_BOOST_II || 
+            skillType == IStakingIntegration.SkillType.STAKE_BOOST_III) {
+            profile.stakingBoostTotal += effectiveValue;
+        } 
+        else if (skillType == IStakingIntegration.SkillType.FEE_REDUCER_I || 
+                 skillType == IStakingIntegration.SkillType.FEE_REDUCER_II) {
+            profile.feeDiscountTotal += effectiveValue;
+        }
+        else if (skillType == IStakingIntegration.SkillType.LOCK_REDUCER) {
+            profile.lockTimeReduction += effectiveValue;
+        }
+        else if (skillType == IStakingIntegration.SkillType.AUTO_COMPOUND) {
+            profile.hasAutoCompound = true;
+        }
+        
         emit SkillActivated(user, nftId, skillType, resolvedBoost, profile.totalBoost);
     }
     
@@ -344,7 +363,7 @@ contract EnhancedSmartStakingSkills is Ownable, IEnhancedSmartStakingSkills {
     /**
      * @notice Get the total boost for a user including rarity multipliers
      * @param user The user address
-     * @return totalBoost The base total boost percentage
+     * @return totalBoost The STAKING boost percentage (APY boost only)
      * @return rarityMultiplier The rarity multiplier (100-500)
      * @return effectiveBoost The effective boost after rarity
      */
@@ -354,7 +373,8 @@ contract EnhancedSmartStakingSkills is Ownable, IEnhancedSmartStakingSkills {
         uint16 effectiveBoost
     ) {
         UserSkillProfile storage profile = _userSkillProfiles[user];
-        totalBoost = profile.totalBoost;
+        // FIX: Return only staking boost, not total of all boosts (which includes fees/lock reducers)
+        totalBoost = profile.stakingBoostTotal;
         rarityMultiplier = profile.rarityMultiplier == 0 ? 100 : profile.rarityMultiplier;
         effectiveBoost = uint16((uint256(totalBoost) * rarityMultiplier) / 100);
     }
@@ -372,6 +392,11 @@ contract EnhancedSmartStakingSkills is Ownable, IEnhancedSmartStakingSkills {
         
         // Reset profile
         profile.totalBoost = 0;
+        profile.stakingBoostTotal = 0;
+        profile.feeDiscountTotal = 0;
+        profile.lockTimeReduction = 0;
+        profile.hasAutoCompound = false;
+        
         profile.activeSkillCount = uint8(_userActiveSkillNFTs[user].length());
         profile.rarityMultiplier = 100; // Base multiplier
         
@@ -380,12 +405,37 @@ contract EnhancedSmartStakingSkills is Ownable, IEnhancedSmartStakingSkills {
         for (uint256 i = 0; i < length; i++) {
             uint256 nftId = _userActiveSkillNFTs[user].at(i);
             SkillInstance storage detail = _userSkillDetails[user][nftId];
-            profile.totalBoost += detail.effectValue;
             
+            // Apply rarity multiplier to the effect value
             uint16 rarityMult = _rarityMultipliers[_nftRarity[nftId]];
+            uint16 effectiveValue = uint16((uint256(detail.effectValue) * rarityMult) / 100);
+            
+            // Update max rarity multiplier seen
             if (rarityMult > profile.rarityMultiplier) {
                 profile.rarityMultiplier = rarityMult;
             }
+
+            // Categorize boost
+            IStakingIntegration.SkillType sType = detail.skillType;
+            
+            if (sType == IStakingIntegration.SkillType.STAKE_BOOST_I || 
+                sType == IStakingIntegration.SkillType.STAKE_BOOST_II || 
+                sType == IStakingIntegration.SkillType.STAKE_BOOST_III) {
+                profile.stakingBoostTotal += effectiveValue;
+            } 
+            else if (sType == IStakingIntegration.SkillType.FEE_REDUCER_I || 
+                     sType == IStakingIntegration.SkillType.FEE_REDUCER_II) {
+                profile.feeDiscountTotal += effectiveValue;
+            }
+            else if (sType == IStakingIntegration.SkillType.LOCK_REDUCER) {
+                profile.lockTimeReduction += effectiveValue;
+            }
+            else if (sType == IStakingIntegration.SkillType.AUTO_COMPOUND) {
+                profile.hasAutoCompound = true;
+            }
+            
+            // Keep totalBoost for legacy/generic compatibility
+            profile.totalBoost += effectiveValue;
         }
     }
 }

@@ -86,6 +86,13 @@ interface IEnhancedSmartStakingGamification {
     function claimQuestReward(uint256 questId) external;
     
     /**
+     * @notice Mark a quest as claimed (Restricted to Rewards contract)
+     * @param user The user address
+     * @param questId The quest identifier
+     */
+    function setQuestClaimed(address user, uint256 questId) external;
+    
+    /**
      * @notice Check and expire unclaimed quest rewards
      * @param user The user address
      * @param questIds Array of quest IDs to check

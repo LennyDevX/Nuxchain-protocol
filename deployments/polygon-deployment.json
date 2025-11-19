@@ -4,36 +4,36 @@
     "chainId": "137",
     "deployer": "0xed639e84179FCEcE1d7BEe91ab1C6888fbBdD0cf",
     "treasury": "0xad14c117b51735c072d42571e30bf2c729cd9593",
-    "timestamp": "2025-11-17T03:56:24.994Z",
-    "blockNumber": 79123377
+    "timestamp": "2025-11-19T15:37:00.723Z",
+    "blockNumber": 79230795
   },
   "staking": {
     "core": {
-      "address": "0x9C36B1Dff65d2211FAABcBCF116B9eF706c37081",
+      "address": "0x83068D1aC14B56B814FaB09e72707e70CC333053",
       "name": "EnhancedSmartStakingCore",
       "contract": "EnhancedSmartStaking",
       "description": "Core staking contract - Orchestrator"
     },
     "rewards": {
-      "address": "0x7913f81EC061db802c55C0Cb5B4a49e77b3ff980",
+      "address": "0xfb68219596607517c73D2a7998d13565aFF507B6",
       "name": "EnhancedSmartStakingRewards",
       "contract": "EnhancedSmartStakingRewards",
       "description": "Rewards & APY calculation module"
     },
     "skills": {
-      "address": "0xd96AE88B72ccD025bC8174728EddCF58C2523276",
+      "address": "0x6447ea4e3C714F750E75e2030d851cffe186Ce47",
       "name": "EnhancedSmartStakingSkills",
       "contract": "EnhancedSmartStakingSkills",
       "description": "Skill activation & management module"
     },
     "gamification": {
-      "address": "0xF25eeB5B00135Cbab697Bc732E80bb9A1803Ed0e",
+      "address": "0xeE33e8102449427ABD393c7B0Ed8Fe850B2f05cd",
       "name": "EnhancedSmartStakingGamification",
       "contract": "EnhancedSmartStakingGamification",
       "description": "XP, levels & gamification module"
     },
     "view": {
-      "address": "0xF4C4DbDB43Ed6A382caf6f8e7c3085a669674A16",
+      "address": "0x9c44f63086f0eB231b03634e9953022BD27F7F83",
       "name": "EnhancedSmartStakingView",
       "contract": "EnhancedSmartStakingView",
       "description": "View-only queries contract (Read-only)"
@@ -41,32 +41,44 @@
   },
   "marketplace": {
     "proxy": {
-      "address": "0x38fb2f79f587Ce86f1C9d882e2bF48f032fe9311",
+      "address": "0xCB2711689eB734589B82F6Ff1f4f0A6e8C08A2A5",
       "name": "GameifiedMarketplaceProxy",
       "contract": "GameifiedMarketplaceProxy",
       "description": "UUPS Proxy - Use this for all marketplace interactions",
       "isPrimary": true
     },
     "implementation": {
-      "address": "0xB863618C5F9918c0D068647dc97A0DE4950be955",
+      "address": "0xCB2711689eB734589B82F6Ff1f4f0A6e8C08A2A5",
       "name": "GameifiedMarketplaceCoreV1",
       "contract": "GameifiedMarketplaceCoreV1",
       "description": "Implementation logic (UUPS)"
     },
+    "leveling": {
+      "address": "0x982f474DF012D3EC67021FfdF03a4e37Ce9aAc65",
+      "name": "LevelingSystem",
+      "contract": "LevelingSystem",
+      "description": "Leveling System (UUPS Proxy)"
+    },
+    "referral": {
+      "address": "0x2f8b660223D38EDf9e3b8DFfeb4bF696dE6b0E0F",
+      "name": "ReferralSystem",
+      "contract": "ReferralSystem",
+      "description": "Referral System (UUPS Proxy)"
+    },
     "skillsNFT": {
-      "address": "0x47F922b85F45eC71d61C4DC81854593423bd4aDb",
+      "address": "0xDafC9653ef5e83b098B017FbCB63795d446Cb6D1",
       "name": "GameifiedMarketplaceSkillsV2",
       "contract": "GameifiedMarketplaceSkillsV2",
       "description": "NFT-embedded skills marketplace"
     },
     "individualSkills": {
-      "address": "0x268f8DF7397550606F3E341561F24e179bb2B7A2",
+      "address": "0x49f762A922C204E90FbF63438A5573aE3a465A29",
       "name": "IndividualSkillsMarketplace",
       "contract": "IndividualSkillsMarketplace",
       "description": "Direct skill purchase without NFT minting"
     },
     "quests": {
-      "address": "0x46Ed83A810A0CDDbff9d5c69F18F989dDed411Ff",
+      "address": "0xBc9B8be55733DdEb8335808C40be884af093f141",
       "name": "GameifiedMarketplaceQuests",
       "contract": "GameifiedMarketplaceQuests",
       "description": "Quest creation, completion & rewards"
@@ -76,21 +88,21 @@
     "bidirectional": {
       "staking_marketplace": {
         "status": "✅ SYNCHRONIZED",
-        "staking_to_marketplace": "0x38fb2f79f587Ce86f1C9d882e2bF48f032fe9311",
-        "marketplace_to_staking": "0x9C36B1Dff65d2211FAABcBCF116B9eF706c37081"
+        "staking_to_marketplace": "0xCB2711689eB734589B82F6Ff1f4f0A6e8C08A2A5",
+        "marketplace_to_staking": "0x83068D1aC14B56B814FaB09e72707e70CC333053"
       },
       "core_modules": {
         "status": "✅ SYNCHRONIZED",
-        "core": "0x9C36B1Dff65d2211FAABcBCF116B9eF706c37081",
-        "rewards": "0x7913f81EC061db802c55C0Cb5B4a49e77b3ff980",
-        "skills": "0xd96AE88B72ccD025bC8174728EddCF58C2523276",
-        "gamification": "0xF25eeB5B00135Cbab697Bc732E80bb9A1803Ed0e"
+        "core": "0x83068D1aC14B56B814FaB09e72707e70CC333053",
+        "rewards": "0xfb68219596607517c73D2a7998d13565aFF507B6",
+        "skills": "0x6447ea4e3C714F750E75e2030d851cffe186Ce47",
+        "gamification": "0xeE33e8102449427ABD393c7B0Ed8Fe850B2f05cd"
       },
       "notifications": {
         "status": "✅ CONFIGURED",
-        "skillsNFT_to_staking": "0x47F922b85F45eC71d61C4DC81854593423bd4aDb",
-        "individualSkills_to_staking": "0x268f8DF7397550606F3E341561F24e179bb2B7A2",
-        "quests_to_staking": "0x46Ed83A810A0CDDbff9d5c69F18F989dDed411Ff"
+        "skillsNFT_to_staking": "0xDafC9653ef5e83b098B017FbCB63795d446Cb6D1",
+        "individualSkills_to_staking": "0x49f762A922C204E90FbF63438A5573aE3a465A29",
+        "quests_to_staking": "0xBc9B8be55733DdEb8335808C40be884af093f141"
       }
     }
   },

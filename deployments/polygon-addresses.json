@@ -1,19 +1,19 @@
 {
   "network": "polygon",
   "chainId": "137",
-  "timestamp": "2025-11-17T03:56:25.074Z",
+  "timestamp": "2025-11-19T15:37:00.946Z",
   "staking": {
-    "core": "0x9C36B1Dff65d2211FAABcBCF116B9eF706c37081",
-    "rewards": "0x7913f81EC061db802c55C0Cb5B4a49e77b3ff980",
-    "skills": "0xd96AE88B72ccD025bC8174728EddCF58C2523276",
-    "gamification": "0xF25eeB5B00135Cbab697Bc732E80bb9A1803Ed0e",
-    "view": "0xF4C4DbDB43Ed6A382caf6f8e7c3085a669674A16"
+    "core": "0x83068D1aC14B56B814FaB09e72707e70CC333053",
+    "rewards": "0xfb68219596607517c73D2a7998d13565aFF507B6",
+    "skills": "0x6447ea4e3C714F750E75e2030d851cffe186Ce47",
+    "gamification": "0xeE33e8102449427ABD393c7B0Ed8Fe850B2f05cd",
+    "view": "0x9c44f63086f0eB231b03634e9953022BD27F7F83"
   },
   "marketplace": {
-    "proxy": "0x38fb2f79f587Ce86f1C9d882e2bF48f032fe9311",
-    "implementation": "0xB863618C5F9918c0D068647dc97A0DE4950be955",
-    "skillsNFT": "0x47F922b85F45eC71d61C4DC81854593423bd4aDb",
-    "individualSkills": "0x268f8DF7397550606F3E341561F24e179bb2B7A2",
-    "quests": "0x46Ed83A810A0CDDbff9d5c69F18F989dDed411Ff"
+    "proxy": "0xCB2711689eB734589B82F6Ff1f4f0A6e8C08A2A5",
+    "implementation": "0xCB2711689eB734589B82F6Ff1f4f0A6e8C08A2A5",
+    "skillsNFT": "0xDafC9653ef5e83b098B017FbCB63795d446Cb6D1",
+    "individualSkills": "0x49f762A922C204E90FbF63438A5573aE3a465A29",
+    "quests": "0xBc9B8be55733DdEb8335808C40be884af093f141"
   }
 }

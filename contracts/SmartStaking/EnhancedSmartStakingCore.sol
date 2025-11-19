@@ -221,57 +221,50 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
         User storage user = users[userAddress];
         if (user.deposits.length == 0) return 0;
 
+        // Get user's staking boost from Skills Module
+        uint16 stakingBoostTotal = 0;
+        if (address(skillsModule) != address(0)) {
+            (stakingBoostTotal,,) = skillsModule.getUserBoosts(userAddress);
+        }
+
         for (uint256 i = 0; i < user.deposits.length; i++) {
             Deposit storage userDeposit = user.deposits[i];
             
             // Get lockup period index
             uint8 lockupIndex = _getLockupIndex(userDeposit.lockupDuration);
             
-            // Delegate to Rewards module
-            uint256 reward = rewardsModule.calculateRewards(
-                uint256(userDeposit.amount),
-                uint256(userDeposit.timestamp),
-                uint256(userDeposit.lastClaimTime),
-                lockupIndex
-            );
-            
-            totalRewards += reward;
-        }
-    }
-    
-    function calculateBoostedRewards(address userAddress) public view returns (uint256 totalRewards) {
-        if (address(rewardsModule) == address(0)) revert ModuleNotSet("Rewards");
-        if (address(skillsModule) == address(0)) revert ModuleNotSet("Skills");
-        
-        User storage user = users[userAddress];
-        if (user.deposits.length == 0) return 0;
-
-        // Get user's skill boosts
-        (uint16 totalBoost, uint16 rarityMultiplier,) = skillsModule.getUserBoosts(userAddress);
-
-        for (uint256 i = 0; i < user.deposits.length; i++) {
-            Deposit storage userDeposit = user.deposits[i];
-            uint8 lockupIndex = _getLockupIndex(userDeposit.lockupDuration);
-            
-            // Delegate to Rewards module with boosts
-            uint256 reward = rewardsModule.calculateBoostedRewardsWithRarityMultiplier(
+            // Delegate to Rewards module with boost
+            uint256 reward = rewardsModule.calculateStakingRewards(
                 uint256(userDeposit.amount),
                 uint256(userDeposit.timestamp),
                 uint256(userDeposit.lastClaimTime),
                 lockupIndex,
-                totalBoost,
-                rarityMultiplier
+                stakingBoostTotal
             );
             
             totalRewards += reward;
         }
     }
+    
+    // Deprecated: Merged into calculateRewards
+    function calculateBoostedRewards(address userAddress) public view returns (uint256 totalRewards) {
+        return calculateRewards(userAddress);
+    }
 
+    // Deprecated: Merged into calculateRewards
     function calculateBoostedRewardsWithRarityMultiplier(address userAddress) public view returns (uint256) {
-        return calculateBoostedRewards(userAddress);
+        return calculateRewards(userAddress);
+    }
+    
+    function withdrawBoosted() external nonReentrant whenNotPaused notMigrated {
+        _withdraw();
     }
     
     function withdraw() external nonReentrant whenNotPaused notMigrated {
+        _withdraw();
+    }
+
+    function _withdraw() internal {
         User storage user = users[msg.sender];
 
         if (block.timestamp / WITHDRAWAL_LIMIT_PERIOD > _lastWithdrawalDay[msg.sender]) {
@@ -280,49 +273,6 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
         }
 
         uint256 totalRewards = calculateRewards(msg.sender);
-        if (totalRewards == 0) revert NoRewardsAvailable();
-
-        if (_dailyWithdrawalAmount[msg.sender] + totalRewards > DAILY_WITHDRAWAL_LIMIT) {
-            revert DailyWithdrawalLimitExceeded(DAILY_WITHDRAWAL_LIMIT - _dailyWithdrawalAmount[msg.sender]);
-        }
-
-        _dailyWithdrawalAmount[msg.sender] += totalRewards;
-        
-        for (uint256 i = 0; i < user.deposits.length; i++) {
-            Deposit storage userDeposit = user.deposits[i];
-            if (userDeposit.lockupDuration > 0 && block.timestamp < userDeposit.timestamp + userDeposit.lockupDuration) {
-                revert FundsAreLocked();
-            }
-        }
-        
-        uint256 commission = (totalRewards * COMMISSION_PERCENTAGE) / BASIS_POINTS;
-        uint256 netAmount = totalRewards - commission;
-
-        if (address(this).balance < netAmount + commission) {
-            revert InsufficientBalance();
-        }
-
-        uint64 currentTime = uint64(block.timestamp);
-        for (uint256 i = 0; i < user.deposits.length; i++) {
-            user.deposits[i].lastClaimTime = currentTime;
-        }
-        user.lastWithdrawTime = currentTime;
-
-        _transferCommission(commission);
-        payable(msg.sender).sendValue(netAmount);
-
-        emit Withdrawn(msg.sender, netAmount);
-    }
-    
-    function withdrawBoosted() external nonReentrant whenNotPaused notMigrated {
-        User storage user = users[msg.sender];
-
-        if (block.timestamp / WITHDRAWAL_LIMIT_PERIOD > _lastWithdrawalDay[msg.sender]) {
-            _dailyWithdrawalAmount[msg.sender] = 0;
-            _lastWithdrawalDay[msg.sender] = uint64(block.timestamp / WITHDRAWAL_LIMIT_PERIOD);
-        }
-
-        uint256 totalRewards = calculateBoostedRewards(msg.sender);
         if (totalRewards == 0) revert NoRewardsAvailable();
 
         if (_dailyWithdrawalAmount[msg.sender] + totalRewards > DAILY_WITHDRAWAL_LIMIT) {
@@ -647,7 +597,7 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
         
         if (address(gamificationModule) == address(0)) revert ModuleNotSet("Gamification");
         
-        uint256 rewards = calculateBoostedRewards(user);
+        uint256 rewards = calculateRewards(user);
         if (rewards == 0) revert NoRewardsAvailable();
         
         User storage userStruct = users[user];

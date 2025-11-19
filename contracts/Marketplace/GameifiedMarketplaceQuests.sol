@@ -16,7 +16,7 @@ import "../interfaces/IStakingIntegration.sol";
  * - Notificar al staking sobre quests completadas
  */
 
-interface IGameifiedMarketplaceCore {
+interface ILevelingSystem {
     struct UserProfile {
         uint256 totalXP;
         uint8 level;
@@ -25,9 +25,8 @@ interface IGameifiedMarketplaceCore {
         uint32 nftsSold;
         uint32 nftsBought;
     }
-    
-    function userProfiles(address) external view returns (UserProfile memory);
-    function updateUserXP(address _user, uint256 _amount) external;
+    function getUserProfile(address user) external view returns (UserProfile memory);
+    function updateUserXP(address user, uint256 xpAmount, string memory reason) external;
 }
 
 contract GameifiedMarketplaceQuests is AccessControl, Pausable, ReentrancyGuard {
@@ -78,6 +77,7 @@ contract GameifiedMarketplaceQuests is AccessControl, Pausable, ReentrancyGuard 
     
     address public coreContractAddress;
     address public stakingContractAddress;
+    address public levelingContractAddress;
     
     event QuestCreated(uint256 indexed questId, QuestType questType, string title, uint256 requirement, uint256 xpReward);
     event QuestCompleted(address indexed user, uint256 indexed questId, uint256 xpReward);
@@ -86,6 +86,7 @@ contract GameifiedMarketplaceQuests is AccessControl, Pausable, ReentrancyGuard 
     event SocialActionRecorded(address indexed user, uint256 newTotal);
     event CoreContractUpdated(address indexed oldCore, address indexed newCore);
     event StakingContractUpdated(address indexed oldStaking, address indexed newStaking);
+    event LevelingContractUpdated(address indexed oldLeveling, address indexed newLeveling);
 
     error QuestNotFound();
     error QuestNotActive();
@@ -95,6 +96,7 @@ contract GameifiedMarketplaceQuests is AccessControl, Pausable, ReentrancyGuard 
     error InvalidRequirement();
     error InvalidXPReward();
     error InvalidMetadata();
+    error LevelingContractNotSet();
 
     constructor(address _coreAddress) {
         if (_coreAddress == address(0)) revert InvalidAddress();
@@ -175,7 +177,9 @@ contract GameifiedMarketplaceQuests is AccessControl, Pausable, ReentrancyGuard 
         
         userCompletedQuests[msg.sender].push(_questId);
         
-        IGameifiedMarketplaceCore(coreContractAddress).updateUserXP(msg.sender, quest.xpReward);
+        if (levelingContractAddress != address(0)) {
+            ILevelingSystem(levelingContractAddress).updateUserXP(msg.sender, quest.xpReward, "QUEST_COMPLETED");
+        }
         
         // Notificar al staking sobre la quest completada
         if (stakingContractAddress != address(0)) {
@@ -217,11 +221,10 @@ contract GameifiedMarketplaceQuests is AccessControl, Pausable, ReentrancyGuard 
             return userSocialActions[_user];
         }
         
-        // Para otros tipos, consultar core contract
-        if (coreContractAddress == address(0)) return 0;
+        // Para otros tipos, consultar leveling contract
+        if (levelingContractAddress == address(0)) return 0;
         
-        IGameifiedMarketplaceCore core = IGameifiedMarketplaceCore(coreContractAddress);
-        IGameifiedMarketplaceCore.UserProfile memory profile = core.userProfiles(_user);
+        ILevelingSystem.UserProfile memory profile = ILevelingSystem(levelingContractAddress).getUserProfile(_user);
         
         if (_quest.questType == QuestType.PURCHASE) {
             return profile.nftsBought;
@@ -401,6 +404,17 @@ contract GameifiedMarketplaceQuests is AccessControl, Pausable, ReentrancyGuard 
         address oldStaking = stakingContractAddress;
         stakingContractAddress = _stakingAddress;
         emit StakingContractUpdated(oldStaking, _stakingAddress);
+    }
+
+    /**
+     * @dev Set leveling contract address
+     * @param _levelingAddress Address of leveling contract
+     */
+    function setLevelingContract(address _levelingAddress) external onlyRole(ADMIN_ROLE) {
+        if (_levelingAddress == address(0)) revert InvalidAddress();
+        address oldLeveling = levelingContractAddress;
+        levelingContractAddress = _levelingAddress;
+        emit LevelingContractUpdated(oldLeveling, _levelingAddress);
     }
 
     function pause() external onlyRole(ADMIN_ROLE) {

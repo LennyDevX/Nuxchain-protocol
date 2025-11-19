@@ -24,6 +24,7 @@
     "setup": "npm run clean && npm install"
   },
   "dependencies": {
-    "@nomicfoundation/edr-win32-x64-msvc": "^0.11.3"
+    "@nomicfoundation/edr-win32-x64-msvc": "^0.11.3",
+    "@openzeppelin/contracts-upgradeable": "^4.9.6"
   }
 }

@@ -19,16 +19,25 @@ import "../interfaces/IIndividualSkills.sol";
  * - 30-day expiration with renewal option
  * - Integrates with EnhancedSmartStaking for reward multipliers
  * 
- * SKILL CATEGORIES (17 total):
- * - STAKING SKILLS (7): Direct rewards impact (STAKE_BOOST_I/II/III, AUTO_COMPOUND, LOCK_REDUCER, FEE_REDUCER_I/II)
- * - ACTIVE SKILLS (10): Platform features (PRIORITY_LISTING, BATCH_MINTER, VERIFIED_CREATOR, etc.)
+ * PRICING & IMPACT SYSTEM:
+ * - PROFESSIONAL DYNAMIC PRICING: Price varies by Skill Type × Rarity × Level
+ * - SKILL LEVELS determine impact magnitude (Level 1 = weak, Level 3 = strong for 3-level skills)
+ * - RARITY MULTIPLIERS: Common (1.0x) to Legendary (5.0x) impact multiplier
+ * - Effect values change based on both rarity and level combination
  * 
- * PRICING: Fixed per skill type + rarity (POL tokens)
- * - STAKING SKILLS (1-7): COMMON=50, UNCOMMON=80, RARE=100, EPIC=150, LEGENDARY=220
- * - ACTIVE SKILLS (8-17): +30% markup on STAKING prices
- * VARIETIES: 17 skills × 5 rarities = 85 total combinations
+ * STAKING SKILLS (1-7):
+ * - STAKE_BOOST_I/II/III: 3 levels each with different APY impact
+ * - AUTO_COMPOUND, LOCK_REDUCER, FEE_REDUCER_I/II: Single level skills
+ * - Base APY: +5%/+10%/+20% (×rarity multiplier)
+ * 
+ * ACTIVE SKILLS (8-16):
+ * - Platform features with configurable effect values
+ * - Variable impact based on rarity tier
+ * 
+ * PRICING CALCULATION: base_price × level_multiplier × rarity_multiplier
  * 
  * @custom:security-contact security@nuvo.com
+ * @custom:version 2.0.0 - Professional Dynamic Pricing System
  */
 contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard, IIndividualSkills {
     using Counters for Counters.Counter;
@@ -39,25 +48,35 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // PRICING CONSTANTS - PROFESSIONAL DYNAMIC SYSTEM
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    
     uint256 private constant MIN_STAKING_REQUIREMENT = 250 ether;      // 250 POL minimum
-    
-    // STAKING SKILLS PRICING (Skills 1-7) - Fixed prices in POL (wei)
-    // COMMON=50, UNCOMMON=80, RARE=100, EPIC=150, LEGENDARY=220
-    uint256 private constant STAKING_COMMON_PRICE = 50 ether;
-    uint256 private constant STAKING_UNCOMMON_PRICE = 80 ether;
-    uint256 private constant STAKING_RARE_PRICE = 100 ether;
-    uint256 private constant STAKING_EPIC_PRICE = 150 ether;
-    uint256 private constant STAKING_LEGENDARY_PRICE = 220 ether;
-    
-    // ACTIVE SKILLS PRICING (Skills 8-17) - 30% markup on STAKING prices
-    // COMMON=65, UNCOMMON=104, RARE=130, EPIC=195, LEGENDARY=286
-    uint256 private constant ACTIVE_COMMON_PRICE = 65 ether;         // 50 * 1.3
-    uint256 private constant ACTIVE_UNCOMMON_PRICE = 104 ether;      // 80 * 1.3
-    uint256 private constant ACTIVE_RARE_PRICE = 130 ether;          // 100 * 1.3
-    uint256 private constant ACTIVE_EPIC_PRICE = 195 ether;          // 150 * 1.3
-    uint256 private constant ACTIVE_LEGENDARY_PRICE = 286 ether;     // 220 * 1.3
-    uint256 private constant MAX_ACTIVE_SKILLS_PER_TYPE = 3;           // Max 3 active per type
     uint256 private constant SKILL_DURATION = 30 days;                 // 30-day expiration
+    
+    // Base prices (per rarity) - Used as foundation for all calculations
+    // Price = basePrice × level_multiplier × rarity_multiplier
+    uint256 private constant BASE_PRICE_COMMON = 50 ether;
+    uint256 private constant BASE_PRICE_UNCOMMON = 80 ether;
+    uint256 private constant BASE_PRICE_RARE = 100 ether;
+    uint256 private constant BASE_PRICE_EPIC = 150 ether;
+    uint256 private constant BASE_PRICE_LEGENDARY = 220 ether;
+    
+    // Rarity multipliers (basis points: 10000 = 1.0x)
+    // Applied to effect values (APY boost, fee discount, etc.)
+    // COMMON: 1.0x, UNCOMMON: 1.5x, RARE: 2.0x, EPIC: 3.0x, LEGENDARY: 5.0x
+    uint16 private constant RARITY_MULTIPLIER_COMMON = 10000;      // 1.0x
+    uint16 private constant RARITY_MULTIPLIER_UNCOMMON = 15000;    // 1.5x
+    uint16 private constant RARITY_MULTIPLIER_RARE = 20000;        // 2.0x
+    uint16 private constant RARITY_MULTIPLIER_EPIC = 30000;        // 3.0x
+    uint16 private constant RARITY_MULTIPLIER_LEGENDARY = 50000;   // 5.0x
+    
+    // Level multipliers for multi-level skills (basis points)
+    // Level 1 (weak): 1.0x, Level 2 (medium): 1.5x, Level 3 (strong): 2.5x
+    uint16 private constant LEVEL_MULTIPLIER_1 = 10000;            // 1.0x (Level 1)
+    uint16 private constant LEVEL_MULTIPLIER_2 = 15000;            // 1.5x (Level 2)
+    uint16 private constant LEVEL_MULTIPLIER_3 = 25000;            // 2.5x (Level 3)
     
     // Skill type validation bounds
     uint8 private constant MIN_SKILL_TYPE = 1;                         // STAKE_BOOST_I
@@ -65,6 +84,9 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     uint8 private constant MAX_RARITY = 4;                             // LEGENDARY
     uint8 private constant MIN_LEVEL = 1;
     uint8 private constant MAX_LEVEL = 50;                             // Synchronized with GameifiedMarketplaceQuests
+    
+    uint256 private constant MAX_ACTIVE_SKILLS_PER_TYPE = 3;           // Max 3 active per type
+    uint256 private constant BASIS_POINTS = 10000;                     // For percentage calculations
     
     // ════════════════════════════════════════════════════════════════════════════════════════
     // STATE VARIABLES
@@ -84,8 +106,32 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     address public treasuryAddress;
     address public stakingContractAddress;
     
-    // Skill pricing: skillType => rarity => price (in wei/POL)
-    // Maps each skill + rarity combination to its price
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // DYNAMIC PRICING SYSTEM - Professional Multi-Dimensional Pricing
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    
+    // Base price per rarity (can be updated by admin)
+    // rarityIndex (0-4) => price in wei
+    mapping(uint8 => uint256) public basePricePerRarity;
+    
+    // Rarity effect multipliers (basis points, 10000 = 1.0x)
+    // Skill impact multiplier based on rarity (APY, fee discount, etc.)
+    mapping(uint8 => uint16) public rarityEffectMultiplier;
+    
+    // Level multipliers for multi-level skills (basis points)
+    // levelIndex (1-3) => multiplier (e.g., 10000, 15000, 25000)
+    mapping(uint8 => uint16) public levelMultiplier;
+    
+    // Skill effect values: skillType => rarity => baseEffectValue (in basis points)
+    // e.g., STAKE_BOOST_I COMMON = 500 (5% APY), LEGENDARY = 2500 (25% APY)
+    mapping(IStakingIntegration.SkillType => mapping(IStakingIntegration.Rarity => uint16)) public skillEffectValues;
+    
+    // Number of levels for each skill type (1 = single-level, 3 = has 3 levels)
+    // For STAKE_BOOST_I/II/III: each has 3 variants (represented as separate skills with levels)
+    // This tracks how many "upgrade levels" exist for skills that can be upgraded
+    mapping(IStakingIntegration.SkillType => uint8) public skillLevelCount;
+    
+    // Old pricing mapping (kept for backward compatibility - will be overridden by new system)
     mapping(IStakingIntegration.SkillType => mapping(IStakingIntegration.Rarity => uint256)) public skillPrices;
     
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -120,6 +166,10 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     event SkillPricingUpdated(IStakingIntegration.SkillType indexed skillType, uint256 basePrice, uint256 rarityMultiplier);
     event SkillPurchaseProcessed(address indexed user, uint256 indexed skillId, IStakingIntegration.SkillType skillType, uint256 amount, string operation);
     event EmergencyWithdrawal(address indexed admin, uint256 amount, address indexed to);
+    event SkillEffectValueUpdated(IStakingIntegration.SkillType indexed skillType, IStakingIntegration.Rarity indexed rarity, uint16 newEffectValue);
+    event SkillLevelMultiplierUpdated(uint8 indexed level, uint16 newMultiplier);
+    event RarityEffectMultiplierUpdated(IStakingIntegration.Rarity indexed rarity, uint16 newMultiplier);
+    event BasePriceUpdated(IStakingIntegration.Rarity indexed rarity, uint256 newPrice);
     
     // ════════════════════════════════════════════════════════════════════════════════════════
     // CONSTRUCTOR
@@ -133,49 +183,167 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
         
         treasuryAddress = _treasuryAddress;
         
-        // Initialize default pricing for all skills
+        // Initialize professional dynamic pricing system
         _initializeSkillPricing();
+        _initializeSkillEffects();
     }
     
     /**
-     * @dev Initialize default pricing for all 17 skills
-     * Skills 1-7: Staking skills (cheaper)
-     * Skills 8-17: Active skills (30% markup)
-     * 
-     * STAKING PRICES (POL):
-     * - COMMON: 50
-     * - UNCOMMON: 80
-     * - RARE: 100
-     * - EPIC: 150
-     * - LEGENDARY: 220
-     * 
-     * ACTIVE PRICES (POL) - 30% markup:
-     * - COMMON: 65 (50*1.3)
-     * - UNCOMMON: 104 (80*1.3)
-     * - RARE: 130 (100*1.3)
-     * - EPIC: 195 (150*1.3)
-     * - LEGENDARY: 286 (220*1.3)
+     * @dev Initialize base prices and rarity multipliers
+     * Professional pricing: COMMON → LEGENDARY have exponential cost progression
      */
     function _initializeSkillPricing() internal {
-        // STAKING SKILLS (1-7): Base prices
-        for (uint8 i = 1; i <= 7; i++) {
-            IStakingIntegration.SkillType skillType = IStakingIntegration.SkillType(i);
-            skillPrices[skillType][IStakingIntegration.Rarity.COMMON] = STAKING_COMMON_PRICE;
-            skillPrices[skillType][IStakingIntegration.Rarity.UNCOMMON] = STAKING_UNCOMMON_PRICE;
-            skillPrices[skillType][IStakingIntegration.Rarity.RARE] = STAKING_RARE_PRICE;
-            skillPrices[skillType][IStakingIntegration.Rarity.EPIC] = STAKING_EPIC_PRICE;
-            skillPrices[skillType][IStakingIntegration.Rarity.LEGENDARY] = STAKING_LEGENDARY_PRICE;
-        }
+        // Set base prices per rarity
+        basePricePerRarity[0] = BASE_PRICE_COMMON;       // COMMON: 50 POL
+        basePricePerRarity[1] = BASE_PRICE_UNCOMMON;     // UNCOMMON: 80 POL
+        basePricePerRarity[2] = BASE_PRICE_RARE;         // RARE: 100 POL
+        basePricePerRarity[3] = BASE_PRICE_EPIC;         // EPIC: 150 POL
+        basePricePerRarity[4] = BASE_PRICE_LEGENDARY;    // LEGENDARY: 220 POL
         
-        // ACTIVE SKILLS (8-16): 30% markup on staking prices
-        for (uint8 i = 8; i <= 16; i++) {
-            IStakingIntegration.SkillType skillType = IStakingIntegration.SkillType(i);
-            skillPrices[skillType][IStakingIntegration.Rarity.COMMON] = ACTIVE_COMMON_PRICE;
-            skillPrices[skillType][IStakingIntegration.Rarity.UNCOMMON] = ACTIVE_UNCOMMON_PRICE;
-            skillPrices[skillType][IStakingIntegration.Rarity.RARE] = ACTIVE_RARE_PRICE;
-            skillPrices[skillType][IStakingIntegration.Rarity.EPIC] = ACTIVE_EPIC_PRICE;
-            skillPrices[skillType][IStakingIntegration.Rarity.LEGENDARY] = ACTIVE_LEGENDARY_PRICE;
-        }
+        // Set rarity effect multipliers (impact on APY, fees, etc.)
+        rarityEffectMultiplier[0] = RARITY_MULTIPLIER_COMMON;      // 1.0x
+        rarityEffectMultiplier[1] = RARITY_MULTIPLIER_UNCOMMON;    // 1.5x
+        rarityEffectMultiplier[2] = RARITY_MULTIPLIER_RARE;        // 2.0x
+        rarityEffectMultiplier[3] = RARITY_MULTIPLIER_EPIC;        // 3.0x
+        rarityEffectMultiplier[4] = RARITY_MULTIPLIER_LEGENDARY;   // 5.0x
+        
+        // Set level multipliers for multi-level skills
+        levelMultiplier[1] = LEVEL_MULTIPLIER_1;  // Level 1: 1.0x
+        levelMultiplier[2] = LEVEL_MULTIPLIER_2;  // Level 2: 1.5x
+        levelMultiplier[3] = LEVEL_MULTIPLIER_3;  // Level 3: 2.5x
+    }
+    
+    /**
+     * @dev Initialize skill effect values (APY boosts, fee discounts, etc.)
+     * Each skill type × rarity combination has a different effect magnitude
+     * 
+     * STAKING SKILLS (1-7): Base effect values in basis points (500 = 5%)
+     * - STAKE_BOOST_I: +5% APY base (varies by rarity: 5%-25%)
+     * - STAKE_BOOST_II: +10% APY base (varies by rarity: 10%-50%)
+     * - STAKE_BOOST_III: +20% APY base (varies by rarity: 20%-100%)
+     * - AUTO_COMPOUND: Automatic compounding trigger
+     * - LOCK_REDUCER: Reduce lock time
+     * - FEE_REDUCER_I: -10% fee base
+     * - FEE_REDUCER_II: -25% fee base
+     * 
+     * ACTIVE SKILLS (8-16): Platform features with various impacts
+     */
+    function _initializeSkillEffects() internal {
+        // ═══ STAKING SKILLS (1-7) ═══
+        
+        // STAKE_BOOST_I (Skill #1): Base +5% APY (500 bps)
+        skillEffectValues[IStakingIntegration.SkillType.STAKE_BOOST_I][IStakingIntegration.Rarity.COMMON] = 500;      // +5% APY
+        skillEffectValues[IStakingIntegration.SkillType.STAKE_BOOST_I][IStakingIntegration.Rarity.UNCOMMON] = 700;    // +7% APY
+        skillEffectValues[IStakingIntegration.SkillType.STAKE_BOOST_I][IStakingIntegration.Rarity.RARE] = 900;        // +9% APY
+        skillEffectValues[IStakingIntegration.SkillType.STAKE_BOOST_I][IStakingIntegration.Rarity.EPIC] = 1200;       // +12% APY
+        skillEffectValues[IStakingIntegration.SkillType.STAKE_BOOST_I][IStakingIntegration.Rarity.LEGENDARY] = 1600;  // +16% APY (less aggressive)
+        
+        // STAKE_BOOST_II (Skill #2): Base +10% APY (1000 bps) - COSTS 50% MORE
+        skillEffectValues[IStakingIntegration.SkillType.STAKE_BOOST_II][IStakingIntegration.Rarity.COMMON] = 1000;    // +10% APY
+        skillEffectValues[IStakingIntegration.SkillType.STAKE_BOOST_II][IStakingIntegration.Rarity.UNCOMMON] = 1300;  // +13% APY
+        skillEffectValues[IStakingIntegration.SkillType.STAKE_BOOST_II][IStakingIntegration.Rarity.RARE] = 1600;      // +16% APY
+        skillEffectValues[IStakingIntegration.SkillType.STAKE_BOOST_II][IStakingIntegration.Rarity.EPIC] = 2100;      // +21% APY
+        skillEffectValues[IStakingIntegration.SkillType.STAKE_BOOST_II][IStakingIntegration.Rarity.LEGENDARY] = 2800; // +28% APY (was 50%, now 28%)
+        
+        // STAKE_BOOST_III (Skill #3): Base +15% APY (1500 bps) - COSTS 120% MORE THAN I
+        skillEffectValues[IStakingIntegration.SkillType.STAKE_BOOST_III][IStakingIntegration.Rarity.COMMON] = 1500;    // +15% APY
+        skillEffectValues[IStakingIntegration.SkillType.STAKE_BOOST_III][IStakingIntegration.Rarity.UNCOMMON] = 1900;  // +19% APY
+        skillEffectValues[IStakingIntegration.SkillType.STAKE_BOOST_III][IStakingIntegration.Rarity.RARE] = 2300;      // +23% APY
+        skillEffectValues[IStakingIntegration.SkillType.STAKE_BOOST_III][IStakingIntegration.Rarity.EPIC] = 3000;      // +30% APY
+        skillEffectValues[IStakingIntegration.SkillType.STAKE_BOOST_III][IStakingIntegration.Rarity.LEGENDARY] = 3800; // +38% APY (was 90%, now 38%)
+        
+        // AUTO_COMPOUND (Skill #4): Automatic compounding
+        skillEffectValues[IStakingIntegration.SkillType.AUTO_COMPOUND][IStakingIntegration.Rarity.COMMON] = 1000;      // Base 1x
+        skillEffectValues[IStakingIntegration.SkillType.AUTO_COMPOUND][IStakingIntegration.Rarity.UNCOMMON] = 1300;    // 1.3x
+        skillEffectValues[IStakingIntegration.SkillType.AUTO_COMPOUND][IStakingIntegration.Rarity.RARE] = 1600;        // 1.6x
+        skillEffectValues[IStakingIntegration.SkillType.AUTO_COMPOUND][IStakingIntegration.Rarity.EPIC] = 2100;        // 2.1x
+        skillEffectValues[IStakingIntegration.SkillType.AUTO_COMPOUND][IStakingIntegration.Rarity.LEGENDARY] = 2600;   // 2.6x (was 4.0x)
+        
+        // LOCK_REDUCER (Skill #5): Reduce lock time
+        skillEffectValues[IStakingIntegration.SkillType.LOCK_REDUCER][IStakingIntegration.Rarity.COMMON] = 1500;       // -15% lock time
+        skillEffectValues[IStakingIntegration.SkillType.LOCK_REDUCER][IStakingIntegration.Rarity.UNCOMMON] = 2000;     // -20% lock time
+        skillEffectValues[IStakingIntegration.SkillType.LOCK_REDUCER][IStakingIntegration.Rarity.RARE] = 2500;         // -25% lock time
+        skillEffectValues[IStakingIntegration.SkillType.LOCK_REDUCER][IStakingIntegration.Rarity.EPIC] = 3500;         // -35% lock time
+        skillEffectValues[IStakingIntegration.SkillType.LOCK_REDUCER][IStakingIntegration.Rarity.LEGENDARY] = 4500;   // -45% lock time (was -90%)
+        
+        // FEE_REDUCER_I (Skill #6): -10% platform fees base
+        skillEffectValues[IStakingIntegration.SkillType.FEE_REDUCER_I][IStakingIntegration.Rarity.COMMON] = 1000;      // -10% fees
+        skillEffectValues[IStakingIntegration.SkillType.FEE_REDUCER_I][IStakingIntegration.Rarity.UNCOMMON] = 1300;    // -13% fees
+        skillEffectValues[IStakingIntegration.SkillType.FEE_REDUCER_I][IStakingIntegration.Rarity.RARE] = 1600;        // -16% fees
+        skillEffectValues[IStakingIntegration.SkillType.FEE_REDUCER_I][IStakingIntegration.Rarity.EPIC] = 2200;        // -22% fees
+        skillEffectValues[IStakingIntegration.SkillType.FEE_REDUCER_I][IStakingIntegration.Rarity.LEGENDARY] = 2800;   // -28% fees (was -50%)
+        
+        // FEE_REDUCER_II (Skill #7): -20% platform fees base - COSTS 43% MORE THAN I
+        skillEffectValues[IStakingIntegration.SkillType.FEE_REDUCER_II][IStakingIntegration.Rarity.COMMON] = 1800;     // -18% fees
+        skillEffectValues[IStakingIntegration.SkillType.FEE_REDUCER_II][IStakingIntegration.Rarity.UNCOMMON] = 2300;   // -23% fees
+        skillEffectValues[IStakingIntegration.SkillType.FEE_REDUCER_II][IStakingIntegration.Rarity.RARE] = 2800;       // -28% fees
+        skillEffectValues[IStakingIntegration.SkillType.FEE_REDUCER_II][IStakingIntegration.Rarity.EPIC] = 3700;       // -37% fees
+        skillEffectValues[IStakingIntegration.SkillType.FEE_REDUCER_II][IStakingIntegration.Rarity.LEGENDARY] = 4500; // -45% fees (was -90%)
+        
+        // ═══ ACTIVE SKILLS (8-16) ═══
+        
+        // PRIORITY_LISTING (Skill #8)
+        skillEffectValues[IStakingIntegration.SkillType.PRIORITY_LISTING][IStakingIntegration.Rarity.COMMON] = 1000;
+        skillEffectValues[IStakingIntegration.SkillType.PRIORITY_LISTING][IStakingIntegration.Rarity.UNCOMMON] = 1500;
+        skillEffectValues[IStakingIntegration.SkillType.PRIORITY_LISTING][IStakingIntegration.Rarity.RARE] = 2000;
+        skillEffectValues[IStakingIntegration.SkillType.PRIORITY_LISTING][IStakingIntegration.Rarity.EPIC] = 3000;
+        skillEffectValues[IStakingIntegration.SkillType.PRIORITY_LISTING][IStakingIntegration.Rarity.LEGENDARY] = 5000;
+        
+        // BATCH_MINTER (Skill #9)
+        skillEffectValues[IStakingIntegration.SkillType.BATCH_MINTER][IStakingIntegration.Rarity.COMMON] = 1000;
+        skillEffectValues[IStakingIntegration.SkillType.BATCH_MINTER][IStakingIntegration.Rarity.UNCOMMON] = 1500;
+        skillEffectValues[IStakingIntegration.SkillType.BATCH_MINTER][IStakingIntegration.Rarity.RARE] = 2000;
+        skillEffectValues[IStakingIntegration.SkillType.BATCH_MINTER][IStakingIntegration.Rarity.EPIC] = 3000;
+        skillEffectValues[IStakingIntegration.SkillType.BATCH_MINTER][IStakingIntegration.Rarity.LEGENDARY] = 5000;
+        
+        // VERIFIED_CREATOR (Skill #10)
+        skillEffectValues[IStakingIntegration.SkillType.VERIFIED_CREATOR][IStakingIntegration.Rarity.COMMON] = 1000;
+        skillEffectValues[IStakingIntegration.SkillType.VERIFIED_CREATOR][IStakingIntegration.Rarity.UNCOMMON] = 1500;
+        skillEffectValues[IStakingIntegration.SkillType.VERIFIED_CREATOR][IStakingIntegration.Rarity.RARE] = 2000;
+        skillEffectValues[IStakingIntegration.SkillType.VERIFIED_CREATOR][IStakingIntegration.Rarity.EPIC] = 3000;
+        skillEffectValues[IStakingIntegration.SkillType.VERIFIED_CREATOR][IStakingIntegration.Rarity.LEGENDARY] = 5000;
+        
+        // INFLUENCER (Skill #11) - Less aggressive legendary
+        skillEffectValues[IStakingIntegration.SkillType.INFLUENCER][IStakingIntegration.Rarity.COMMON] = 10000;  // 2x weight
+        skillEffectValues[IStakingIntegration.SkillType.INFLUENCER][IStakingIntegration.Rarity.UNCOMMON] = 12000; // 2.4x weight
+        skillEffectValues[IStakingIntegration.SkillType.INFLUENCER][IStakingIntegration.Rarity.RARE] = 14000;     // 2.8x weight
+        skillEffectValues[IStakingIntegration.SkillType.INFLUENCER][IStakingIntegration.Rarity.EPIC] = 18000;     // 3.6x weight
+        skillEffectValues[IStakingIntegration.SkillType.INFLUENCER][IStakingIntegration.Rarity.LEGENDARY] = 24000; // 4.8x weight (was 10x)
+        
+        // CURATOR (Skill #12)
+        skillEffectValues[IStakingIntegration.SkillType.CURATOR][IStakingIntegration.Rarity.COMMON] = 1000;
+        skillEffectValues[IStakingIntegration.SkillType.CURATOR][IStakingIntegration.Rarity.UNCOMMON] = 1200;
+        skillEffectValues[IStakingIntegration.SkillType.CURATOR][IStakingIntegration.Rarity.RARE] = 1400;
+        skillEffectValues[IStakingIntegration.SkillType.CURATOR][IStakingIntegration.Rarity.EPIC] = 1800;
+        skillEffectValues[IStakingIntegration.SkillType.CURATOR][IStakingIntegration.Rarity.LEGENDARY] = 2400;
+        
+        // AMBASSADOR (Skill #13): referral bonus base - Matches GameifiedMarketplaceCoreV1 multiplier tiers
+        skillEffectValues[IStakingIntegration.SkillType.AMBASSADOR][IStakingIntegration.Rarity.COMMON] = 15000;  // 1.5x
+        skillEffectValues[IStakingIntegration.SkillType.AMBASSADOR][IStakingIntegration.Rarity.UNCOMMON] = 20000; // 2.0x
+        skillEffectValues[IStakingIntegration.SkillType.AMBASSADOR][IStakingIntegration.Rarity.RARE] = 26000;     // 2.6x
+        skillEffectValues[IStakingIntegration.SkillType.AMBASSADOR][IStakingIntegration.Rarity.EPIC] = 30000;     // 3.0x
+        skillEffectValues[IStakingIntegration.SkillType.AMBASSADOR][IStakingIntegration.Rarity.LEGENDARY] = 35000; // 3.5x
+        
+        // VIP_ACCESS (Skill #14)
+        skillEffectValues[IStakingIntegration.SkillType.VIP_ACCESS][IStakingIntegration.Rarity.COMMON] = 1000;
+        skillEffectValues[IStakingIntegration.SkillType.VIP_ACCESS][IStakingIntegration.Rarity.UNCOMMON] = 1500;
+        skillEffectValues[IStakingIntegration.SkillType.VIP_ACCESS][IStakingIntegration.Rarity.RARE] = 2000;
+        skillEffectValues[IStakingIntegration.SkillType.VIP_ACCESS][IStakingIntegration.Rarity.EPIC] = 3000;
+        skillEffectValues[IStakingIntegration.SkillType.VIP_ACCESS][IStakingIntegration.Rarity.LEGENDARY] = 5000;
+        
+        // EARLY_ACCESS (Skill #15): 24h early access
+        skillEffectValues[IStakingIntegration.SkillType.EARLY_ACCESS][IStakingIntegration.Rarity.COMMON] = 1000;
+        skillEffectValues[IStakingIntegration.SkillType.EARLY_ACCESS][IStakingIntegration.Rarity.UNCOMMON] = 1500;
+        skillEffectValues[IStakingIntegration.SkillType.EARLY_ACCESS][IStakingIntegration.Rarity.RARE] = 2000;
+        skillEffectValues[IStakingIntegration.SkillType.EARLY_ACCESS][IStakingIntegration.Rarity.EPIC] = 3000;
+        skillEffectValues[IStakingIntegration.SkillType.EARLY_ACCESS][IStakingIntegration.Rarity.LEGENDARY] = 5000;
+        
+        // PRIVATE_AUCTIONS (Skill #16)
+        skillEffectValues[IStakingIntegration.SkillType.PRIVATE_AUCTIONS][IStakingIntegration.Rarity.COMMON] = 1000;
+        skillEffectValues[IStakingIntegration.SkillType.PRIVATE_AUCTIONS][IStakingIntegration.Rarity.UNCOMMON] = 1500;
+        skillEffectValues[IStakingIntegration.SkillType.PRIVATE_AUCTIONS][IStakingIntegration.Rarity.RARE] = 2000;
+        skillEffectValues[IStakingIntegration.SkillType.PRIVATE_AUCTIONS][IStakingIntegration.Rarity.EPIC] = 3000;
+        skillEffectValues[IStakingIntegration.SkillType.PRIVATE_AUCTIONS][IStakingIntegration.Rarity.LEGENDARY] = 5000;
     }
     
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -806,8 +974,77 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
      * @return price Price in POL (wei)
      */
     function _calculateSkillPrice(IStakingIntegration.SkillType _skillType, IStakingIntegration.Rarity _rarity) internal view returns (uint256) {
-        // Direct lookup: O(1) gas efficient
-        return skillPrices[_skillType][_rarity];
+        // Professional dynamic pricing formula:
+        // price = basePrice × rarity_multiplier
+        // Rarity multiplier is already applied at initialization
+        // For multi-level skills, level modifier is applied during purchase if needed
+        
+        uint8 rarityIndex = uint8(_rarity);
+        uint256 basePrice = basePricePerRarity[rarityIndex];
+        
+        // Rarity cost multiplier (exponential progression)
+        // COMMON (1.0x) → UNCOMMON (1.5x) → RARE (2.0x) → EPIC (2.8x) → LEGENDARY (3.5x)
+        uint16[5] memory rarityPriceMultipliers = [
+            10000,  // COMMON: 1.0x
+            15000,  // UNCOMMON: 1.5x
+            20000,  // RARE: 2.0x
+            28000,  // EPIC: 2.8x
+            35000   // LEGENDARY: 3.5x (less aggressive)
+        ];
+        
+        // Skill-specific multipliers (not just by category)
+        // Different skills have different base costs
+        uint16 skillTypeMultiplier = _getSkillTypeMultiplier(_skillType);
+        
+        // Calculate final price: basePrice × rarityMultiplier × skillTypeMultiplier / 10000
+        uint256 price = (basePrice * rarityPriceMultipliers[rarityIndex]) / BASIS_POINTS;
+        price = (price * skillTypeMultiplier) / BASIS_POINTS;
+        
+        return price;
+    }
+    
+    /**
+     * @dev Calculate effect value for a skill with rarity and level modifiers
+     * @param _skillType Type of skill
+     * @param _rarity Rarity level
+     * @return effectValue Effect value in basis points (considering rarity multiplier)
+     */
+    function _calculateSkillEffect(IStakingIntegration.SkillType _skillType, IStakingIntegration.Rarity _rarity) internal view returns (uint16) {
+        uint16 baseEffect = skillEffectValues[_skillType][_rarity];
+        if (baseEffect == 0) return 0;
+        
+        // Effect value is already set with rarity consideration during initialization
+        // Return as-is since rarity multiplier is baked into the value
+        return baseEffect;
+    }
+    
+    /**
+     * @dev Get skill type multiplier for dynamic pricing
+     * Each skill type has its own base cost multiplier
+     * Better skills cost more to prevent everyone buying best skill
+     */
+    function _getSkillTypeMultiplier(IStakingIntegration.SkillType _skillType) internal pure returns (uint16) {
+        // Staking Skills with different multipliers
+        if (_skillType == IStakingIntegration.SkillType.STAKE_BOOST_I) {
+            return 10000; // 1.0x base
+        } else if (_skillType == IStakingIntegration.SkillType.STAKE_BOOST_II) {
+            return 15000; // 1.5x (50% more expensive than Boost I)
+        } else if (_skillType == IStakingIntegration.SkillType.STAKE_BOOST_III) {
+            return 22000; // 2.2x (120% more expensive than Boost I)
+        } else if (_skillType == IStakingIntegration.SkillType.AUTO_COMPOUND) {
+            return 18000; // 1.8x 
+        } else if (_skillType == IStakingIntegration.SkillType.LOCK_REDUCER) {
+            return 16000; // 1.6x
+        } else if (_skillType == IStakingIntegration.SkillType.FEE_REDUCER_I) {
+            return 14000; // 1.4x
+        } else if (_skillType == IStakingIntegration.SkillType.FEE_REDUCER_II) {
+            return 20000; // 2.0x (better than Fee Reducer I)
+        }
+        // Active skills (8-16)
+        else if (uint8(_skillType) >= 8 && uint8(_skillType) <= 16) {
+            return 12000; // 1.2x for platform skills
+        }
+        return 10000; // default
     }
     
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -850,7 +1087,10 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     ) internal {
         if (stakingContractAddress == address(0)) return;
         
-        uint16 skillValue = uint16(5 + (uint256(_rarity) * 2));
+        // Use the new professional effect values system
+        // Effect value = skillEffectValues[skillType][rarity] with rarity multiplier already applied
+        uint16 effectValue = _calculateSkillEffect(_skillType, _rarity);
+        if (effectValue == 0) return; // Skill has no effect value, skip notification
         
         // solhint-disable-next-line avoid-low-level-calls
         (bool success, ) = stakingContractAddress.call(
@@ -859,7 +1099,7 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
                 _user,
                 _skillId,
                 uint8(_skillType),
-                skillValue
+                effectValue
             )
         );
         // Note: If staking notification fails, we continue without reverting
@@ -904,7 +1144,164 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     }
     
     // ════════════════════════════════════════════════════════════════════════════════════════
-    // ADMIN FUNCTIONS
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // ADMIN FUNCTIONS - PRICING & EFFECTS CONFIGURATION
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    
+    /**
+     * @dev Update base price for a rarity tier
+     * @param _rarityIndex Rarity index (0-4: COMMON to LEGENDARY)
+     * @param _newPrice New base price in POL (wei)
+     */
+    function setBasePricePerRarity(uint8 _rarityIndex, uint256 _newPrice) external onlyRole(ADMIN_ROLE) {
+        if (_rarityIndex > MAX_RARITY) revert InvalidRarity(_rarityIndex);
+        if (_newPrice == 0) revert InvalidPrice(_newPrice, 0);
+        
+        basePricePerRarity[_rarityIndex] = _newPrice;
+        emit BasePriceUpdated(IStakingIntegration.Rarity(_rarityIndex), _newPrice);
+    }
+    
+    /**
+     * @dev Update rarity effect multiplier
+     * @param _rarityIndex Rarity index (0-4)
+     * @param _newMultiplier New multiplier in basis points (10000 = 1.0x)
+     */
+    function setRarityEffectMultiplier(uint8 _rarityIndex, uint16 _newMultiplier) external onlyRole(ADMIN_ROLE) {
+        if (_rarityIndex > MAX_RARITY) revert InvalidRarity(_rarityIndex);
+        if (_newMultiplier == 0) revert InvalidPrice(_newMultiplier, 0);
+        
+        rarityEffectMultiplier[_rarityIndex] = _newMultiplier;
+        emit RarityEffectMultiplierUpdated(IStakingIntegration.Rarity(_rarityIndex), _newMultiplier);
+    }
+    
+    /**
+     * @dev Update level multiplier for multi-level skills
+     * @param _levelIndex Level index (1-3)
+     * @param _newMultiplier New multiplier in basis points
+     */
+    function setLevelMultiplier(uint8 _levelIndex, uint16 _newMultiplier) external onlyRole(ADMIN_ROLE) {
+        if (_levelIndex < 1 || _levelIndex > 3) revert InvalidLevel(_levelIndex);
+        if (_newMultiplier == 0) revert InvalidPrice(_newMultiplier, 0);
+        
+        levelMultiplier[_levelIndex] = _newMultiplier;
+        emit SkillLevelMultiplierUpdated(_levelIndex, _newMultiplier);
+    }
+    
+    /**
+     * @dev Update effect value for a specific skill + rarity combination
+     * @param _skillType Type of skill
+     * @param _rarity Rarity level
+     * @param _effectValue New effect value in basis points
+     * 
+     * EXAMPLES:
+     * - STAKE_BOOST_I COMMON: 500 (5% APY)
+     * - STAKE_BOOST_I LEGENDARY: 2500 (25% APY) 
+     * - FEE_REDUCER_II COMMON: 2500 (25% fee discount)
+     */
+    function setSkillEffectValue(
+        IStakingIntegration.SkillType _skillType,
+        IStakingIntegration.Rarity _rarity,
+        uint16 _effectValue
+    ) external onlyRole(ADMIN_ROLE) {
+        if (uint8(_skillType) < MIN_SKILL_TYPE || uint8(_skillType) > MAX_SKILL_TYPE) {
+            revert InvalidSkillType(uint8(_skillType));
+        }
+        if (uint8(_rarity) > MAX_RARITY) {
+            revert InvalidRarity(uint8(_rarity));
+        }
+        
+        skillEffectValues[_skillType][_rarity] = _effectValue;
+        emit SkillEffectValueUpdated(_skillType, _rarity, _effectValue);
+    }
+    
+    /**
+     * @dev Batch update effect values for all rarities of a single skill
+     * @param _skillType Type of skill
+     * @param _commonEffect Common rarity effect value
+     * @param _uncommonEffect Uncommon rarity effect value
+     * @param _rareEffect Rare rarity effect value
+     * @param _epicEffect Epic rarity effect value
+     * @param _legendaryEffect Legendary rarity effect value
+     */
+    function setSkillEffectValuesAllRarities(
+        IStakingIntegration.SkillType _skillType,
+        uint16 _commonEffect,
+        uint16 _uncommonEffect,
+        uint16 _rareEffect,
+        uint16 _epicEffect,
+        uint16 _legendaryEffect
+    ) external onlyRole(ADMIN_ROLE) {
+        if (uint8(_skillType) < MIN_SKILL_TYPE || uint8(_skillType) > MAX_SKILL_TYPE) {
+            revert InvalidSkillType(uint8(_skillType));
+        }
+        
+        skillEffectValues[_skillType][IStakingIntegration.Rarity.COMMON] = _commonEffect;
+        skillEffectValues[_skillType][IStakingIntegration.Rarity.UNCOMMON] = _uncommonEffect;
+        skillEffectValues[_skillType][IStakingIntegration.Rarity.RARE] = _rareEffect;
+        skillEffectValues[_skillType][IStakingIntegration.Rarity.EPIC] = _epicEffect;
+        skillEffectValues[_skillType][IStakingIntegration.Rarity.LEGENDARY] = _legendaryEffect;
+        
+        emit SkillEffectValueUpdated(_skillType, IStakingIntegration.Rarity.COMMON, _commonEffect);
+        emit SkillEffectValueUpdated(_skillType, IStakingIntegration.Rarity.UNCOMMON, _uncommonEffect);
+        emit SkillEffectValueUpdated(_skillType, IStakingIntegration.Rarity.RARE, _rareEffect);
+        emit SkillEffectValueUpdated(_skillType, IStakingIntegration.Rarity.EPIC, _epicEffect);
+        emit SkillEffectValueUpdated(_skillType, IStakingIntegration.Rarity.LEGENDARY, _legendaryEffect);
+    }
+    
+    /**
+     * @dev View current effect values for all rarities of a skill
+     * @param _skillType Type of skill
+     * @return effectValues Array of effect values [COMMON, UNCOMMON, RARE, EPIC, LEGENDARY]
+     */
+    function getSkillEffectValuesAllRarities(IStakingIntegration.SkillType _skillType) external view returns (uint16[5] memory effectValues) {
+        if (uint8(_skillType) < MIN_SKILL_TYPE || uint8(_skillType) > MAX_SKILL_TYPE) {
+            revert InvalidSkillType(uint8(_skillType));
+        }
+        
+        effectValues[0] = skillEffectValues[_skillType][IStakingIntegration.Rarity.COMMON];
+        effectValues[1] = skillEffectValues[_skillType][IStakingIntegration.Rarity.UNCOMMON];
+        effectValues[2] = skillEffectValues[_skillType][IStakingIntegration.Rarity.RARE];
+        effectValues[3] = skillEffectValues[_skillType][IStakingIntegration.Rarity.EPIC];
+        effectValues[4] = skillEffectValues[_skillType][IStakingIntegration.Rarity.LEGENDARY];
+        
+        return effectValues;
+    }
+    
+    /**
+     * @dev View current pricing configuration
+     * @return prices Array of base prices [COMMON, UNCOMMON, RARE, EPIC, LEGENDARY]
+     */
+    function getCurrentBasePrices() external view returns (uint256[5] memory prices) {
+        for (uint8 i = 0; i < 5; i++) {
+            prices[i] = basePricePerRarity[i];
+        }
+        return prices;
+    }
+    
+    /**
+     * @dev View current rarity effect multipliers
+     * @return multipliers Array of multipliers [COMMON, UNCOMMON, RARE, EPIC, LEGENDARY]
+     */
+    function getRarityEffectMultipliers() external view returns (uint16[5] memory multipliers) {
+        for (uint8 i = 0; i < 5; i++) {
+            multipliers[i] = rarityEffectMultiplier[i];
+        }
+        return multipliers;
+    }
+    
+    /**
+     * @dev View current level multipliers
+     * @return multipliers Array of multipliers [Level1, Level2, Level3]
+     */
+    function getLevelMultipliers() external view returns (uint16[3] memory multipliers) {
+        multipliers[0] = levelMultiplier[1];
+        multipliers[1] = levelMultiplier[2];
+        multipliers[2] = levelMultiplier[3];
+        return multipliers;
+    }
+    
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // ADMIN FUNCTIONS - LEGACY (kept for backward compatibility)
     // ════════════════════════════════════════════════════════════════════════════════════════
     
     /**

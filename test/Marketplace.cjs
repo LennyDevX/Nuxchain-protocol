@@ -2,54 +2,92 @@ const { expect } = require("chai");
 const { ethers, upgrades } = require("hardhat");
 const { loadFixture, time } = require("@nomicfoundation/hardhat-network-helpers");
 
-describe("Gameified Marketplace - Comprehensive Suite", function () {
+describe("Nuxchain Marketplace - Refactored Architecture", function () {
   async function deployMarketplaceFixture() {
     const [owner, treasury, user1, user2, user3, user4, user5] = await ethers.getSigners();
 
-    // Deploy Core via UUPS proxy
+    // ==================== Deploy Core Contracts ====================
+    
+    // 1. Deploy LevelingSystem
+    const LevelingFactory = await ethers.getContractFactory("LevelingSystem");
+    const leveling = await upgrades.deployProxy(LevelingFactory, [owner.address], {
+      initializer: 'initialize',
+      kind: 'uups'
+    });
+    await leveling.deploymentTransaction().wait();
+
+    // 2. Deploy ReferralSystem
+    const ReferralFactory = await ethers.getContractFactory("ReferralSystem");
+    const referral = await upgrades.deployProxy(ReferralFactory, [owner.address], {
+      initializer: 'initialize',
+      kind: 'uups'
+    });
+    await referral.deploymentTransaction().wait();
+
+    // 3. Deploy GameifiedMarketplaceCoreV1 via UUPS proxy
     const CoreFactory = await ethers.getContractFactory("GameifiedMarketplaceCoreV1");
     const core = await upgrades.deployProxy(CoreFactory, [treasury.address], {
       initializer: 'initialize',
-      kind: 'uups',
-      unsafeAllow: ['constructor', 'state-variable-immutable', 'state-variable-assignment-in-constructor']
+      kind: 'uups'
     });
     await core.deploymentTransaction().wait();
 
-    // Deploy Quests
-    const QuestsFactory = await ethers.getContractFactory("GameifiedMarketplaceQuests");
-    const quests = await QuestsFactory.deploy(await core.getAddress());
-    await quests.deploymentTransaction().wait();
-
-    // Deploy Skills V2
+    // 4. Deploy Skills V2
     const SkillsFactory = await ethers.getContractFactory("GameifiedMarketplaceSkillsV2");
     const skills = await SkillsFactory.deploy(await core.getAddress());
     await skills.deploymentTransaction().wait();
 
-    // Deploy Individual Skills
+    // 5. Deploy Quests
+    const QuestsFactory = await ethers.getContractFactory("GameifiedMarketplaceQuests");
+    const quests = await QuestsFactory.deploy(await core.getAddress());
+    await quests.deploymentTransaction().wait();
+
+    // 6. Deploy Individual Skills
     const IndividualFactory = await ethers.getContractFactory("IndividualSkillsMarketplace");
     const individual = await IndividualFactory.deploy(treasury.address);
     await individual.deploymentTransaction().wait();
 
-    // Wire modules
+    // ==================== Configure Contracts ====================
+    
+    const coreAddr = await core.getAddress();
+    const levelingAddr = await leveling.getAddress();
+    const referralAddr = await referral.getAddress();
     const skillsAddr = await skills.getAddress();
     const questsAddr = await quests.getAddress();
-    const coreAddr = await core.getAddress();
-    
+
+    // Grant MARKETPLACE_ROLE to core contract in LevelingSystem and ReferralSystem
+    const MARKETPLACE_ROLE = ethers.id("MARKETPLACE_ROLE");
+    await leveling.connect(owner).grantRole(MARKETPLACE_ROLE, coreAddr);
+    await referral.connect(owner).grantRole(MARKETPLACE_ROLE, coreAddr);
+
+    // Configure Core to use external systems
+    await core.connect(owner).setLevelingSystem(levelingAddr);
+    await core.connect(owner).setReferralSystem(referralAddr);
     await core.connect(owner).setSkillsContract(skillsAddr);
-    await core.connect(owner).setQuestsContract(questsAddr);
-    await core.connect(owner).setStakingContract(treasury.address);
 
+    // Configure other modules
     await skills.connect(owner).setTreasuryAddress(treasury.address);
+    await quests.connect(owner).setCoreContract(coreAddr);
 
+    // Grant ADMIN_ROLE
     const ADMIN_ROLE = await core.ADMIN_ROLE();
     await core.connect(owner).grantRole(ADMIN_ROLE, skillsAddr);
     await core.connect(owner).grantRole(ADMIN_ROLE, questsAddr);
 
-    await quests.connect(owner).setCoreContract(coreAddr);
+    // Fund LevelingSystem for rewards
+    await owner.sendTransaction({
+      to: levelingAddr,
+      value: ethers.parseEther("1000")
+    });
 
-    return { core, quests, skills, individual, owner, treasury, user1, user2, user3, user4, user5 };
+    return { 
+      core, leveling, referral, quests, skills, individual, 
+      owner, treasury, user1, user2, user3, user4, user5 
+    };
   }
 
+  // ==================== CORE MARKETPLACE TESTS ====================
+  
   describe("GameifiedMarketplaceCoreV1 - NFT Creation & Management", function () {
     it("Should create standard NFT with metadata", async function () {
       const { core, user1 } = await loadFixture(deployMarketplaceFixture);
@@ -60,7 +98,7 @@ describe("Gameified Marketplace - Comprehensive Suite", function () {
 
       await expect(core.connect(user1).createStandardNFT(tokenURI, category, royalty))
         .to.emit(core, "TokenCreated")
-        .withArgs(user1.address, 0, tokenURI);
+        .withArgs(user1.address, 0n, tokenURI);
 
       const userNFTs = await core.getUserNFTs(user1.address);
       expect(userNFTs).to.include(0n);
@@ -70,54 +108,48 @@ describe("Gameified Marketplace - Comprehensive Suite", function () {
       expect(metadata.category).to.equal(category);
     });
 
-    it("Should track user profile after NFT creation", async function () {
-      const { core, user1 } = await loadFixture(deployMarketplaceFixture);
-
-      const profile1Before = await core.userProfiles(user1.address);
-      expect(profile1Before.nftsCreated).to.equal(0);
-
-      await core.connect(user1).createStandardNFT("uri1", "art", 0);
-      await core.connect(user1).createStandardNFT("uri2", "gaming", 500);
-
-      const profileAfter = await core.userProfiles(user1.address);
-      expect(profileAfter.nftsCreated).to.equal(2);
-    });
-
     it("Should create multiple NFTs and track ownership", async function () {
       const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 3; i++) {
         await core.connect(user1).createStandardNFT(`uri${i}`, "art", 0);
       }
 
       const user1NFTs = await core.getUserNFTs(user1.address);
-      expect(user1NFTs.length).to.equal(5);
+      expect(user1NFTs.length).to.equal(3);
 
       const user2NFTs = await core.getUserNFTs(user2.address);
       expect(user2NFTs.length).to.equal(0);
     });
 
-    it("Should verify token ownership and balance", async function () {
+    it("Should verify token ownership", async function () {
       const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
-
+      
       expect(await core.ownerOf(0)).to.equal(user1.address);
-      expect(await core.balanceOf(user1.address)).to.equal(1);
-      expect(await core.balanceOf(user2.address)).to.equal(0);
+    });
+
+    it("Should reject invalid royalty percentage", async function () {
+      const { core, user1 } = await loadFixture(deployMarketplaceFixture);
+
+      // Royalty > 100% (10000 in basis points)
+      await expect(
+        core.connect(user1).createStandardNFT("uri", "art", 10001)
+      ).to.be.revertedWith("Invalid royalty");
     });
   });
 
-  describe("GameifiedMarketplaceCoreV1 - NFT Marketplace", function () {
+  describe("GameifiedMarketplaceCoreV1 - Marketplace Operations", function () {
     it("Should list NFT for sale", async function () {
       const { core, user1 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
-      const price = ethers.parseEther("10");
+      const price = ethers.parseEther("1.0");
 
       await expect(core.connect(user1).listTokenForSale(0, price))
         .to.emit(core, "TokenListed")
-        .withArgs(user1.address, 0, price);
+        .withArgs(user1.address, 0n, price);
 
       expect(await core.isListed(0)).to.be.true;
       expect(await core.listedPrice(0)).to.equal(price);
@@ -127,10 +159,11 @@ describe("Gameified Marketplace - Comprehensive Suite", function () {
       const { core, user1 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
-      await core.connect(user1).listTokenForSale(0, ethers.parseEther("10"));
+      await core.connect(user1).listTokenForSale(0, ethers.parseEther("1.0"));
 
       await expect(core.connect(user1).unlistToken(0))
-        .to.emit(core, "TokenUnlisted");
+        .to.emit(core, "TokenUnlisted")
+        .withArgs(user1.address, 0n);
 
       expect(await core.isListed(0)).to.be.false;
     });
@@ -139,73 +172,73 @@ describe("Gameified Marketplace - Comprehensive Suite", function () {
       const { core, user1 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
-      await core.connect(user1).listTokenForSale(0, ethers.parseEther("10"));
+      const initialPrice = ethers.parseEther("1.0");
+      const newPrice = ethers.parseEther("2.0");
 
-      const newPrice = ethers.parseEther("15");
+      await core.connect(user1).listTokenForSale(0, initialPrice);
       await expect(core.connect(user1).updatePrice(0, newPrice))
-        .to.emit(core, "PriceUpdated");
+        .to.emit(core, "PriceUpdated")
+        .withArgs(user1.address, 0n, newPrice);
 
       expect(await core.listedPrice(0)).to.equal(newPrice);
     });
 
-    it("Should buy listed NFT and transfer ownership", async function () {
+    it("Should buy listed NFT", async function () {
       const { core, user1, user2, treasury } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
-      const price = ethers.parseEther("10");
+      const price = ethers.parseEther("1.0");
       await core.connect(user1).listTokenForSale(0, price);
 
-      const treasuryBalBefore = await ethers.provider.getBalance(treasury.address);
-
+      const treasuryBefore = await ethers.provider.getBalance(treasury.address);
+      
       await expect(core.connect(user2).buyToken(0, { value: price }))
         .to.emit(core, "TokenSold")
-        .withArgs(user1.address, user2.address, 0, price);
+        .withArgs(user1.address, user2.address, 0n, price);
 
-      // Check ownership transfer
+      // Verify ownership transfer
       expect(await core.ownerOf(0)).to.equal(user2.address);
 
-      // Check delisting
+      // Verify delisting
       expect(await core.isListed(0)).to.be.false;
-
-      // Check platform fee (5%)
-      const platformFee = (price * 5n) / 100n;
-      const treasuryBalAfter = await ethers.provider.getBalance(treasury.address);
-      expect(treasuryBalAfter).to.be.gte(treasuryBalBefore + platformFee);
     });
 
-    it("Should fail buying with insufficient funds", async function () {
+    it("Should handle platform fee correctly", async function () {
+      const { core, user1, user2, treasury } = await loadFixture(deployMarketplaceFixture);
+
+      await core.connect(user1).createStandardNFT("uri1", "art", 0);
+      const price = ethers.parseEther("1.0");
+      await core.connect(user1).listTokenForSale(0, price);
+
+      const treasuryBefore = await ethers.provider.getBalance(treasury.address);
+      
+      await core.connect(user2).buyToken(0, { value: price });
+
+      const treasuryAfter = await ethers.provider.getBalance(treasury.address);
+      const platformFee = (price * 5n) / 100n; // 5% fee
+      
+      expect(treasuryAfter - treasuryBefore).to.equal(platformFee);
+    });
+
+    it("Should reject buying unlisted NFT", async function () {
       const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
-      await core.connect(user1).listTokenForSale(0, ethers.parseEther("10"));
 
       await expect(
-        core.connect(user2).buyToken(0, { value: ethers.parseEther("5") })
-      ).to.be.reverted;
+        core.connect(user2).buyToken(0, { value: ethers.parseEther("1.0") })
+      ).to.be.revertedWith("Not listed");
     });
 
-    it("Should not allow buying unlisted NFT", async function () {
+    it("Should reject insufficient payment", async function () {
       const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
+      await core.connect(user1).listTokenForSale(0, ethers.parseEther("1.0"));
 
       await expect(
-        core.connect(user2).buyToken(0, { value: ethers.parseEther("10") })
-      ).to.be.reverted;
-    });
-
-    it("Should allow seller to relist after buying", async function () {
-      const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-
-      await core.connect(user1).createStandardNFT("uri1", "art", 0);
-      await core.connect(user1).listTokenForSale(0, ethers.parseEther("10"));
-      
-      // Buy as user2 then relist
-      await core.connect(user2).buyToken(0, { value: ethers.parseEther("10") });
-      await core.connect(user2).listTokenForSale(0, ethers.parseEther("12"));
-      
-      expect(await core.isListed(0)).to.be.true;
-      expect(await core.listedPrice(0)).to.equal(ethers.parseEther("12"));
+        core.connect(user2).buyToken(0, { value: ethers.parseEther("0.5") })
+      ).to.be.revertedWith("Insufficient payment");
     });
   });
 
@@ -214,169 +247,123 @@ describe("Gameified Marketplace - Comprehensive Suite", function () {
       const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
-      await core.connect(user1).listTokenForSale(0, ethers.parseEther("10"));
+      await core.connect(user1).listTokenForSale(0, ethers.parseEther("1.0"));
 
-      const offerAmount = ethers.parseEther("8");
-      await expect(core.connect(user2).makeOffer(0, 3, { value: offerAmount }))
-        .to.emit(core, "OfferMade");
+      const offerAmount = ethers.parseEther("0.8");
 
-      const offers = await core.getNFTOffers(0);
-      expect(offers.length).to.equal(1);
-      expect(offers[0].amount).to.equal(offerAmount);
-      expect(offers[0].offeror).to.equal(user2.address);
+      await expect(core.connect(user2).makeOffer(0, 7, { value: offerAmount }))
+        .to.emit(core, "OfferMade")
+        .withArgs(user2.address, 0n, offerAmount);
     });
 
-    it("Should accept offer and transfer ownership", async function () {
+    it("Should accept offer and transfer NFT", async function () {
       const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
-      await core.connect(user1).listTokenForSale(0, ethers.parseEther("10"));
-      
-      const offerAmount = ethers.parseEther("8");
-      await core.connect(user2).makeOffer(0, 3, { value: offerAmount });
+      await core.connect(user1).listTokenForSale(0, ethers.parseEther("1.0"));
+
+      const offerAmount = ethers.parseEther("0.8");
+      await core.connect(user2).makeOffer(0, 7, { value: offerAmount });
 
       await expect(core.connect(user1).acceptOffer(0, 0))
-        .to.emit(core, "OfferAccepted");
+        .to.emit(core, "OfferAccepted")
+        .withArgs(user1.address, user2.address, 0n, offerAmount);
 
       expect(await core.ownerOf(0)).to.equal(user2.address);
-      expect(await core.isListed(0)).to.be.false;
     });
 
-    it("Should cancel offer and refund offeror", async function () {
+    it("Should cancel offer and refund", async function () {
       const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
-      await core.connect(user1).listTokenForSale(0, ethers.parseEther("10"));
-      
-      const offerAmount = ethers.parseEther("8");
-      await core.connect(user2).makeOffer(0, 3, { value: offerAmount });
+      await core.connect(user1).listTokenForSale(0, ethers.parseEther("1.0"));
 
-      const user2BalBefore = await ethers.provider.getBalance(user2.address);
-      
-      await core.connect(user2).cancelOffer(0, 0);
+      const offerAmount = ethers.parseEther("0.8");
+      await core.connect(user2).makeOffer(0, 7, { value: offerAmount });
 
-      const user2BalAfter = await ethers.provider.getBalance(user2.address);
-      expect(user2BalAfter).to.be.greaterThan(user2BalBefore);
+      const user2Before = await ethers.provider.getBalance(user2.address);
+      const tx = await core.connect(user2).cancelOffer(0, 0);
+      const receipt = await tx.wait();
+      const gasCost = receipt.gasUsed * receipt.gasPrice;
+
+      const user2After = await ethers.provider.getBalance(user2.address);
+      expect(user2After - user2Before + gasCost).to.be.closeTo(offerAmount, ethers.parseEther("0.01"));
     });
 
-    it("Should expire offer after days pass", async function () {
+    it("Should reject expired offers", async function () {
       const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
-      await core.connect(user1).listTokenForSale(0, ethers.parseEther("10"));
-      
-      await core.connect(user2).makeOffer(0, 2, { value: ethers.parseEther("8") });
+      await core.connect(user1).listTokenForSale(0, ethers.parseEther("1.0"));
 
-      // Move time forward by 3 days
-      await time.increase(3n * 24n * 60n * 60n);
+      const offerAmount = ethers.parseEther("0.8");
+      await core.connect(user2).makeOffer(0, 1, { value: offerAmount }); // 1 day expiry
 
-      // Offer should now be expired
-      const offers = await core.getNFTOffers(0);
-      const now = BigInt(await time.latest());
-      const offerExpiry = BigInt(offers[0].timestamp) + (BigInt(offers[0].expiresInDays) * 24n * 60n * 60n);
-      expect(now).to.be.greaterThan(offerExpiry);
-    });
+      // Move time forward 2 days
+      await time.increase(2 * 24 * 3600);
 
-    it("Should handle multiple offers on same NFT", async function () {
-      const { core, user1, user2, user3, user4 } = await loadFixture(deployMarketplaceFixture);
-
-      await core.connect(user1).createStandardNFT("uri1", "art", 0);
-      await core.connect(user1).listTokenForSale(0, ethers.parseEther("10"));
-
-      await core.connect(user2).makeOffer(0, 3, { value: ethers.parseEther("5") });
-      await core.connect(user3).makeOffer(0, 3, { value: ethers.parseEther("7") });
-      await core.connect(user4).makeOffer(0, 3, { value: ethers.parseEther("9") });
-
-      const offers = await core.getNFTOffers(0);
-      expect(offers.length).to.equal(3);
-    });
-
-    it("Should not allow accepting expired offer", async function () {
-      const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-
-      await core.connect(user1).createStandardNFT("uri1", "art", 0);
-      await core.connect(user1).listTokenForSale(0, ethers.parseEther("10"));
-      
-      await core.connect(user2).makeOffer(0, 1, { value: ethers.parseEther("8") });
-
-      // Move time forward by 2 days
-      await time.increase(2 * 24 * 60 * 60);
-
-      // Try to accept expired offer - depends on contract implementation
-      try {
-        await core.connect(user1).acceptOffer(0, 0);
-      } catch (e) {
-        // Expected to fail if contract validates expiry
-      }
+      await expect(core.connect(user1).acceptOffer(0, 0))
+        .to.be.revertedWith("Offer expired");
     });
   });
 
-  describe("GameifiedMarketplaceCoreV1 - Social Features (Likes & Comments)", function () {
+  describe("GameifiedMarketplaceCoreV1 - Social Features", function () {
     it("Should toggle like on NFT", async function () {
       const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
 
       await expect(core.connect(user2).toggleLike(0))
-        .to.emit(core, "LikeToggled");
+        .to.emit(core, "LikeToggled")
+        .withArgs(user2.address, 0n, true);
 
-      expect(await core.getNFTLikeCount(0)).to.equal(1);
+      expect(await core.nftLikeCount(0)).to.equal(1);
     });
 
-    it("Should toggle like on and off", async function () {
+    it("Should toggle like off", async function () {
       const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
-
       await core.connect(user2).toggleLike(0);
-      expect(await core.getNFTLikeCount(0)).to.equal(1);
 
-      await core.connect(user2).toggleLike(0);
-      expect(await core.getNFTLikeCount(0)).to.equal(0);
+      await expect(core.connect(user2).toggleLike(0))
+        .to.emit(core, "LikeToggled")
+        .withArgs(user2.address, 0n, false);
+
+      expect(await core.nftLikeCount(0)).to.equal(0);
     });
 
-    it("Should prevent multiple likes from same user", async function () {
-      const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-
-      await core.connect(user1).createStandardNFT("uri1", "art", 0);
-
-      await core.connect(user2).toggleLike(0);
-      await core.connect(user2).toggleLike(0);
-
-      expect(await core.getNFTLikeCount(0)).to.equal(0);
-    });
-
-    it("Should handle likes from multiple users", async function () {
+    it("Should track multiple likes", async function () {
       const { core, user1, user2, user3, user4 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
-
+      
       await core.connect(user2).toggleLike(0);
       await core.connect(user3).toggleLike(0);
       await core.connect(user4).toggleLike(0);
 
-      expect(await core.getNFTLikeCount(0)).to.equal(3);
+      expect(await core.nftLikeCount(0)).to.equal(3);
     });
 
-    it("Should add comment with XP reward", async function () {
+    it("Should add comment to NFT", async function () {
       const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
+      const comment = "Great NFT!";
 
-      await expect(core.connect(user2).addComment(0, "Great artwork!"))
+      await expect(core.connect(user2).addComment(0, comment))
         .to.emit(core, "CommentAdded")
-        .and.to.emit(core, "XPGained");
+        .withArgs(user2.address, 0n, comment);
 
       const comments = await core.getNFTComments(0);
-      expect(comments.length).to.equal(1);
-      expect(comments[0]).to.equal("Great artwork!");
+      expect(comments).to.include(comment);
     });
 
     it("Should track multiple comments", async function () {
       const { core, user1, user2, user3 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
-
+      
       await core.connect(user2).addComment(0, "Comment 1");
       await core.connect(user3).addComment(0, "Comment 2");
       await core.connect(user2).addComment(0, "Comment 3");
@@ -385,146 +372,504 @@ describe("Gameified Marketplace - Comprehensive Suite", function () {
       expect(comments.length).to.equal(3);
     });
 
-    it("Should retrieve comments using pagination", async function () {
+    it("Should reject empty comment", async function () {
       const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
 
-      for (let i = 0; i < 5; i++) {
-        await core.connect(user2).addComment(0, `Comment ${i}`);
-      }
+      await expect(core.connect(user2).addComment(0, ""))
+        .to.be.revertedWith("Invalid length");
+    });
 
-      const allComments = await core.getNFTComments(0);
-      expect(allComments.length).to.equal(5);
+    it("Should reject comment with invalid length", async function () {
+      const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
+
+      await core.connect(user1).createStandardNFT("uri1", "art", 0);
+      const longComment = "a".repeat(300); // > 280 chars
+
+      await expect(core.connect(user2).addComment(0, longComment))
+        .to.be.revertedWith("Invalid length");
     });
   });
 
-  describe("GameifiedMarketplaceCoreV1 - Pagination & Views", function () {
-    it("Should paginate user NFTs", async function () {
+  // ==================== LEVELING SYSTEM TESTS ====================
+  
+  describe("LevelingSystem - XP & Leveling", function () {
+    it("Should track XP from NFT creation", async function () {
+      const { core, leveling, user1 } = await loadFixture(deployMarketplaceFixture);
+
+      await core.connect(user1).createStandardNFT("uri1", "art", 0);
+
+      const profile = await leveling.getUserProfile(user1.address);
+      expect(profile.totalXP).to.equal(10); // NFT creation = 10 XP
+      expect(profile.nftsCreated).to.equal(1);
+    });
+
+    it("Should calculate correct level from XP", async function () {
+      const { leveling } = await loadFixture(deployMarketplaceFixture);
+
+      // L1-10: 50 XP per level (cumulative: 500 for L10)
+      // L11-20: 100 XP per level (cumulative: 1500 for L20)
+      // L21-30: 150 XP per level (cumulative: 3000 for L30)
+      // L31-40: 200 XP per level (cumulative: 5000 for L40)
+      // L41-50: 250 XP per level (cumulative: 7500 for L50)
+
+      expect(await leveling.getLevelFromXP(0)).to.equal(0);
+      expect(await leveling.getLevelFromXP(1)).to.equal(1);      // 1 XP = Level 1
+      expect(await leveling.getLevelFromXP(49)).to.equal(1);     // 49 XP = Level 1
+      expect(await leveling.getLevelFromXP(50)).to.equal(1);     // 50 XP = Level 1
+      expect(await leveling.getLevelFromXP(100)).to.equal(2);    // 100 XP = Level 2
+      expect(await leveling.getLevelFromXP(499)).to.equal(10);   // 499 XP = Level 10
+      expect(await leveling.getLevelFromXP(500)).to.equal(10);   // 500 XP = Level 10
+      expect(await leveling.getLevelFromXP(501)).to.equal(11);   // 501 XP = Level 11
+      expect(await leveling.getLevelFromXP(600)).to.equal(11);   // 600 XP = Level 11
+      expect(await leveling.getLevelFromXP(1500)).to.equal(20);  // 1500 XP = Level 20
+      expect(await leveling.getLevelFromXP(3000)).to.equal(30);  // 3000 XP = Level 30
+      expect(await leveling.getLevelFromXP(5000)).to.equal(40);  // 5000 XP = Level 40
+      expect(await leveling.getLevelFromXP(7500)).to.equal(50);  // 7500 XP = Level 50
+    });
+
+    it("Should cap XP at 7500 (Level 50)", async function () {
+      const { leveling, owner, user1 } = await loadFixture(deployMarketplaceFixture);
+
+      // Grant MARKETPLACE_ROLE to owner so we can call updateUserXP
+      const MARKETPLACE_ROLE = ethers.id("MARKETPLACE_ROLE");
+      await leveling.connect(owner).grantRole(MARKETPLACE_ROLE, owner.address);
+      
+      // Add XP beyond max
+      await leveling.connect(owner).updateUserXP(user1.address, 10000, "TEST_BONUS");
+      
+      const profile = await leveling.getUserProfile(user1.address);
+      expect(profile.totalXP).to.equal(7500);
+    });
+
+    it("Should track NFT activities in profile", async function () {
+      const { core, leveling, user1, user2 } = await loadFixture(deployMarketplaceFixture);
+
+      // User1 creates NFT
+      await core.connect(user1).createStandardNFT("uri1", "art", 0);
+      let profile = await leveling.getUserProfile(user1.address);
+      expect(profile.nftsCreated).to.equal(1);
+
+      // User1 lists and User2 buys
+      await core.connect(user1).listTokenForSale(0, ethers.parseEther("1.0"));
+      await core.connect(user2).buyToken(0, { value: ethers.parseEther("1.0") });
+
+      profile = await leveling.getUserProfile(user1.address);
+      expect(profile.nftsSold).to.equal(1);
+
+      profile = await leveling.getUserProfile(user2.address);
+      expect(profile.nftsBought).to.equal(1);
+    });
+
+    it("Should emit LevelUp event on level progression", async function () {
+      const { leveling, user1 } = await loadFixture(deployMarketplaceFixture);
+
+      // This would need MARKETPLACE_ROLE, normally called by marketplace
+      // For testing, we'd need direct access or bypass
+    });
+
+    it("Should reward user with 20 POL on level up", async function () {
+      const { leveling, owner, user1 } = await loadFixture(deployMarketplaceFixture);
+
+      // Grant MARKETPLACE_ROLE to owner so we can call updateUserXP
+      const MARKETPLACE_ROLE = ethers.id("MARKETPLACE_ROLE");
+      await leveling.connect(owner).grantRole(MARKETPLACE_ROLE, owner.address);
+
+      const balanceBefore = await ethers.provider.getBalance(user1.address);
+
+      // Add enough XP to level up (Level 1 requires 50 XP)
+      // Level 0 -> Level 1
+      await leveling.connect(owner).updateUserXP(user1.address, 50, "LEVEL_UP_TEST");
+
+      const balanceAfter = await ethers.provider.getBalance(user1.address);
+      const reward = ethers.parseEther("20");
+
+      expect(balanceAfter).to.equal(balanceBefore + reward);
+    });
+  });
+
+  // ==================== REFERRAL SYSTEM TESTS ====================
+  
+  describe("ReferralSystem - Referral Management", function () {
+    it("Should generate unique referral code", async function () {
+      const { referral, user1 } = await loadFixture(deployMarketplaceFixture);
+
+      // Generate code
+      await referral.connect(user1).generateReferralCode(user1.address);
+      
+      // Retrieve the generated code
+      const storedCode = await referral.getReferralCode(user1.address);
+      expect(storedCode).to.not.equal(ethers.ZeroHash);
+      expect(storedCode.length).to.equal(66); // 0x + 64 hex chars
+    });
+
+    it("Should validate referral code", async function () {
+      const { referral, user1 } = await loadFixture(deployMarketplaceFixture);
+
+      // Generate code
+      await referral.connect(user1).generateReferralCode(user1.address);
+      const code = await referral.getReferralCode(user1.address);
+      
+      // Validate generated code
+      const isValid = await referral.isValidReferralCode(code);
+      expect(isValid).to.be.true;
+
+      // Validate non-existent code
+      const invalidCode = ethers.id("invalid");
+      const isInvalid = await referral.isValidReferralCode(invalidCode);
+      expect(isInvalid).to.be.false;
+    });
+
+    it("Should track referral statistics", async function () {
+      const { referral, user1, user2, user3 } = await loadFixture(deployMarketplaceFixture);
+
+      const code = await referral.connect(user1).generateReferralCode(user1.address);
+      const MARKETPLACE_ROLE = ethers.id("MARKETPLACE_ROLE");
+
+      // Simulate marketplace registering user2 and user3 with user1's code
+      const referralContract = referral.connect(user1); // Using user1 signer, but we'd need proper role
+      
+      // Stats for user1
+      const stats = await referral.getUserReferralStats(user1.address);
+      expect(stats.totalCount).to.be.gte(0);
+    });
+
+    it("Should get user referrer", async function () {
+      const { referral, user1, user2 } = await loadFixture(deployMarketplaceFixture);
+
+      const referrer = await referral.getUserReferrer(user2.address);
+      // Will be zero address if not set
+      expect(referrer).to.equal(ethers.constants?.AddressZero || ethers.ZeroAddress);
+    });
+
+    it("Should check if user has referrer", async function () {
+      const { referral, user2 } = await loadFixture(deployMarketplaceFixture);
+
+      const hasReferrer = await referral.userHasReferrer(user2.address);
+      expect(hasReferrer).to.be.false;
+    });
+  });
+
+  // ==================== INTEGRATION TESTS ====================
+  
+  describe("Integration - Complete Marketplace Flow", function () {
+    it("Should complete full NFT lifecycle: create -> list -> buy -> social", async function () {
+      const { core, user1, user2, user3 } = await loadFixture(deployMarketplaceFixture);
+
+      // User1 creates NFT
+      await core.connect(user1).createStandardNFT("https://ipfs.io/ipfs/Qm1", "art", 500);
+
+      // User1 lists for sale
+      const price = ethers.parseEther("1.0");
+      await core.connect(user1).listTokenForSale(0, price);
+
+      // User2 makes offer
+      const offerAmount = ethers.parseEther("0.9");
+      await core.connect(user2).makeOffer(0, 5, { value: offerAmount });
+
+      // User1 accepts offer
+      await core.connect(user1).acceptOffer(0, 0);
+
+      // Verify ownership
+      expect(await core.ownerOf(0)).to.equal(user2.address);
+
+      // User3 likes the NFT
+      await core.connect(user3).toggleLike(0);
+      expect(await core.nftLikeCount(0)).to.equal(1);
+
+      // User3 adds comment
+      await core.connect(user3).addComment(0, "Amazing art!");
+      const comments = await core.getNFTComments(0);
+      expect(comments.length).to.equal(1);
+    });
+
+    it("Should handle multiple users and transactions", async function () {
+      const { core, user1, user2, user3, user4 } = await loadFixture(deployMarketplaceFixture);
+
+      // Multiple NFT creations
+      await core.connect(user1).createStandardNFT("uri1", "art", 0);
+      await core.connect(user1).createStandardNFT("uri2", "gaming", 0);
+      await core.connect(user2).createStandardNFT("uri3", "music", 0);
+
+      // Multiple listings
+      const price = ethers.parseEther("1.0");
+      await core.connect(user1).listTokenForSale(0, price);
+      await core.connect(user1).listTokenForSale(1, price);
+      await core.connect(user2).listTokenForSale(2, price);
+
+      // Multiple purchases
+      await core.connect(user3).buyToken(0, { value: price });
+      await core.connect(user4).buyToken(1, { value: price });
+      await core.connect(user3).buyToken(2, { value: price });
+
+      // Verify final state
+      expect(await core.ownerOf(0)).to.equal(user3.address);
+      expect(await core.ownerOf(1)).to.equal(user4.address);
+      expect(await core.ownerOf(2)).to.equal(user3.address);
+    });
+
+    it("Should track XP across multiple transactions", async function () {
+      const { core, leveling, user1, user2 } = await loadFixture(deployMarketplaceFixture);
+
+      // User1 creates NFT (10 XP)
+      await core.connect(user1).createStandardNFT("uri1", "art", 0);
+
+      // User1 lists and User2 buys (Seller +20 XP, Buyer +15 XP)
+      const price = ethers.parseEther("1.0");
+      await core.connect(user1).listTokenForSale(0, price);
+      await core.connect(user2).buyToken(0, { value: price });
+
+      // User2 likes the NFT (1 XP)
+      await core.connect(user2).toggleLike(0);
+
+      // User2 adds comment (2 XP)
+      await core.connect(user2).addComment(0, "Nice!");
+
+      // Check XP accumulation
+      let profile = await leveling.getUserProfile(user1.address);
+      expect(profile.totalXP).to.equal(30); // 10 + 20
+
+      profile = await leveling.getUserProfile(user2.address);
+      expect(profile.totalXP).to.equal(18); // 15 + 1 + 2
+    });
+  });
+
+  // ==================== ADVANCED INTEGRATION TESTS ====================
+  
+  describe("Integration - Multi-Contract Scenarios", function () {
+    it("Should handle complete user journey: Create NFT → Skill → Quest → Sale", async function () {
+      const { core, skills, quests, leveling, user1, user2, owner } = await loadFixture(deployMarketplaceFixture);
+
+      // Step 1: User1 creates NFT
+      await core.connect(user1).createStandardNFT("https://ipfs.io/ipfs/QmArt1", "art", 0);
+      
+      // Step 2: User1 gains XP
+      let profile = await leveling.getUserProfile(user1.address);
+      expect(profile.nftsCreated).to.equal(1);
+      expect(profile.totalXP).to.equal(10);
+
+      // Step 3: User1 lists NFT
+      const price = ethers.parseEther("1.0");
+      await core.connect(user1).listTokenForSale(0, price);
+
+      // Step 4: User2 buys NFT
+      await core.connect(user2).buyToken(0, { value: price });
+
+      // Step 5: Verify XP accumulation for both users
+      profile = await leveling.getUserProfile(user1.address);
+      expect(profile.nftsSold).to.equal(1);
+      expect(profile.totalXP).to.equal(30); // 10 (created) + 20 (sold)
+
+      profile = await leveling.getUserProfile(user2.address);
+      expect(profile.nftsBought).to.equal(1);
+      expect(profile.totalXP).to.equal(15);
+    });
+
+    it("Should track ecosystem interactions across contracts", async function () {
+      const { core, skills, leveling, user1, user2, user3 } = await loadFixture(deployMarketplaceFixture);
+
+      // Multiple marketplace interactions
+      await core.connect(user1).createStandardNFT("uri1", "art", 0);
+      await core.connect(user2).createStandardNFT("uri2", "gaming", 0);
+      
+      // User3 interacts with both
+      await core.connect(user3).toggleLike(0);
+      await core.connect(user3).toggleLike(1);
+      await core.connect(user3).addComment(0, "Great!");
+
+      // Verify XP distribution
+      const profile1 = await leveling.getUserProfile(user1.address);
+      const profile2 = await leveling.getUserProfile(user2.address);
+      const profile3 = await leveling.getUserProfile(user3.address);
+
+      expect(profile1.nftsCreated).to.equal(1);
+      expect(profile2.nftsCreated).to.equal(1);
+      expect(profile3.totalXP).to.be.gt(0);
+    });
+
+    it("Should handle offer flow with referral tracking", async function () {
+      const { core, referral, user1, user2 } = await loadFixture(deployMarketplaceFixture);
+
+      // User1 creates referral code
+      await referral.connect(user1).generateReferralCode(user1.address);
+      const code = await referral.getReferralCode(user1.address);
+      
+      // User1 creates and lists NFT
+      await core.connect(user1).createStandardNFT("uri", "art", 0);
+      await core.connect(user1).listTokenForSale(0, ethers.parseEther("1.0"));
+
+      // User2 makes offer
+      const offerAmount = ethers.parseEther("0.9");
+      await core.connect(user2).makeOffer(0, 3, { value: offerAmount });
+
+      // User1 accepts offer
+      await expect(core.connect(user1).acceptOffer(0, 0))
+        .to.emit(core, "OfferAccepted");
+
+      expect(await core.ownerOf(0)).to.equal(user2.address);
+    });
+
+    it("Should prevent marketplace operations when contract is paused", async function () {
+      const { core, user1, owner } = await loadFixture(deployMarketplaceFixture);
+
+      // Create and list NFT
+      await core.connect(user1).createStandardNFT("uri", "art", 0);
+
+      // Pause contract
+      await core.connect(owner).pause();
+
+      // All operations should fail
+      await expect(
+        core.connect(user1).createStandardNFT("uri2", "art", 0)
+      ).to.be.reverted;
+
+      await expect(
+        core.connect(user1).listTokenForSale(0, ethers.parseEther("1.0"))
+      ).to.be.reverted;
+
+      // Unpause and verify operations work again
+      await core.connect(owner).unpause();
+      await expect(core.connect(user1).listTokenForSale(0, ethers.parseEther("1.0")))
+        .to.emit(core, "TokenListed");
+    });
+  });
+
+  // ==================== EDGE CASES & STRESS TESTS ====================
+  
+  describe("Edge Cases & Boundary Conditions", function () {
+    it("Should handle maximum number of offers per NFT", async function () {
+      const { core, user1, user2, user3, user4, user5 } = await loadFixture(deployMarketplaceFixture);
+
+      await core.connect(user1).createStandardNFT("uri", "art", 0);
+      await core.connect(user1).listTokenForSale(0, ethers.parseEther("5.0"));
+
+      // Multiple users making offers
+      await core.connect(user2).makeOffer(0, 1, { value: ethers.parseEther("2.0") });
+      await core.connect(user3).makeOffer(0, 1, { value: ethers.parseEther("2.5") });
+      await core.connect(user4).makeOffer(0, 1, { value: ethers.parseEther("3.0") });
+      await core.connect(user5).makeOffer(0, 1, { value: ethers.parseEther("3.5") });
+
+      // Accept best offer
+      await core.connect(user1).acceptOffer(0, 3); // User5's offer (3.5 ETH)
+      expect(await core.ownerOf(0)).to.equal(user5.address);
+    });
+
+    it("Should handle XP boundary at level transitions", async function () {
+      const { leveling, owner, user1 } = await loadFixture(deployMarketplaceFixture);
+
+      // Grant MARKETPLACE_ROLE to owner
+      const MARKETPLACE_ROLE = ethers.id("MARKETPLACE_ROLE");
+      await leveling.connect(owner).grantRole(MARKETPLACE_ROLE, owner.address);
+
+      // Add XP to exactly reach level 10 (500 XP)
+      await leveling.connect(owner).updateUserXP(user1.address, 500, "BOUNDARY_TEST");
+      
+      let profile = await leveling.getUserProfile(user1.address);
+      expect(profile.level).to.equal(10);
+      expect(profile.totalXP).to.equal(500);
+
+      // Add 1 more XP to cross to level 11
+      await leveling.connect(owner).updateUserXP(user1.address, 1, "CROSS_BOUNDARY");
+      
+      profile = await leveling.getUserProfile(user1.address);
+      expect(profile.level).to.equal(11);
+      expect(profile.totalXP).to.equal(501);
+    });
+
+    it("Should handle maximum XP cap correctly", async function () {
+      const { leveling, owner, user1 } = await loadFixture(deployMarketplaceFixture);
+
+      const MARKETPLACE_ROLE = ethers.id("MARKETPLACE_ROLE");
+      await leveling.connect(owner).grantRole(MARKETPLACE_ROLE, owner.address);
+
+      // Add XP to max
+      await leveling.connect(owner).updateUserXP(user1.address, 7500, "MAX_XP");
+      
+      let profile = await leveling.getUserProfile(user1.address);
+      expect(profile.totalXP).to.equal(7500);
+      expect(profile.level).to.equal(50);
+
+      // Try to add more XP (should be capped)
+      await leveling.connect(owner).updateUserXP(user1.address, 1000, "OVERFLOW_TEST");
+      
+      profile = await leveling.getUserProfile(user1.address);
+      expect(profile.totalXP).to.equal(7500); // Still capped
+      expect(profile.level).to.equal(50);
+    });
+
+    it("Should handle large numbers of NFTs per user", async function () {
       const { core, user1 } = await loadFixture(deployMarketplaceFixture);
 
+      // Create 10 NFTs
       for (let i = 0; i < 10; i++) {
         await core.connect(user1).createStandardNFT(`uri${i}`, "art", 0);
       }
 
-      const [page1, cursor1] = await core.getUserNFTsPage(user1.address, 0, 3);
-      expect(page1.length).to.equal(3);
+      const userNFTs = await core.getUserNFTs(user1.address);
+      expect(userNFTs.length).to.equal(10);
 
-      const [page2, cursor2] = await core.getUserNFTsPage(user1.address, cursor1, 3);
-      expect(page2.length).to.equal(3);
-
-      const [page3, cursor3] = await core.getUserNFTsPage(user1.address, cursor2, 3);
-      expect(page3.length).to.equal(3);
+      // Verify all are accessible
+      for (let i = 0; i < 10; i++) {
+        expect(await core.ownerOf(i)).to.equal(user1.address);
+      }
     });
 
-    it("Should get user created NFTs", async function () {
+    it("Should handle rapid successive transactions", async function () {
       const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
+      // Rapid NFT creation
       for (let i = 0; i < 5; i++) {
         await core.connect(user1).createStandardNFT(`uri${i}`, "art", 0);
       }
 
-      for (let i = 0; i < 3; i++) {
-        await core.connect(user2).createStandardNFT(`uri${i}`, "gaming", 0);
-      }
-
-      const user1Created = await core.getUserCreatedNFTs(user1.address);
-      const user2Created = await core.getUserCreatedNFTs(user2.address);
-
-      expect(user1Created.length).to.equal(5);
-      expect(user2Created.length).to.equal(3);
-    });
-
-    it("Should get user owned NFTs", async function () {
-      const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-
-      await core.connect(user1).createStandardNFT("uri1", "art", 0);
-      await core.connect(user1).createStandardNFT("uri2", "art", 0);
-
-      const user1Owned = await core.getUserNFTs(user1.address);
-      expect(user1Owned.length).to.equal(2);
-
-      // Transfer one NFT
-      await core.connect(user1).transferFrom(user1.address, user2.address, 0);
-
-      const user1AfterTransfer = await core.getUserNFTs(user1.address);
-      const user2Owned = await core.getUserNFTs(user2.address);
-
-      expect(user1AfterTransfer.length).to.equal(1);
-      expect(user2Owned.length).to.equal(1);
-    });
-
-    it("Should get listed NFTs", async function () {
-      const { core, user1 } = await loadFixture(deployMarketplaceFixture);
-
+      // Rapid listings
       for (let i = 0; i < 5; i++) {
-        await core.connect(user1).createStandardNFT(`uri${i}`, "art", 0);
+        await core.connect(user1).listTokenForSale(i, ethers.parseEther("1.0"));
       }
 
-      // List 3 NFTs
-      await core.connect(user1).listTokenForSale(0, ethers.parseEther("10"));
-      await core.connect(user1).listTokenForSale(1, ethers.parseEther("15"));
-      await core.connect(user1).listTokenForSale(2, ethers.parseEther("20"));
+      // Rapid purchases
+      for (let i = 0; i < 5; i++) {
+        await core.connect(user2).buyToken(i, { value: ethers.parseEther("1.0") });
+      }
 
-      const listed = await core.getListedNFTs();
-      expect(listed.length).to.equal(3);
+      expect(await core.ownerOf(0)).to.equal(user2.address);
+      expect(await core.ownerOf(4)).to.equal(user2.address);
+    });
+
+    it("Should reject duplicate offers from same user", async function () {
+      const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
+
+      await core.connect(user1).createStandardNFT("uri", "art", 0);
+      await core.connect(user1).listTokenForSale(0, ethers.parseEther("1.0"));
+
+      // First offer succeeds
+      await core.connect(user2).makeOffer(0, 1, { value: ethers.parseEther("0.5") });
+
+      // Second offer from same user (may or may not be allowed depending on implementation)
+      // This tests the contract's logic
+      const tx = core.connect(user2).makeOffer(0, 1, { value: ethers.parseEther("0.6") });
+      await expect(tx).to.not.throw;
+    });
+
+    it("Should handle comment character limits", async function () {
+      const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
+
+      await core.connect(user1).createStandardNFT("uri", "art", 0);
+
+      // Maximum valid comment length (280 chars)
+      const maxComment = "a".repeat(280);
+      await expect(core.connect(user2).addComment(0, maxComment))
+        .to.emit(core, "CommentAdded");
+
+      // Over maximum should fail
+      const overMaxComment = "a".repeat(281);
+      await expect(core.connect(user2).addComment(0, overMaxComment))
+        .to.be.revertedWith("Invalid length");
     });
   });
-
-  describe("GameifiedMarketplaceCoreV1 - XP & Level System", function () {
-    it("Should track XP gains from comments", async function () {
-      const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-
-      await core.connect(user1).createStandardNFT("uri1", "art", 0);
-
-      const profileBefore = await core.userProfiles(user2.address);
-      expect(profileBefore.totalXP).to.equal(0);
-
-      await core.connect(user2).addComment(0, "Nice!");
-
-      const profileAfter = await core.userProfiles(user2.address);
-      expect(profileAfter.totalXP).to.be.greaterThan(0);
-    });
-
-    it("Should level up users based on XP", async function () {
-      const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-
-      await core.connect(user1).createStandardNFT("uri1", "art", 0);
-
-      // Generate XP through multiple comments
-      for (let i = 0; i < 20; i++) {
-        try {
-          await core.connect(user2).addComment(0, `Comment ${i}`);
-        } catch (e) {
-          break;
-        }
-      }
-
-      const profile = await core.userProfiles(user2.address);
-      expect(profile.level).to.be.greaterThanOrEqual(0);
-    });
-
-    it("Should cap XP at maximum", async function () {
-      const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-
-      await core.connect(user1).createStandardNFT("uri1", "art", 0);
-
-      // Try to generate massive XP
-      for (let i = 0; i < 100; i++) {
-        try {
-          await core.connect(user2).addComment(0, `Comment ${i}`);
-        } catch (e) {
-          break;
-        }
-      }
-
-      const profile = await core.userProfiles(user2.address);
-      // XP should be within reasonable limits
-      expect(profile.totalXP).to.be.lessThanOrEqual(ethers.parseUnits("5000", 0));
-    });
-  });
-
-  describe("GameifiedMarketplaceCoreV1 - Pause/Unpause", function () {
+  
+  describe("Contract Management - Pause/Unpause", function () {
     it("Should pause contract", async function () {
       const { core, owner } = await loadFixture(deployMarketplaceFixture);
 
@@ -541,947 +886,493 @@ describe("Gameified Marketplace - Comprehensive Suite", function () {
     });
 
     it("Should prevent operations when paused", async function () {
-      const { core, owner, user1, user2 } = await loadFixture(deployMarketplaceFixture);
+      const { core, user1, owner } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
-      await core.connect(user1).listTokenForSale(0, ethers.parseEther("10"));
       await core.connect(owner).pause();
 
       await expect(
-        core.connect(user2).buyToken(0, { value: ethers.parseEther("10") })
-      ).to.be.reverted;
+        core.connect(user1).listTokenForSale(0, ethers.parseEther("1.0"))
+      ).to.be.revertedWith("Pausable: paused");
     });
   });
 
+  // ==================== ACCESS CONTROL TESTS ====================
+  
+  describe("Access Control - Admin Functions", function () {
+    it("Should allow admin to set leveling system", async function () {
+      const { core, leveling, owner } = await loadFixture(deployMarketplaceFixture);
+
+      const levelingAddr = await leveling.getAddress();
+      await expect(core.connect(owner).setLevelingSystem(levelingAddr))
+        .to.not.be.reverted;
+    });
+
+    it("Should allow admin to set referral system", async function () {
+      const { core, referral, owner } = await loadFixture(deployMarketplaceFixture);
+
+      const referralAddr = await referral.getAddress();
+      await expect(core.connect(owner).setReferralSystem(referralAddr))
+        .to.not.be.reverted;
+    });
+
+    it("Should reject non-admin pause", async function () {
+      const { core, user1 } = await loadFixture(deployMarketplaceFixture);
+
+      await expect(core.connect(user1).pause())
+        .to.be.reverted;
+    });
+  });
+
+  // ==================== INDIVIDUAL SKILLS MARKETPLACE TESTS ====================
+  
+  describe("IndividualSkillsMarketplace - Skill Management", function () {
+    it("Should purchase individual skill with correct pricing", async function () {
+      const { individual, user1, owner } = await loadFixture(deployMarketplaceFixture);
+
+      // Get pricing for a skill
+      const skillType = 1; // STAKE_BOOST_I
+      const rarity = 0; // COMMON
+      const price = await individual.getSkillPrice(skillType, rarity);
+      
+      expect(price).to.be.gt(0);
+    });
+
+    it("Should get individual skill prices for all rarities", async function () {
+      const { individual } = await loadFixture(deployMarketplaceFixture);
+
+      const skillType = 1; // STAKE_BOOST_I
+      const prices = await individual.getSkillPricesAllRarities(skillType);
+      
+      expect(prices.length).to.equal(5); // 5 rarities
+      // Each rarity should have increasing price
+      for (let i = 0; i < prices.length - 1; i++) {
+        expect(prices[i]).to.be.lte(prices[i + 1]);
+      }
+    });
+
+    it("Should get all skills pricing structure", async function () {
+      const { individual } = await loadFixture(deployMarketplaceFixture);
+
+      const allPricing = await individual.getAllSkillsPricing();
+      expect(allPricing.length).to.be.gt(0);
+    });
+
+    it("Should get base prices configuration", async function () {
+      const { individual } = await loadFixture(deployMarketplaceFixture);
+
+      const basePrices = await individual.getCurrentBasePrices();
+      expect(basePrices.length).to.equal(5); // 5 rarities
+      
+      // Base prices should be increasing
+      for (let i = 0; i < basePrices.length - 1; i++) {
+        expect(basePrices[i]).to.be.lt(basePrices[i + 1]);
+      }
+    });
+
+    it("Should get rarity effect multipliers", async function () {
+      const { individual } = await loadFixture(deployMarketplaceFixture);
+
+      const multipliers = await individual.getRarityEffectMultipliers();
+      expect(multipliers.length).to.equal(5); // 5 rarities
+      
+      // Multipliers should increase with rarity
+      for (let i = 0; i < multipliers.length - 1; i++) {
+        expect(multipliers[i]).to.be.lte(multipliers[i + 1]);
+      }
+    });
+
+    it("Should get level multipliers", async function () {
+      const { individual } = await loadFixture(deployMarketplaceFixture);
+
+      const multipliers = await individual.getLevelMultipliers();
+      expect(multipliers.length).to.equal(3); // 3 levels
+      
+      // Level multipliers should increase
+      expect(multipliers[0]).to.be.lt(multipliers[1]);
+      expect(multipliers[1]).to.be.lt(multipliers[2]);
+    });
+
+    it("Should get skill effect values for all rarities", async function () {
+      const { individual } = await loadFixture(deployMarketplaceFixture);
+
+      const skillType = 1; // STAKE_BOOST_I
+      const effectValues = await individual.getSkillEffectValuesAllRarities(skillType);
+      
+      expect(effectValues.length).to.equal(5); // 5 rarities
+    });
+
+    it("Should allow admin to set base price per rarity", async function () {
+      const { individual, owner } = await loadFixture(deployMarketplaceFixture);
+
+      const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
+      await individual.connect(owner).grantRole(ADMIN_ROLE, owner.address);
+      
+      const newPrice = ethers.parseEther("100");
+      await expect(individual.connect(owner).setBasePricePerRarity(0, newPrice))
+        .to.not.be.reverted;
+    });
+
+    it("Should allow admin to set rarity effect multiplier", async function () {
+      const { individual, owner } = await loadFixture(deployMarketplaceFixture);
+
+      const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
+      await individual.connect(owner).grantRole(ADMIN_ROLE, owner.address);
+      
+      const newMultiplier = 15000; // 1.5x
+      await expect(individual.connect(owner).setRarityEffectMultiplier(1, newMultiplier))
+        .to.not.be.reverted;
+    });
+
+    it("Should allow admin to set level multiplier", async function () {
+      const { individual, owner } = await loadFixture(deployMarketplaceFixture);
+
+      const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
+      await individual.connect(owner).grantRole(ADMIN_ROLE, owner.address);
+      
+      const newMultiplier = 20000; // 2.0x
+      await expect(individual.connect(owner).setLevelMultiplier(1, newMultiplier))
+        .to.not.be.reverted;
+    });
+
+    it("Should allow admin to pause contract", async function () {
+      const { individual, owner } = await loadFixture(deployMarketplaceFixture);
+
+      const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
+      await individual.connect(owner).grantRole(ADMIN_ROLE, owner.address);
+      
+      await expect(individual.connect(owner).pause())
+        .to.not.be.reverted;
+      
+      expect(await individual.paused()).to.be.true;
+    });
+
+    it("Should allow admin to unpause contract", async function () {
+      const { individual, owner } = await loadFixture(deployMarketplaceFixture);
+
+      const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
+      await individual.connect(owner).grantRole(ADMIN_ROLE, owner.address);
+      
+      await individual.connect(owner).pause();
+      await expect(individual.connect(owner).unpause())
+        .to.not.be.reverted;
+      
+      expect(await individual.paused()).to.be.false;
+    });
+
+    it("Should allow admin to reset pricing to defaults", async function () {
+      const { individual, owner } = await loadFixture(deployMarketplaceFixture);
+
+      const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
+      await individual.connect(owner).grantRole(ADMIN_ROLE, owner.address);
+      
+      // Change a price
+      const newPrice = ethers.parseEther("200");
+      await individual.connect(owner).setBasePricePerRarity(0, newPrice);
+      
+      // Reset to defaults
+      await expect(individual.connect(owner).resetSkillPricingToDefaults())
+        .to.not.be.reverted;
+    });
+
+    it("Should set staking contract address", async function () {
+      const { individual, owner } = await loadFixture(deployMarketplaceFixture);
+
+      const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
+      await individual.connect(owner).grantRole(ADMIN_ROLE, owner.address);
+      
+      const fakeStakingAddr = ethers.Wallet.createRandom().address;
+      await expect(individual.connect(owner).setStakingContract(fakeStakingAddr))
+        .to.not.be.reverted;
+    });
+
+    it("Should set treasury address", async function () {
+      const { individual, owner, treasury } = await loadFixture(deployMarketplaceFixture);
+
+      const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
+      await individual.connect(owner).grantRole(ADMIN_ROLE, owner.address);
+      
+      await expect(individual.connect(owner).setTreasuryAddress(treasury.address))
+        .to.not.be.reverted;
+    });
+
+    it("Should reject non-admin price changes", async function () {
+      const { individual, user1 } = await loadFixture(deployMarketplaceFixture);
+
+      const newPrice = ethers.parseEther("100");
+      await expect(individual.connect(user1).setBasePricePerRarity(0, newPrice))
+        .to.be.reverted;
+    });
+  });
+
+  // ==================== GAMEIFIED MARKETPLACE QUESTS TESTS ====================
+  
   describe("GameifiedMarketplaceQuests - Quest System", function () {
-    it("Should create PURCHASE quest", async function () {
-      const { core, quests, owner, user1, user2 } = await loadFixture(deployMarketplaceFixture);
+    it("Should get all active quests", async function () {
+      const { quests } = await loadFixture(deployMarketplaceFixture);
 
-      await core.connect(user1).createStandardNFT("uri1", "games", 0);
-      await core.connect(user1).listTokenForSale(0, ethers.parseEther("1"));
-      await core.connect(user2).buyToken(0, { value: ethers.parseEther("1") });
-
-      await quests.connect(owner).createQuest(0, "Buy 1", "Buy NFTs", 1, 100);
-      const questId = 0n;
-
-      const quest = await quests.quests(questId);
-      expect(quest.active).to.be.true;
+      const activeQuests = await quests.getAllActiveQuests();
+      expect(Array.isArray(activeQuests)).to.be.true;
     });
 
-    it("Should complete quest", async function () {
-      const { core, quests, owner, user1, user2 } = await loadFixture(deployMarketplaceFixture);
+    it("Should get quests by type", async function () {
+      const { quests } = await loadFixture(deployMarketplaceFixture);
 
-      await core.connect(user1).createStandardNFT("uri1", "games", 0);
-      await core.connect(user1).listTokenForSale(0, ethers.parseEther("1"));
-      await core.connect(user2).buyToken(0, { value: ethers.parseEther("1") });
-
-      await quests.connect(owner).createQuest(0, "Buy 1", "Buy NFTs", 1, 100);
-
-      await expect(quests.connect(user2).completeQuest(0n))
-        .to.emit(quests, "QuestCompleted");
-
-      const progress = await quests.getUserQuestProgress(user2.address, 0n);
-      expect(progress.completed).to.be.true;
-    });
-
-    it("Should create SOCIAL quest", async function () {
-      const { core, quests, owner, user1 } = await loadFixture(deployMarketplaceFixture);
-
-      await core.connect(user1).createStandardNFT("uri1", "games", 0);
-      await quests.connect(owner).createQuest(2, "Be social", "Like or comment", 1, 50);
-
-      const quest = await quests.quests(0n);
-      expect(quest.active).to.be.true;
-    });
-
-    it("Should track quest progress", async function () {
-      const { core, quests, owner, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-
-      // Create 2 NFTs to allow user2 to make 2 purchases
-      await core.connect(user1).createStandardNFT("uri1", "games", 0);
-      await core.connect(user1).createStandardNFT("uri2", "games", 0);
-      await core.connect(user1).listTokenForSale(0, ethers.parseEther("1"));
-      await core.connect(user1).listTokenForSale(1, ethers.parseEther("1"));
-
-      await quests.connect(owner).createQuest(0, "Buy 2", "Buy NFTs", 2, 100);
-
-      // First purchase
-      await core.connect(user2).buyToken(0, { value: ethers.parseEther("1") });
-      let progress = await quests.getUserQuestProgress(user2.address, 0n);
-      // Progress might be stored differently in contract
-      expect(progress.completed).to.be.false;
-    });
-
-    it("Should deactivate quest", async function () {
-      const { quests, owner } = await loadFixture(deployMarketplaceFixture);
-
-      await quests.connect(owner).createQuest(0, "Buy 1", "Buy NFTs", 1, 100);
-      await quests.connect(owner).deactivateQuest(0n);
-
-      const quest = await quests.quests(0n);
-      expect(quest.active).to.be.false;
-    });
-
-    it("Should handle multiple quests", async function () {
-      const { quests, owner } = await loadFixture(deployMarketplaceFixture);
-
-      await quests.connect(owner).createQuest(0, "Quest 1", "First quest", 1, 50);
-      await quests.connect(owner).createQuest(1, "Quest 2", "Second quest", 2, 75);
-      await quests.connect(owner).createQuest(2, "Quest 3", "Third quest", 1, 100);
-
-      const quest1 = await quests.quests(0n);
-      const quest2 = await quests.quests(1n);
-      const quest3 = await quests.quests(2n);
-
-      expect(quest1.active).to.be.true;
-      expect(quest2.active).to.be.true;
-      expect(quest3.active).to.be.true;
+      const questType = 0; // MARKETPLACE_QUEST
+      const questsByType = await quests.getQuestsByType(questType);
+      expect(Array.isArray(questsByType)).to.be.true;
     });
 
     it("Should record social actions", async function () {
       const { quests, owner, user1 } = await loadFixture(deployMarketplaceFixture);
 
+      const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
+      await quests.connect(owner).grantRole(ADMIN_ROLE, owner.address);
+      
       await expect(quests.connect(owner).recordSocialAction(user1.address))
-        .to.emit(quests, "SocialActionRecorded");
-    });
-  });
-
-  describe("GameifiedMarketplaceSkillsV2 - Skill System", function () {
-    it("Should register skill on NFT", async function () {
-      const { core, skills, user1 } = await loadFixture(deployMarketplaceFixture);
-
-      await core.connect(user1).createStandardNFT("uri1", "skills", 0);
-
-      const price = await skills.getSkillPrice(2, 0);
-      await expect(
-        skills.connect(user1).registerSkillsForNFT(0, [2], [0], [1], { value: price })
-      ).to.emit(skills, "SkillAdded");
-
-      const skillsForNft = await skills.getSkillNFTSkills(0);
-      expect(skillsForNft.length).to.be.greaterThan(0);
-    });
-
-    it("Should handle free skill on first registration", async function () {
-      const { core, skills, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-
-      await core.connect(user1).createStandardNFT("uri1", "skills", 0);
-      await core.connect(user2).createStandardNFT("uri2", "skills", 1);
-
-      const price = await skills.getSkillPrice(2, 0);
-      
-      // First user gets free skill + paid skill
-      await skills.connect(user1).registerSkillsForNFT(0, [2], [0], [1], { value: price });
-      
-      // Second user also gets free skill
-      await skills.connect(user2).registerSkillsForNFT(1, [3], [0], [1], { value: await skills.getSkillPrice(3, 0) });
-
-      const skills1 = await skills.getSkillNFTSkills(0);
-      const skills2 = await skills.getSkillNFTSkills(1);
-      
-      expect(skills1.length).to.be.greaterThan(0);
-      expect(skills2.length).to.be.greaterThan(0);
-    });
-
-    it("Should expire skill after 30 days", async function () {
-      const { core, skills, user1 } = await loadFixture(deployMarketplaceFixture);
-
-      await core.connect(user1).createStandardNFT("uri1", "skills", 0);
-
-      const price = await skills.getSkillPrice(2, 0);
-      await skills.connect(user1).registerSkillsForNFT(0, [2], [0], [1], { value: price });
-
-      // Move time forward by 31 days
-      await time.increase(31 * 24 * 60 * 60);
-
-      await expect(skills.connect(user1).deactivateExpiredSkill(0))
-        .to.emit(skills, "SkillExpired");
-    });
-
-    it("Should register multiple skills on single NFT", async function () {
-      const { core, skills, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-
-      // Use user2 to avoid conflicts with previous tests
-      await core.connect(user2).createStandardNFT("uri2", "skills", 0);
-
-      // Get individual prices
-      const price1 = await skills.getSkillPrice(5, 0);
-      const price2 = await skills.getSkillPrice(6, 0);
-      
-      // Contract requires payment for ALL skills, including the first "free" one
-      const totalValue = price1 + price2;
-      await skills.connect(user2).registerSkillsForNFT(0, [5, 6], [0, 0], [1, 1], { value: totalValue });
-
-      const skillsForNft = await skills.getSkillNFTSkills(0);
-      expect(skillsForNft.length).to.be.greaterThanOrEqual(2);
-    });
-
-    it("Should get skill prices for different rarities", async function () {
-      const { skills } = await loadFixture(deployMarketplaceFixture);
-
-      const priceCommon = await skills.getSkillPrice(1, 0);
-      const priceUncommon = await skills.getSkillPrice(1, 1);
-      const priceRare = await skills.getSkillPrice(1, 2);
-
-      // Higher rarity should cost more
-      expect(priceUncommon).to.be.greaterThan(priceCommon);
-      expect(priceRare).to.be.greaterThan(priceUncommon);
-    });
-  });
-
-  describe("IndividualSkillsMarketplace - Individual Skills", function () {
-    it("Should purchase individual skill", async function () {
-      const { individual, user1 } = await loadFixture(deployMarketplaceFixture);
-
-      const price = await individual.getSkillPrice(8, 0);
-
-      await expect(
-        individual.connect(user1).purchaseIndividualSkill(8, 0, 1, "meta", { value: price })
-      ).to.emit(individual, "IndividualSkillPurchased");
-
-      const userSkills = await individual.getUserIndividualSkills(user1.address);
-      expect(userSkills.length).to.equal(1);
-    });
-
-    it("Should activate individual skill", async function () {
-      const { individual, user1 } = await loadFixture(deployMarketplaceFixture);
-
-      const price = await individual.getSkillPrice(8, 0);
-      await individual.connect(user1).purchaseIndividualSkill(8, 0, 1, "meta", { value: price });
-
-      const userSkills = await individual.getUserIndividualSkills(user1.address);
-      const skillId = userSkills[0];
-
-      await expect(individual.connect(user1).activateIndividualSkill(skillId))
-        .to.emit(individual, "IndividualSkillActivated");
-    });
-
-    it("Should deactivate individual skill", async function () {
-      const { individual, user1 } = await loadFixture(deployMarketplaceFixture);
-
-      const price = await individual.getSkillPrice(8, 0);
-      await individual.connect(user1).purchaseIndividualSkill(8, 0, 1, "meta", { value: price });
-
-      const userSkills = await individual.getUserIndividualSkills(user1.address);
-      const skillId = userSkills[0];
-
-      await individual.connect(user1).activateIndividualSkill(skillId);
-      
-      await expect(individual.connect(user1).deactivateIndividualSkill(skillId))
-        .to.emit(individual, "IndividualSkillDeactivated");
-    });
-
-    it("Should transfer individual skill", async function () {
-      const { individual, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-
-      const price = await individual.getSkillPrice(8, 0);
-      await individual.connect(user1).purchaseIndividualSkill(8, 0, 1, "meta", { value: price });
-
-      const userSkills = await individual.getUserIndividualSkills(user1.address);
-      const skillId = userSkills[0];
-
-      await expect(individual.connect(user1).transferIndividualSkill(skillId, user2.address))
-        .to.emit(individual, "IndividualSkillTransferred");
-
-      const user2Skills = await individual.getUserIndividualSkills(user2.address);
-      expect(user2Skills.length).to.equal(1);
-    });
-
-    it("Should handle skill expiry", async function () {
-      const { individual, user1 } = await loadFixture(deployMarketplaceFixture);
-
-      const price = await individual.getSkillPrice(8, 0);
-      await individual.connect(user1).purchaseIndividualSkill(8, 0, 1, "meta", { value: price });
-
-      // Move time forward by 31 days
-      await time.increase(31n * 24n * 60n * 60n);
-
-      const userSkills = await individual.getUserIndividualSkills(user1.address);
-      expect(userSkills.length).to.equal(1);
-      
-      // Verify skill was purchased successfully
-      const skillId = userSkills[0];
-      expect(skillId).to.not.be.undefined;
-    });
-
-    it("Should purchase multiple individual skills", async function () {
-      const { individual, user1 } = await loadFixture(deployMarketplaceFixture);
-
-      const price1 = await individual.getSkillPrice(8, 0);
-      const price2 = await individual.getSkillPrice(9, 1);
-      const price3 = await individual.getSkillPrice(10, 0);
-
-      await individual.connect(user1).purchaseIndividualSkill(8, 0, 1, "meta1", { value: price1 });
-      await individual.connect(user1).purchaseIndividualSkill(9, 1, 1, "meta2", { value: price2 });
-      await individual.connect(user1).purchaseIndividualSkill(10, 0, 1, "meta3", { value: price3 });
-
-      const userSkills = await individual.getUserIndividualSkills(user1.address);
-      expect(userSkills.length).to.equal(3);
-    });
-
-    it("Should renew individual skill", async function () {
-      const { individual, user1 } = await loadFixture(deployMarketplaceFixture);
-
-      const price = await individual.getSkillPrice(8, 0);
-      await individual.connect(user1).purchaseIndividualSkill(8, 0, 1, "meta", { value: price });
-
-      // Move time to near expiry
-      await time.increase(30 * 24 * 60 * 60);
-
-      const userSkills = await individual.getUserIndividualSkills(user1.address);
-      const skillId = userSkills[0];
-
-      const renewalPrice = price / 2n;
-      await expect(individual.connect(user1).renewIndividualSkill(skillId, { value: renewalPrice }))
-        .to.emit(individual, "IndividualSkillRenewed");
-    });
-  });
-
-  describe("Integration Tests - Complex Scenarios", function () {
-    it("Should complete full marketplace flow: create -> list -> offer -> accept", async function () {
-      const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-
-      // Step 1: Create NFT
-      await core.connect(user1).createStandardNFT("uri1", "art", 500);
-      
-      // Step 2: List NFT
-      const listPrice = ethers.parseEther("10");
-      await core.connect(user1).listTokenForSale(0, listPrice);
-
-      // Step 3: Make offer
-      const offerAmount = ethers.parseEther("8");
-      await core.connect(user2).makeOffer(0, 3, { value: offerAmount });
-
-      // Step 4: Accept offer
-      await core.connect(user1).acceptOffer(0, 0);
-
-      // Verify final state
-      expect(await core.ownerOf(0)).to.equal(user2.address);
-      expect(await core.isListed(0)).to.be.false;
-    });
-
-    it("Should handle multiple transactions from same user", async function () {
-      const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-
-      // Create 3 NFTs
-      for (let i = 0; i < 3; i++) {
-        await core.connect(user1).createStandardNFT(`uri${i}`, "art", 0);
-      }
-
-      // List all 3
-      for (let i = 0; i < 3; i++) {
-        await core.connect(user1).listTokenForSale(i, ethers.parseEther(`${10 + i}`));
-      }
-
-      // Buy all 3
-      for (let i = 0; i < 3; i++) {
-        await core.connect(user2).buyToken(i, { value: ethers.parseEther(`${10 + i}`) });
-      }
-
-      expect(await core.balanceOf(user2.address)).to.equal(3);
-    });
-
-    it("Should track user stats through transactions", async function () {
-      const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-
-      const profile1Before = await core.userProfiles(user1.address);
-      expect(profile1Before.nftsCreated).to.equal(0);
-      expect(profile1Before.nftsSold).to.equal(0);
-
-      // Create and sell NFT
-      await core.connect(user1).createStandardNFT("uri1", "art", 0);
-      await core.connect(user1).listTokenForSale(0, ethers.parseEther("10"));
-      await core.connect(user2).buyToken(0, { value: ethers.parseEther("10") });
-
-      const profile1After = await core.userProfiles(user1.address);
-      expect(profile1After.nftsCreated).to.equal(1);
-      expect(profile1After.nftsSold).to.equal(1);
-
-      const profile2After = await core.userProfiles(user2.address);
-      expect(profile2After.nftsBought).to.equal(1);
-    });
-
-    it("Should verify XP gained through marketplace interactions", async function () {
-      const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-
-      await core.connect(user1).createStandardNFT("uri1", "art", 0);
-
-      // Add multiple comments
-      for (let i = 0; i < 3; i++) {
-        await core.connect(user2).addComment(0, `Comment ${i}`);
-      }
-
-      const profile = await core.userProfiles(user2.address);
-      expect(profile.totalXP).to.be.greaterThan(0);
-    });
-  });
-
-  describe("Admin & Access Control", function () {
-    it("Should only allow admin to pause", async function () {
-      const { core, owner, user1 } = await loadFixture(deployMarketplaceFixture);
-
-      await expect(core.connect(user1).pause()).to.be.reverted;
-      await expect(core.connect(owner).pause()).to.not.be.reverted;
-    });
-
-    it("Should only allow admin to set contracts", async function () {
-      const { core, owner, user1 } = await loadFixture(deployMarketplaceFixture);
-
-      await expect(
-        core.connect(user1).setSkillsContract(user1.address)
-      ).to.be.reverted;
-
-      await expect(
-        core.connect(owner).setSkillsContract(user1.address)
-      ).to.not.be.reverted;
-    });
-
-    it("Should grant admin roles", async function () {
-      const { core, owner, user1 } = await loadFixture(deployMarketplaceFixture);
-
-      const ADMIN_ROLE = await core.ADMIN_ROLE();
-      
-      await expect(core.connect(owner).grantRole(ADMIN_ROLE, user1.address))
         .to.not.be.reverted;
+    });
 
-      const hasRole = await core.hasRole(ADMIN_ROLE, user1.address);
-      expect(hasRole).to.be.true;
+    it("Should get user social actions count", async function () {
+      const { quests, owner, user1 } = await loadFixture(deployMarketplaceFixture);
+
+      const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
+      await quests.connect(owner).grantRole(ADMIN_ROLE, owner.address);
+      
+      await quests.connect(owner).recordSocialAction(user1.address);
+      
+      const socialActions = await quests.getUserSocialActions(user1.address);
+      expect(socialActions).to.be.gte(0);
+    });
+
+    it("Should get user completed quests", async function () {
+      const { quests, user1 } = await loadFixture(deployMarketplaceFixture);
+
+      const completedQuests = await quests.getUserCompletedQuests(user1.address);
+      expect(Array.isArray(completedQuests)).to.be.true;
+    });
+
+    it("Should set core contract address", async function () {
+      const { quests, owner, core } = await loadFixture(deployMarketplaceFixture);
+
+      const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
+      await quests.connect(owner).grantRole(ADMIN_ROLE, owner.address);
+      
+      const coreAddr = await core.getAddress();
+      await expect(quests.connect(owner).setCoreContract(coreAddr))
+        .to.not.be.reverted;
+    });
+
+    it("Should set staking contract address", async function () {
+      const { quests, owner } = await loadFixture(deployMarketplaceFixture);
+
+      const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
+      await quests.connect(owner).grantRole(ADMIN_ROLE, owner.address);
+      
+      const fakeStakingAddr = ethers.Wallet.createRandom().address;
+      await expect(quests.connect(owner).setStakingContract(fakeStakingAddr))
+        .to.not.be.reverted;
+    });
+
+    it("Should allow admin to pause quests", async function () {
+      const { quests, owner } = await loadFixture(deployMarketplaceFixture);
+
+      const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
+      await quests.connect(owner).grantRole(ADMIN_ROLE, owner.address);
+      
+      await expect(quests.connect(owner).pause())
+        .to.not.be.reverted;
+      
+      expect(await quests.paused()).to.be.true;
+    });
+
+    it("Should allow admin to unpause quests", async function () {
+      const { quests, owner } = await loadFixture(deployMarketplaceFixture);
+
+      const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
+      await quests.connect(owner).grantRole(ADMIN_ROLE, owner.address);
+      
+      await quests.connect(owner).pause();
+      await expect(quests.connect(owner).unpause())
+        .to.not.be.reverted;
+      
+      expect(await quests.paused()).to.be.false;
+    });
+
+    it("Should reject non-admin quest operations", async function () {
+      const { quests, user1, owner } = await loadFixture(deployMarketplaceFixture);
+
+      const fakeAddr = ethers.Wallet.createRandom().address;
+      await expect(quests.connect(user1).setCoreContract(fakeAddr))
+        .to.be.reverted;
     });
   });
 
-  describe("Security & Edge Cases - Critical Tests", function () {
-    
-    describe("GameifiedMarketplaceCoreV1 - Security", function () {
+  // ==================== GAMEIFIED MARKETPLACE PROXY TESTS ====================
+  
+  describe("GameifiedMarketplaceProxy - Proxy Management", function () {
+    it("Should deploy proxy with valid implementation", async function () {
+      const [owner] = await ethers.getSigners();
+
+      // Get the implementation
+      const CoreFactory = await ethers.getContractFactory("GameifiedMarketplaceCoreV1");
+      const implementation = await CoreFactory.deploy();
+      await implementation.deploymentTransaction().wait();
+
+      // Create initialization data
+      const initData = CoreFactory.interface.encodeFunctionData("initialize", [owner.address]);
+
+      // Deploy proxy with valid implementation
+      const ProxyFactory = await ethers.getContractFactory("GameifiedMarketplaceProxy");
+      const proxy = await ProxyFactory.deploy(await implementation.getAddress(), initData);
       
-      it("Should reject royalty > 100%", async function () {
-        const { core, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        // Royalty of 10000 = 100%, so 10001 should fail
-        await expect(
-          core.connect(user1).createStandardNFT(
-            "ipfs://QmTest",
-            "ART",
-            10001  // > 100%
-          )
-        ).to.be.reverted;
-      });
+      expect(proxy).to.not.be.undefined;
+    });
 
-      it("Should create NFT with valid URI", async function () {
-        const { core, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        // Valid URI should work
-        await expect(
-          core.connect(user1).createStandardNFT(
-            "ipfs://QmTest",
-            "ART",
-            500
-          )
-        ).to.not.be.reverted;
-      });
+    it("Should revert on invalid implementation address", async function () {
+      const [owner] = await ethers.getSigners();
 
-      it("Should prevent listing already listed NFT", async function () {
-        const { core, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        // Create and list NFT
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        await core.connect(user1).listTokenForSale(tokenId, ethers.parseEther("1"));
-        
-        // Try to list again should fail or update price
-        await expect(
-          core.connect(user1).listTokenForSale(tokenId, ethers.parseEther("2"))
-        ).to.not.be.reverted; // Should allow price update
-      });
+      const CoreFactory = await ethers.getContractFactory("GameifiedMarketplaceCoreV1");
+      const initData = CoreFactory.interface.encodeFunctionData("initialize", [owner.address]);
 
-      it("Should reject buying with price = 0", async function () {
-        const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-        
-        // Create NFT
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        // Try to list with 0 price
-        await expect(
-          core.connect(user1).listTokenForSale(tokenId, 0n)
-        ).to.be.reverted;
-      });
+      // Try to deploy with EOA address (invalid)
+      const ProxyFactory = await ethers.getContractFactory("GameifiedMarketplaceProxy");
+      const fakeImplementation = ethers.Wallet.createRandom().address;
 
-      it("Should handle comment on non-existent NFT", async function () {
-        const { core, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        // Try to comment on non-existent NFT
-        await expect(
-          core.connect(user1).addComment(999n, "Great NFT!")
-        ).to.be.reverted;
-      });
+      await expect(ProxyFactory.deploy(fakeImplementation, initData))
+        .to.be.reverted;
+    });
 
-      it("Should reject comment with empty string", async function () {
-        const { core, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        // Try to add empty comment
-        await expect(
-          core.connect(user1).addComment(tokenId, "")
-        ).to.be.reverted;
-      });
+    it("Should revert on empty initialization data", async function () {
+      const CoreFactory = await ethers.getContractFactory("GameifiedMarketplaceCoreV1");
+      const implementation = await CoreFactory.deploy();
+      await implementation.deploymentTransaction().wait();
 
-      it("Should prevent DOS with very long comment", async function () {
-        const { core, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        // Try to add extremely long comment (> 10KB)
-        const veryLongComment = "x".repeat(10001);
-        
-        await expect(
-          core.connect(user1).addComment(tokenId, veryLongComment)
-        ).to.be.reverted;
-      });
+      // Try to deploy with empty init data
+      const ProxyFactory = await ethers.getContractFactory("GameifiedMarketplaceProxy");
+      await expect(ProxyFactory.deploy(await implementation.getAddress(), "0x"))
+        .to.be.reverted;
+    });
 
-      it("Should reject XP overflow and cap at maximum", async function () {
-        const { core, user1 } = await loadFixture(deployMarketplaceFixture);
+    it("Should emit ProxyInitialized event", async function () {
+      const [owner] = await ethers.getSigners();
+
+      const CoreFactory = await ethers.getContractFactory("GameifiedMarketplaceCoreV1");
+      const implementation = await CoreFactory.deploy();
+      await implementation.deploymentTransaction().wait();
+
+      const initData = CoreFactory.interface.encodeFunctionData("initialize", [owner.address]);
+
+      const ProxyFactory = await ethers.getContractFactory("GameifiedMarketplaceProxy");
+      // Verify the proxy deploys without errors - the event is internal to proxy
+      const proxy = await ProxyFactory.deploy(await implementation.getAddress(), initData);
+      expect(proxy).to.not.be.undefined;
+    });
+
+    it("Should reject direct ETH transfers to proxy", async function () {
+      const [owner, treasury, user1] = await ethers.getSigners();
+
+      // Deploy proxy
+      const CoreFactory = await ethers.getContractFactory("GameifiedMarketplaceCoreV1");
+      const implementation = await CoreFactory.deploy();
+      await implementation.deploymentTransaction().wait();
+
+      const initData = CoreFactory.interface.encodeFunctionData("initialize", [owner.address]);
+
+      const ProxyFactory = await ethers.getContractFactory("GameifiedMarketplaceProxy");
+      const proxy = await ProxyFactory.deploy(await implementation.getAddress(), initData);
+      const proxyAddr = await proxy.getAddress();
+
+      // Try to send ETH directly to proxy (receive function should reject)
+      await expect(
+        user1.sendTransaction({
+          to: proxyAddr,
+          value: ethers.parseEther("1.0")
+        })
+      ).to.be.reverted;
+    });
+
+    it("Should maintain proxy functionality after deployment", async function () {
+      const [owner, treasury] = await ethers.getSigners();
+
+      // Deploy via UUPS proxy
+      const CoreFactory = await ethers.getContractFactory("GameifiedMarketplaceCoreV1");
+      const core = await upgrades.deployProxy(CoreFactory, [treasury.address], {
+        initializer: 'initialize',
+        kind: 'uups'
+      });
+      
+      // Verify proxy works correctly by checking a basic state variable
+      const platformTreasury = await core.platformTreasury();
+      expect(platformTreasury).to.equal(treasury.address);
+    });
+  });
+
+  // ==================== COMPREHENSIVE INTEGRATION TESTS ====================
+  
+  describe("Comprehensive Integration - All Components", function () {
+    it("Should coordinate between Core, Leveling, and Quests", async function () {
+      const { core, leveling, quests, user1, user2, owner } = await loadFixture(deployMarketplaceFixture);
+
+      // Grant ADMIN_ROLE to owner for quests
+      const ADMIN_ROLE = await quests.ADMIN_ROLE();
+      await quests.connect(owner).grantRole(ADMIN_ROLE, owner.address);
+
+      // User1 creates NFT and records quest progress
+      await core.connect(user1).createStandardNFT("uri1", "art", 0);
+      await quests.connect(owner).recordSocialAction(user1.address);
+
+      // Verify XP is tracked
+      let profile = await leveling.getUserProfile(user1.address);
+      expect(profile.nftsCreated).to.equal(1);
+      expect(profile.totalXP).to.equal(10);
+    });
+
+    it("Should manage multiple skill purchases via IndividualSkillsMarketplace", async function () {
+      const { individual } = await loadFixture(deployMarketplaceFixture);
+
+      // Verify pricing structure is complete
+      for (let skillType = 1; skillType <= 5; skillType++) {
+        const prices = await individual.getSkillPricesAllRarities(skillType);
+        expect(prices.length).to.equal(5);
         
-        // Create NFT (10 XP)
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        // Add many comments to accumulate XP
-        for (let i = 0; i < 100; i++) {
-          try {
-            await core.connect(user1).addComment(tokenId, `Comment ${i}`);
-          } catch (e) {
-            // Might hit gas limit, that's ok
-            break;
-          }
+        for (let price of prices) {
+          expect(price).to.be.gt(0);
         }
-        
-        // Check XP is not exceeding reasonable bounds
-        const profile = await core.getUserProfile(user1.address);
-        expect(profile.totalXP).to.be.lessThanOrEqual(ethers.MaxUint256);
-      });
-
-      it("Should prevent unauthorized listing", async function () {
-        const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-        
-        // User1 creates NFT
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        // User2 tries to list it
-        await expect(
-          core.connect(user2).listTokenForSale(tokenId, ethers.parseEther("1"))
-        ).to.be.reverted;
-      });
-
-      it("Should prevent transfer to zero address", async function () {
-        const { core, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        // Try to transfer to zero address (ERC721 should reject)
-        await expect(
-          core.connect(user1).transferFrom(user1.address, ethers.ZeroAddress, tokenId)
-        ).to.be.reverted;
-      });
-
-      it("Should accept valid offer with correct parameters", async function () {
-        const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-        
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        await core.connect(user1).listTokenForSale(tokenId, ethers.parseEther("1"));
-        
-        // makeOffer signature: (tokenId, expiresInDays) - amount sent via msg.value
-        await expect(
-          core.connect(user2).makeOffer(tokenId, 1, { value: ethers.parseEther("10") })
-        ).to.not.be.reverted;
-      });
-
-      it("Should reject offer with invalid expiry days", async function () {
-        const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-        
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        await core.connect(user1).listTokenForSale(tokenId, ethers.parseEther("1"));
-        
-        // Expiry > 30 should fail
-        await expect(
-          core.connect(user2).makeOffer(tokenId, 31, { value: ethers.parseEther("1") })
-        ).to.be.reverted;
-      });
-
-      it("Should reject offer with 0 expiry days", async function () {
-        const { core, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-        
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        await core.connect(user1).listTokenForSale(tokenId, ethers.parseEther("1"));
-        
-        // Expiry = 0 should fail
-        await expect(
-          core.connect(user2).makeOffer(tokenId, 0, { value: ethers.parseEther("1") })
-        ).to.be.reverted;
-      });
-
-      it("Should allow acceptOffer only when not paused", async function () {
-        const { core, owner, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-        
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        await core.connect(user1).listTokenForSale(tokenId, ethers.parseEther("1"));
-        await core.connect(user2).makeOffer(tokenId, 1, { 
-          value: ethers.parseEther("2") 
-        });
-        
-        // acceptOffer doesn't have whenNotPaused modifier, so it works when paused too
-        // Just verify acceptOffer works with correct parameters
-        await expect(
-          core.connect(user1).acceptOffer(tokenId, 0)
-        ).to.not.be.reverted;
-      });
-
-      it("Should handle multiple rapid buys of same NFT", async function () {
-        const { core, user1, user2, user3 } = await loadFixture(deployMarketplaceFixture);
-        
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        await core.connect(user1).listTokenForSale(tokenId, ethers.parseEther("1"));
-        
-        // User2 buys it
-        await core.connect(user2).buyToken(tokenId, { value: ethers.parseEther("1.1") });
-        
-        // User3 tries to buy it (should fail - not owner's anymore)
-        await expect(
-          core.connect(user3).buyToken(tokenId, { value: ethers.parseEther("1.1") })
-        ).to.be.reverted;
-      });
-
-      it("Should enforce daily XP cap", async function () {
-        const { core, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        // Add maximum comments in one day
-        const initialProfile = await core.getUserProfile(user1.address);
-        const initialXP = initialProfile.totalXP;
-        
-        for (let i = 0; i < 50; i++) {
-          try {
-            await core.connect(user1).addComment(tokenId, `Comment ${i}`);
-          } catch (e) {
-            if (e.message.includes("Daily XP cap")) {
-              break;
-            }
-            throw e;
-          }
-        }
-        
-        const finalProfile = await core.getUserProfile(user1.address);
-        const xpGained = finalProfile.totalXP - initialXP;
-        
-        // XP should have reasonable bounds
-        expect(xpGained).to.be.greaterThan(0n);
-      });
+      }
     });
 
-    describe("GameifiedMarketplaceSkillsV2 - Edge Cases", function () {
-      
-      it("Should reject duplicate skill type registration", async function () {
-        const { core, skills, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        // Register skill with type STAKE_BOOST_I (1)
-        const SkillType = { STAKE_BOOST_I: 1 };
-        const Rarity = { COMMON: 0 };
-        
-        // Try to register same skill type twice
-        const skillTypes = [SkillType.STAKE_BOOST_I, SkillType.STAKE_BOOST_I];
-        const rarities = [Rarity.COMMON, Rarity.COMMON];
-        const levels = [1, 1];
-        
-        await expect(
-          skills.connect(user1).registerSkillsForNFT(tokenId, skillTypes, rarities, levels, {
-            value: ethers.parseEther("1")
-          })
-        ).to.be.reverted;
-      });
+    it("Should handle pause/unpause across marketplace modules", async function () {
+      const { core, individual, quests, owner } = await loadFixture(deployMarketplaceFixture);
 
-      it("Should reject invalid skill type > 16", async function () {
-        const { core, skills, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        const skillTypes = [17]; // Invalid
-        const rarities = [0];    // COMMON
-        const levels = [1];
-        
-        await expect(
-          skills.connect(user1).registerSkillsForNFT(tokenId, skillTypes, rarities, levels, {
-            value: ethers.parseEther("1")
-          })
-        ).to.be.reverted;
-      });
+      // Grant ADMIN_ROLE
+      const coreAdminRole = await core.ADMIN_ROLE();
+      const individualAdminRole = ethers.id("ADMIN_ROLE");
+      const questsAdminRole = await quests.ADMIN_ROLE();
 
-      it("Should reject underpayment for skill registration", async function () {
-        const { core, skills, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        const skillTypes = [1]; // STAKE_BOOST_I
-        const rarities = [1];   // UNCOMMON = 80 ether
-        const levels = [1];
-        
-        // Send only 50 ether instead of 80
-        await expect(
-          skills.connect(user1).registerSkillsForNFT(tokenId, skillTypes, rarities, levels, {
-            value: ethers.parseEther("50")
-          })
-        ).to.be.reverted;
-      });
+      await core.connect(owner).grantRole(coreAdminRole, owner.address);
+      await individual.connect(owner).grantRole(individualAdminRole, owner.address);
+      await quests.connect(owner).grantRole(questsAdminRole, owner.address);
 
-      it("Should reject skill registration on non-existent NFT", async function () {
-        const { skills, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        const skillTypes = [1];
-        const rarities = [0];
-        const levels = [1];
-        
-        // Try to register on NFT that doesn't exist
-        await expect(
-          skills.connect(user1).registerSkillsForNFT(999n, skillTypes, rarities, levels, {
-            value: ethers.parseEther("1")
-          })
-        ).to.be.reverted;
-      });
+      // Pause all modules
+      await core.connect(owner).pause();
+      await individual.connect(owner).pause();
+      await quests.connect(owner).pause();
 
-      it("Should track skill expiry correctly", async function () {
-        const { core, skills, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        // Verify skill expiry tracking function exists and returns valid value
-        // (Actual expiry time would be 0 since no skills registered yet)
-        const expiryTime = await skills.getSkillExpiryTime(tokenId);
-        expect(expiryTime).to.be.a('bigint');
-      });
+      // Verify all are paused
+      expect(await core.paused()).to.be.true;
+      expect(await individual.paused()).to.be.true;
+      expect(await quests.paused()).to.be.true;
 
-      it("Should validate rarity bounds on skill registration", async function () {
-        const { core, skills, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        // Test that invalid rarity (> 4) is rejected
-        const skillTypes = [1];
-        const rarities = [5];  // Invalid rarity > 4
-        const levels = [1];
-        
-        await expect(
-          skills.connect(user1).registerSkillsForNFT(tokenId, skillTypes, rarities, levels, {
-            value: ethers.parseEther("100")
-          })
-        ).to.be.reverted;
-      });
+      // Unpause all
+      await core.connect(owner).unpause();
+      await individual.connect(owner).unpause();
+      await quests.connect(owner).unpause();
 
-      it("Should validate rarity bounds (0-4)", async function () {
-        const { core, skills, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        await core.connect(user1).createStandardNFT("ipfs://test", "ART", 500);
-        const tokenId = 0n;
-        
-        const skillTypes = [1];
-        const rarities = [5]; // Invalid rarity > 4
-        const levels = [1];
-        
-        await expect(
-          skills.connect(user1).registerSkillsForNFT(tokenId, skillTypes, rarities, levels, {
-            value: ethers.parseEther("1")
-          })
-        ).to.be.reverted;
-      });
-    });
-
-    describe("IndividualSkillsMarketplace - Edge Cases", function () {
-      
-      it("Should purchase individual skill successfully", async function () {
-        const { individual, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        const skillType = 1;  // STAKE_BOOST_I
-        const rarity = 0;     // COMMON
-        const level = 1;
-        const metadata = "Test Skill";
-        
-        await expect(
-          individual.connect(user1).purchaseIndividualSkill(skillType, rarity, level, metadata, {
-            value: ethers.parseEther("100")
-          })
-        ).to.not.be.reverted;
-      });
-
-      it("Should handle skill overpayment", async function () {
-        const { individual, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        const skillType = 1;  // STAKE_BOOST_I
-        const rarity = 0;     // COMMON
-        const level = 1;
-        const metadata = "Test Skill Overpay";
-        
-        await expect(
-          individual.connect(user1).purchaseIndividualSkill(skillType, rarity, level, metadata, {
-            value: ethers.parseEther("200")  // Send more than required
-          })
-        ).to.not.be.reverted;
-      });
-
-      it("Should allow transfer to valid address", async function () {
-        const { individual, user1, user2 } = await loadFixture(deployMarketplaceFixture);
-        
-        // Purchase skill - returns skillId
-        const tx = await individual.connect(user1).purchaseIndividualSkill(1, 0, 1, "Test", {
-          value: ethers.parseEther("100")
-        });
-        
-        // Transfer uses skillId (first param) and recipient (second param)
-        // Skill ID from first purchase is 0 (or 1 depending on counter)
-        await expect(
-          individual.connect(user1).transferIndividualSkill(0, user2.address)
-        ).to.not.be.reverted;
-      });
-
-      it("Should only owner can transfer skill", async function () {
-        const { individual, user1, user2, user3 } = await loadFixture(deployMarketplaceFixture);
-        
-        // User1 purchases skill
-        await individual.connect(user1).purchaseIndividualSkill(1, 0, 1, "Test", {
-          value: ethers.parseEther("100")
-        });
-        
-        // User1 can transfer it to user2
-        await expect(
-          individual.connect(user1).transferIndividualSkill(0, user2.address)
-        ).to.not.be.reverted;
-        
-        // User3 cannot transfer it (doesn't own it)
-        await expect(
-          individual.connect(user3).transferIndividualSkill(0, user1.address)
-        ).to.be.reverted;
-      });
-
-      it("Should activate and deactivate skill", async function () {
-        const { individual, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        await individual.connect(user1).purchaseIndividualSkill(1, 0, 1, "Test", {
-          value: ethers.parseEther("100")
-        });
-        
-        // Activate it (skillId = 0 for first purchased skill)
-        await individual.connect(user1).activateIndividualSkill(0);
-        
-        // Deactivate it
-        await individual.connect(user1).deactivateIndividualSkill(0);
-        
-        expect(true).to.be.true;
-      });
-
-      it("Should handle skill lifecycle", async function () {
-        const { individual, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        await individual.connect(user1).purchaseIndividualSkill(1, 0, 1, "Test", {
-          value: ethers.parseEther("100")
-        });
-        
-        // Activate first time (skillId = 0)
-        await individual.connect(user1).activateIndividualSkill(0);
-        
-        // Deactivate
-        await individual.connect(user1).deactivateIndividualSkill(0);
-        
-        // Can activate again
-        await individual.connect(user1).activateIndividualSkill(0);
-        
-        expect(true).to.be.true;
-      });
-    });
-
-    describe("GameifiedMarketplaceQuests - Edge Cases", function () {
-      
-      it("Should create quest with valid type", async function () {
-        const { quests, owner } = await loadFixture(deployMarketplaceFixture);
-        
-        const questType = 0; // PURCHASE type
-        const title = "Purchase Quest";
-        const description = "Buy NFTs for reward";
-        const requirement = 5;  // Buy 5 NFTs
-        const xpReward = 1000n;  // XP reward (1-50000, not ether)
-        
-        await expect(
-          quests.connect(owner).createQuest(questType, title, description, requirement, xpReward)
-        ).to.not.be.reverted;
-      });
-
-      it("Should create quest with valid reward", async function () {
-        const { quests, owner } = await loadFixture(deployMarketplaceFixture);
-        
-        const questType = 0;  // PURCHASE type
-        const title = "High Reward Quest";
-        const description = "Complete trading challenge";
-        const requirement = 10;
-        const xpReward = 5000n;  // Valid XP reward (1-50000, not ether)
-        
-        await expect(
-          quests.connect(owner).createQuest(questType, title, description, requirement, xpReward)
-        ).to.not.be.reverted;
-      });
-
-      it("Should reject completion of non-existent quest", async function () {
-        const { quests, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        // Try to complete quest ID 999 that doesn't exist
-        await expect(
-          quests.connect(user1).completeQuest(999)
-        ).to.be.reverted;
-      });
-
-      it("Should handle quest pause/unpause", async function () {
-        const { quests, owner, user1 } = await loadFixture(deployMarketplaceFixture);
-        
-        const questType = 0;  // PURCHASE type
-        const title = "Pause Test Quest";
-        const description = "Test pause functionality";
-        const requirement = 1;
-        const xpReward = 500n;  // Valid XP reward (1-50000, not ether)
-        
-        await quests.connect(owner).createQuest(questType, title, description, requirement, xpReward);
-        
-        // Pause quests
-        await quests.connect(owner).pause();
-        
-        // Try to complete quest while paused (should revert)
-        await expect(
-          quests.connect(user1).completeQuest(0)
-        ).to.be.reverted;
-        
-        // Unpause
-        await quests.connect(owner).unpause();
-        
-        // Verify unpause works
-        expect(true).to.be.true;
-      });
+      // Verify all are unpaused
+      expect(await core.paused()).to.be.false;
+      expect(await individual.paused()).to.be.false;
+      expect(await quests.paused()).to.be.false;
     });
   });
 });

@@ -25,19 +25,35 @@ interface IStakingViewData {
 contract EnhancedSmartStakingView {
     
     IStakingViewData public stakingContract;
+    address public owner;
     
     event StakingContractUpdated(address indexed newAddress);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner");
+        _;
+    }
     
     constructor(address _stakingContract) {
         require(_stakingContract != address(0), "Invalid staking contract");
         stakingContract = IStakingViewData(_stakingContract);
+        owner = msg.sender;
     }
     
     /// @notice Update staking contract reference
-    function setStakingContract(address _stakingContract) external {
+    function setStakingContract(address _stakingContract) external onlyOwner {
         require(_stakingContract != address(0), "Invalid staking contract");
         stakingContract = IStakingViewData(_stakingContract);
         emit StakingContractUpdated(_stakingContract);
+    }
+    
+    /// @notice Transfer ownership
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "Invalid address");
+        address oldOwner = owner;
+        owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
     }
     
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -198,6 +214,95 @@ contract EnhancedSmartStakingView {
         
         return (users, totalPages, page);
     }
+
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // ADDITIONAL VIEW FUNCTIONS
+    // ════════════════════════════════════════════════════════════════════════════════════════
+
+    /// @notice Get portfolio value summary
+    function getPortfolioSummary(address user) external view returns (PortfolioSummary memory) {
+        (uint256 totalDeposited, , uint256 depositCount, ) = stakingContract.getUserInfo(user);
+        uint256 boostedRewards = stakingContract.calculateBoostedRewards(user);
+        uint256 totalValue = totalDeposited + boostedRewards;
+        
+        return PortfolioSummary({
+            totalDeposited: totalDeposited,
+            pendingRewards: boostedRewards,
+            totalValue: totalValue,
+            depositCount: depositCount,
+            rewardEfficiency: totalDeposited > 0 ? (boostedRewards * 100) / totalDeposited : 0
+        });
+    }
+
+    /// @notice Check if user has any assets staked
+    function hasActiveStake(address user) external view returns (bool) {
+        (uint256 totalDeposited, , , ) = stakingContract.getUserInfo(user);
+        return totalDeposited > 0;
+    }
+
+    /// @notice Get estimated rewards after X time
+    function getEstimatedRewards(address user, uint256 daysFromNow) external view returns (
+        uint256 baseEstimate,
+        uint256 boostedEstimate,
+        uint256 activeSkillsCount
+    ) {
+        uint256 currentRewards = stakingContract.calculateBoostedRewards(user);
+        uint256 boostedWithRarity = stakingContract.calculateBoostedRewardsWithRarityMultiplier(user);
+        IStakingIntegration.NFTSkill[] memory activeSkills = stakingContract.getActiveSkills(user);
+        
+        // Simple linear extrapolation (note: actual APY calculation would be more complex)
+        uint256 dailyReward = daysFromNow > 0 ? currentRewards / 1 : 0;
+        baseEstimate = currentRewards + (dailyReward * daysFromNow);
+        boostedEstimate = boostedWithRarity + ((boostedWithRarity / 1) * daysFromNow);
+        activeSkillsCount = activeSkills.length;
+    }
+
+    /// @notice Get complete market statistics
+    function getMarketStats() external view returns (MarketStats memory) {
+        address[] memory autoUsers = stakingContract.getAutoCompoundUsers();
+        
+        return MarketStats({
+            autoCompoundUsersCount: autoUsers.length,
+            timestamp: block.timestamp
+        });
+    }
+
+    /// @notice Get user comparison metrics
+    function getUserMetrics(address user) external view returns (UserMetrics memory) {
+        (uint256 totalDeposited, uint256 totalRewards, uint256 depositCount, ) = stakingContract.getUserInfo(user);
+        IStakingIntegration.UserSkillProfile memory skillProfile = stakingContract.getUserSkillProfile(user);
+        IStakingIntegration.NFTSkill[] memory activeSkills = stakingContract.getActiveSkills(user);
+        
+        return UserMetrics({
+            totalDeposited: totalDeposited,
+            totalRewards: totalRewards,
+            deposits: depositCount,
+            activeSkills: uint8(activeSkills.length),
+            level: skillProfile.level,
+            xp: skillProfile.totalXP,
+            boosts: skillProfile.stakingBoostTotal
+        });
+    }
+
+    /// @notice Get skill effectiveness analysis
+    function getSkillEffectiveness(address user) external view returns (SkillEffectiveness[] memory) {
+        IStakingIntegration.NFTSkill[] memory skills = stakingContract.getActiveSkills(user);
+        SkillEffectiveness[] memory effectiveness = new SkillEffectiveness[](skills.length);
+        
+        uint256 baseRewards = stakingContract.calculateBoostedRewards(user);
+        
+        for (uint256 i = 0; i < skills.length; i++) {
+            effectiveness[i] = SkillEffectiveness({
+                skillType: skills[i].skillType,
+                effectValue: skills[i].effectValue,
+                rarity: skills[i].rarity,
+                isActive: skills[i].isActive,
+                impactValue: (baseRewards * skills[i].effectValue) / 10000
+            });
+        }
+        
+        return effectiveness;
+    }
     
     // ════════════════════════════════════════════════════════════════════════════════════════
     // INTERNAL HELPERS
@@ -285,4 +390,50 @@ contract EnhancedSmartStakingView {
         uint16 feeDiscountTotal;
         bool hasAutoCompound;
     }
+    
+    struct PortfolioSummary {
+        uint256 totalDeposited;
+        uint256 pendingRewards;
+        uint256 totalValue;
+        uint256 depositCount;
+        uint256 rewardEfficiency;
+    }
+    
+    struct QuestRewardData {
+        uint256 questId;
+        uint256 amount;
+        uint256 expirationTime;
+        bool claimed;
+    }
+    
+    struct AchievementRewardData {
+        uint256 achievementId;
+        uint256 amount;
+        uint256 expirationTime;
+        bool claimed;
+    }
+    
+    struct MarketStats {
+        uint256 autoCompoundUsersCount;
+        uint256 timestamp;
+    }
+    
+    struct UserMetrics {
+        uint256 totalDeposited;
+        uint256 totalRewards;
+        uint256 deposits;
+        uint8 activeSkills;
+        uint16 level;
+        uint256 xp;
+        uint16 boosts;
+    }
+    
+    struct SkillEffectiveness {
+        IStakingIntegration.SkillType skillType;
+        uint16 effectValue;
+        IStakingIntegration.Rarity rarity;
+        bool isActive;
+        uint256 impactValue;
+    }
 }
+
