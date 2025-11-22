@@ -67,7 +67,7 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     // STATE VARIABLES - MODULE REFERENCES
     // ════════════════════════════════════════════════════════════════════════════════════════
     
-    address public marketplaceContract;
+    mapping(address => bool) public authorizedMarketplaces;
     IEnhancedSmartStakingRewards public rewardsModule;
     IEnhancedSmartStakingSkills public skillsModule;
     IEnhancedSmartStakingGamification public gamificationModule;
@@ -85,6 +85,7 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
     event CommissionPaid(address indexed receiver, uint256 amount, uint256 timestamp);
     event ModuleUpdated(string indexed moduleName, address indexed oldModule, address indexed newModule);
+    event MarketplaceAuthorizationUpdated(address indexed marketplace, bool isAuthorized);
     
     // ════════════════════════════════════════════════════════════════════════════════════════
     // ERRORS
@@ -127,7 +128,7 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     }
     
     modifier onlyMarketplace() {
-        if (msg.sender != marketplaceContract) revert OnlyMarketplace();
+        if (!authorizedMarketplaces[msg.sender]) revert OnlyMarketplace();
         _;
     }
     
@@ -453,6 +454,30 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     // - getNextUnlockTime() - Use EnhancedSmartStakingView.getNextUnlockTime()
     // - getStakeDistribution() - Use EnhancedSmartStakingView.getStakeDistribution()
     
+    /// @notice Get user deposit array metadata for View contract
+    /// @dev Required by EnhancedSmartStakingView to access deposit data
+    function getUser(address user) external view returns (address[] memory, uint256, uint64) {
+        User storage userData = users[user];
+        // Return empty array, totalDeposited, lastWithdrawTime
+        address[] memory emptyArray = new address[](0);
+        return (emptyArray, uint256(userData.totalDeposited), userData.lastWithdrawTime);
+    }
+    
+    /// @notice Get specific deposit details for View contract
+    /// @dev Required by EnhancedSmartStakingView to access individual deposit data
+    function getUserDeposit(address user, uint256 index) external view returns (uint128, uint64, uint64, uint64) {
+        User storage userData = users[user];
+        require(index < userData.deposits.length, "Invalid deposit index");
+        Deposit storage dep = userData.deposits[index];
+        return (dep.amount, dep.timestamp, dep.lastClaimTime, dep.lockupDuration);
+    }
+    
+    /// @notice Get contract ETH balance - Required by View contract
+    /// @dev Allows View contract to access contract balance for health calculations
+    function getContractBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+    
     function getActiveSkills(address user) external view override returns (NFTSkill[] memory) {
         if (address(skillsModule) == address(0)) {
             return new NFTSkill[](0);
@@ -643,7 +668,14 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     
     function setMarketplaceAddress(address _marketplace) external override onlyOwner {
         if (_marketplace == address(0)) revert InvalidAddress();
-        marketplaceContract = _marketplace;
+        authorizedMarketplaces[_marketplace] = true;
+        emit MarketplaceAuthorizationUpdated(_marketplace, true);
+    }
+
+    function setMarketplaceAuthorization(address _marketplace, bool _isAuthorized) external onlyOwner {
+        if (_marketplace == address(0)) revert InvalidAddress();
+        authorizedMarketplaces[_marketplace] = _isAuthorized;
+        emit MarketplaceAuthorizationUpdated(_marketplace, _isAuthorized);
     }
     
     function setStakingAddress(address) external pure override {

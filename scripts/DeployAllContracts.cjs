@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { ethers, network, run } = require("hardhat");
+const { ethers, network, run, upgrades } = require("hardhat");
 const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
@@ -76,11 +76,17 @@ async function main() {
     if (!feeData.maxFeePerGas || !feeData.maxPriorityFeePerGas) {
         throw new Error("❌ Invalid gas fee data from RPC. maxFeePerGas or maxPriorityFeePerGas is null. Please check your network/RPC or set a fallback gas price.");
     }
-    const maxFeePerGas = feeData.maxFeePerGas;
-    const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
-    console.log(`   Using: ${ethers.formatUnits(maxFeePerGas, "gwei")} Gwei (no buffer - better for Polygon)\n`);
+    // Optimización: Reducir 15% para Polygon (menos congestionada)
+    const maxFeePerGas = (feeData.maxFeePerGas * 85n) / 100n;
+    const maxPriorityFeePerGas = (feeData.maxPriorityFeePerGas * 85n) / 100n;
+    console.log(`   Base: ${ethers.formatUnits(feeData.maxFeePerGas, "gwei")} Gwei`);
+    console.log(`   Optimized: ${ethers.formatUnits(maxFeePerGas, "gwei")} Gwei (-15% for Polygon)\n`);
 
-    const gasOptions = { maxFeePerGas, maxPriorityFeePerGas };
+    const gasOptions = { 
+        maxFeePerGas, 
+        maxPriorityFeePerGas,
+        gasLimit: 8000000 // Límite optimizado para Polygon
+    };
     const deploymentData = {
         network: network.name,
         chainId: (await ethers.provider.getNetwork()).chainId.toString(),
@@ -109,11 +115,11 @@ async function main() {
             rewardsTx = rewards.deploymentTransaction();
             console.log(`   📡 TX Hash: ${rewardsTx ? rewardsTx.hash : 'pending'}`);
             console.log(`   🔗 View: https://polygonscan.com/tx/${rewardsTx?.hash || 'pending'}`);
-            console.log(`   ⏳ Waiting for confirmations (2-5 minutes)...`);
+            console.log(`   ⏳ Waiting for 1 confirmation (optimized)...`);
             
             const deploymentPromise = rewards.waitForDeployment();
             const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Deployment timeout after 5 minutes')), 300000)
+                setTimeout(() => reject(new Error('Deployment timeout after 3 minutes')), 180000)
             );
             
             await Promise.race([deploymentPromise, timeoutPromise]);
@@ -144,7 +150,7 @@ async function main() {
             
             const deploymentPromise = stakingSkills.waitForDeployment();
             const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Timeout after 5 minutes')), 300000)
+                setTimeout(() => reject(new Error('Timeout after 3 minutes')), 180000)
             );
             await Promise.race([deploymentPromise, timeoutPromise]);
             const skillsAddress = await stakingSkills.getAddress();
@@ -170,7 +176,7 @@ async function main() {
             
             const deploymentPromise = gamification.waitForDeployment();
             const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Timeout after 5 minutes')), 300000)
+                setTimeout(() => reject(new Error('Timeout after 3 minutes')), 180000)
             );
             await Promise.race([deploymentPromise, timeoutPromise]);
             const gamificationAddress = await gamification.getAddress();
@@ -197,7 +203,7 @@ async function main() {
             
             const deploymentPromise = stakingCore.waitForDeployment();
             const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Timeout after 5 minutes')), 300000)
+                setTimeout(() => reject(new Error('Timeout after 3 minutes')), 180000)
             );
             await Promise.race([deploymentPromise, timeoutPromise]);
             const coreAddress = await stakingCore.getAddress();
@@ -224,7 +230,7 @@ async function main() {
             
             const deploymentPromise = viewContract.waitForDeployment();
             const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Timeout after 5 minutes')), 300000)
+                setTimeout(() => reject(new Error('Timeout after 3 minutes')), 180000)
             );
             await Promise.race([deploymentPromise, timeoutPromise]);
             const viewAddress = await viewContract.getAddress();
@@ -236,7 +242,7 @@ async function main() {
             throw error;
         }
 
-        // 1.6 Configure Core -> Module References
+        // 1.6 Configure Core -> Module References (OPTIMIZED: Batch transactions)
         console.log("🔗 1.6 Configuring Core -> Module References...");
         
         const rewardsAddress = deploymentData.staking.rewards;
@@ -250,31 +256,31 @@ async function main() {
         const GamificationModuleInstance = GamificationFactoryForAttach.attach(gamificationAddress);
         
         try {
-            let tx = await stakingCore.setRewardsModule(rewardsAddress, gasOptions);
-            await tx.wait();
+            // OPTIMIZACIÓN: Enviar todas las TX sin esperar, luego esperar todas juntas
+            console.log("   📤 Sending batch transactions...");
+            const tx1 = await stakingCore.setRewardsModule(rewardsAddress, gasOptions);
+            const tx2 = await stakingCore.setSkillsModule(skillsAddress, gasOptions);
+            const tx3 = await stakingCore.setGamificationModule(gamificationAddress, gasOptions);
+            
+            console.log("   ⏳ Waiting for all confirmations...");
+            await Promise.all([tx1.wait(1), tx2.wait(1), tx3.wait(1)]);
             console.log("   ✅ Core -> Rewards Module");
-
-            tx = await stakingCore.setSkillsModule(skillsAddress, gasOptions);
-            await tx.wait();
             console.log("   ✅ Core -> Skills Module");
-
-            tx = await stakingCore.setGamificationModule(gamificationAddress, gasOptions);
-            await tx.wait();
             console.log("   ✅ Core -> Gamification Module\n");
         } catch (error) {
             console.error(`❌ Error configuring Core references: ${error.message}`);
             throw error;
         }
 
-        // 1.7 Configure Module -> Core References
+        // 1.7 Configure Module -> Core References (OPTIMIZED: Batch)
         console.log("🔗 1.7 Configuring Module -> Core References...");
         try {
-            let tx = await SkillsModuleInstance.setCoreStakingContract(coreAddress, gasOptions);
-            await tx.wait();
+            console.log("   📤 Sending batch transactions...");
+            const tx1 = await SkillsModuleInstance.setCoreStakingContract(coreAddress, gasOptions);
+            const tx2 = await GamificationModuleInstance.setCoreStakingContract(coreAddress, gasOptions);
+            
+            await Promise.all([tx1.wait(1), tx2.wait(1)]);
             console.log("   ✅ Skills Module -> Core");
-
-            tx = await GamificationModuleInstance.setCoreStakingContract(coreAddress, gasOptions);
-            await tx.wait();
             console.log("   ✅ Gamification Module -> Core\n");
         } catch (error) {
             console.error(`❌ Error configuring Module references: ${error.message}`);
@@ -457,36 +463,26 @@ async function main() {
         const levelingProxyContract = LevelingFactory.attach(deploymentData.marketplace.leveling);
         const referralProxyContract = ReferralFactory.attach(deploymentData.marketplace.referral);
 
-        // 3.1 Configure Marketplace -> Module References
+        // 3.1 Configure Marketplace -> Module References (OPTIMIZED: Batch)
         console.log("🔗 3.1 Configuring Marketplace -> Module References...");
         try {
             // Grant MARKETPLACE_ROLE to Core Proxy on Leveling & Referral
             const MARKETPLACE_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MARKETPLACE_ROLE"));
             
-            let tx = await levelingProxyContract.grantRole(MARKETPLACE_ROLE, proxyAddress, gasOptions);
-            await tx.wait();
+            console.log("   📤 Sending batch transactions...");
+            const tx1 = await levelingProxyContract.grantRole(MARKETPLACE_ROLE, proxyAddress, gasOptions);
+            const tx2 = await referralProxyContract.grantRole(MARKETPLACE_ROLE, proxyAddress, gasOptions);
+            const tx3 = await coreProxy.setLevelingSystem(deploymentData.marketplace.leveling, gasOptions);
+            const tx4 = await coreProxy.setReferralSystem(deploymentData.marketplace.referral, gasOptions);
+            const tx5 = await coreProxy.setSkillsContract(skillsNFTAddress, gasOptions);
+            const tx6 = await questsContract.setLevelingContract(deploymentData.marketplace.leveling, gasOptions);
+
+            await Promise.all([tx1.wait(1), tx2.wait(1), tx3.wait(1), tx4.wait(1), tx5.wait(1), tx6.wait(1)]);
             console.log("   ✅ Leveling -> Granted MARKETPLACE_ROLE to Proxy");
-
-            tx = await referralProxyContract.grantRole(MARKETPLACE_ROLE, proxyAddress, gasOptions);
-            await tx.wait();
             console.log("   ✅ Referral -> Granted MARKETPLACE_ROLE to Proxy");
-
-            // Set references in Core Proxy
-            tx = await coreProxy.setLevelingSystem(deploymentData.marketplace.leveling, gasOptions);
-            await tx.wait();
             console.log("   ✅ Core Proxy -> Leveling System");
-
-            tx = await coreProxy.setReferralSystem(deploymentData.marketplace.referral, gasOptions);
-            await tx.wait();
             console.log("   ✅ Core Proxy -> Referral System");
-
-            tx = await coreProxy.setSkillsContract(skillsNFTAddress, gasOptions);
-            await tx.wait();
             console.log("   ✅ Core Proxy -> Skills NFT");
-
-            // Configure Quests Contract
-            tx = await questsContract.setLevelingContract(deploymentData.marketplace.leveling, gasOptions);
-            await tx.wait();
             console.log("   ✅ Quests -> Leveling System");
 
             // Quests contract is standalone, Core doesn't need to know about it directly
@@ -498,38 +494,46 @@ async function main() {
             throw error;
         }
 
-        // 3.2 Configure Staking -> Marketplace References
+        // 3.2 Configure Staking -> Marketplace References (OPTIMIZED: Batch)
         console.log("🔗 3.2 Configuring Staking -> Marketplace References...");
         try {
-            let tx = await stakingCore.setMarketplaceAddress(proxyAddress, gasOptions);
-            await tx.wait();
-            console.log("   ✅ Staking Core -> Marketplace Proxy");
+            console.log("   📤 Sending batch transactions...");
+            // Authorize Marketplace Proxy in Staking Core
+            const tx1 = await stakingCore.setMarketplaceAuthorization(proxyAddress, true, gasOptions);
+            
+            // Also authorize individual modules if they need to notify Staking directly
+            const tx1b = await stakingCore.setMarketplaceAuthorization(skillsNFTAddress, true, gasOptions);
+            const tx1c = await stakingCore.setMarketplaceAuthorization(individualSkillsAddress, true, gasOptions);
+            const tx1d = await stakingCore.setMarketplaceAuthorization(questsAddress, true, gasOptions);
 
-            tx = await SkillsModuleInstance.setMarketplaceContract(proxyAddress, gasOptions);
-            await tx.wait();
-            console.log("   ✅ Staking Skills -> Marketplace Proxy");
+            // Modules should accept calls from Staking Core (since Core delegates to them)
+            // So marketplaceContract in modules should be the Core address
+            const tx2 = await SkillsModuleInstance.setMarketplaceContract(coreAddress, gasOptions);
+            const tx3 = await GamificationModuleInstance.setMarketplaceContract(coreAddress, gasOptions);
 
-            tx = await GamificationModuleInstance.setMarketplaceContract(proxyAddress, gasOptions);
-            await tx.wait();
-            console.log("   ✅ Staking Gamification -> Marketplace Proxy\n");
+            await Promise.all([tx1.wait(1), tx1b.wait(1), tx1c.wait(1), tx1d.wait(1), tx2.wait(1), tx3.wait(1)]);
+            console.log("   ✅ Staking Core -> Authorized Marketplace Proxy");
+            console.log("   ✅ Staking Core -> Authorized Skills NFT");
+            console.log("   ✅ Staking Core -> Authorized Individual Skills");
+            console.log("   ✅ Staking Core -> Authorized Quests");
+            console.log("   ✅ Staking Skills -> Set Marketplace to Core (for delegation)");
+            console.log("   ✅ Staking Gamification -> Set Marketplace to Core (for delegation)\n");
         } catch (error) {
             console.error(`❌ Error configuring Staking references: ${error.message}`);
             throw error;
         }
 
-        // 3.3 Configure Module -> Staking Notification Channels
+        // 3.3 Configure Module -> Staking Notification Channels (OPTIMIZED: Batch)
         console.log("🔗 3.3 Configuring Notification Channels (Marketplace -> Staking)...");
         try {
-            let tx = await skillsNFTContract.setStakingContract(coreAddress, gasOptions);
-            await tx.wait();
+            console.log("   📤 Sending batch transactions...");
+            const tx1 = await skillsNFTContract.setStakingContract(coreAddress, gasOptions);
+            const tx2 = await individualSkillsContract.setStakingContract(coreAddress, gasOptions);
+            const tx3 = await questsContract.setStakingContract(coreAddress, gasOptions);
+
+            await Promise.all([tx1.wait(1), tx2.wait(1), tx3.wait(1)]);
             console.log("   ✅ Skills NFT -> Staking (notifications)");
-
-            tx = await individualSkillsContract.setStakingContract(coreAddress, gasOptions);
-            await tx.wait();
             console.log("   ✅ Individual Skills -> Staking (notifications)");
-
-            tx = await questsContract.setStakingContract(coreAddress, gasOptions);
-            await tx.wait();
             console.log("   ✅ Quests -> Staking (notifications)\n");
         } catch (error) {
             console.error(`❌ Error configuring Notification channels: ${error.message}`);
@@ -570,17 +574,17 @@ async function main() {
             console.log(`  ✅ Referral: ${coreReferral}\n`);
 
             console.log("✓ Validating Staking -> Marketplace References...");
-            let stakingMarketplace = await stakingCore.marketplaceContract();
-            if (stakingMarketplace.toLowerCase() !== proxyAddress.toLowerCase()) throw new Error("Marketplace ref mismatch");
-            console.log(`  ✅ Staking Core -> Marketplace: ${stakingMarketplace}`);
+            let isProxyAuthorized = await stakingCore.authorizedMarketplaces(proxyAddress);
+            if (!isProxyAuthorized) throw new Error("Marketplace Proxy not authorized in Staking Core");
+            console.log(`  ✅ Staking Core -> Marketplace Proxy Authorized: ${isProxyAuthorized}`);
 
             let skillsMarketplace = await SkillsModuleInstance.marketplaceContract();
-            if (skillsMarketplace.toLowerCase() !== proxyAddress.toLowerCase()) throw new Error("Skills->Marketplace mismatch");
-            console.log(`  ✅ Skills Module -> Marketplace: ${skillsMarketplace}`);
+            if (skillsMarketplace.toLowerCase() !== coreAddress.toLowerCase()) throw new Error("Skills->Marketplace mismatch (should be Core)");
+            console.log(`  ✅ Skills Module -> Marketplace: ${skillsMarketplace} (Core)`);
 
             let gamMarketplace = await GamificationModuleInstance.marketplaceContract();
-            if (gamMarketplace.toLowerCase() !== proxyAddress.toLowerCase()) throw new Error("Gamification->Marketplace mismatch");
-            console.log(`  ✅ Gamification Module -> Marketplace: ${gamMarketplace}\n`);
+            if (gamMarketplace.toLowerCase() !== coreAddress.toLowerCase()) throw new Error("Gamification->Marketplace mismatch (should be Core)");
+            console.log(`  ✅ Gamification Module -> Marketplace: ${gamMarketplace} (Core)\n`);
 
             console.log("✓ Validating Notification Channels...");
             let skillsStaking = await skillsNFTContract.stakingContractAddress();
@@ -609,14 +613,14 @@ async function main() {
             console.log("║  FASE 5: AUTOMATIC VERIFICATION ON POLYGONSCAN                                ║");
             console.log("╚════════════════════════════════════════════════════════════════════════════════╝\n");
 
-            console.log("⏳ Waiting for 45 seconds before verification (block confirmations)...");
-            await new Promise(resolve => setTimeout(resolve, 45000));
+            console.log("⏳ Waiting for 30 seconds before verification (block confirmations)...");
+            await new Promise(resolve => setTimeout(resolve, 30000));
 
             const verificationTasks = [
                 { address: rewardsAddress, name: "EnhancedSmartStakingRewards", path: "contracts/SmartStaking/EnhancedSmartStakingRewards.sol:EnhancedSmartStakingRewards", args: [] },
                 { address: skillsAddress, name: "EnhancedSmartStakingSkills", path: "contracts/SmartStaking/EnhancedSmartStakingSkills.sol:EnhancedSmartStakingSkills", args: [] },
                 { address: gamificationAddress, name: "EnhancedSmartStakingGamification", path: "contracts/SmartStaking/EnhancedSmartStakingGamification.sol:EnhancedSmartStakingGamification", args: [] },
-                { address: deploymentData.staking.view, name: "EnhancedSmartStakingView", path: "contracts/SmartStaking/EnhancedSmartStakingView.sol:EnhancedSmartStakingView", args: [] },
+                { address: deploymentData.staking.view, name: "EnhancedSmartStakingView", path: "contracts/SmartStaking/EnhancedSmartStakingView.sol:EnhancedSmartStakingView", args: [coreAddress] },
                 { address: coreAddress, name: "EnhancedSmartStaking", path: "contracts/SmartStaking/EnhancedSmartStakingCore.sol:EnhancedSmartStaking", args: [TREASURY_ADDRESS] },
                 { address: proxyAddress, name: "GameifiedMarketplaceCoreV1 (Proxy)", path: "contracts/Marketplace/GameifiedMarketplaceCoreV1.sol:GameifiedMarketplaceCoreV1", args: [] },
                 { address: skillsNFTAddress, name: "GameifiedMarketplaceSkillsV2", path: "contracts/Marketplace/GameifiedMarketplaceSkillsV2.sol:GameifiedMarketplaceSkillsV2", args: [proxyAddress] },
@@ -817,10 +821,10 @@ async function main() {
 
         console.log("📋 ENHANCED SMART STAKING (5 MODULAR CONTRACTS):");
         console.log(`   Core (Main):       ${deploymentData.staking.core}`);
-        console.log(`   Rewards Module:    ${deploymentData.staking.rewardsModule}`);
-        console.log(`   Skills Module:     ${deploymentData.staking.skillsModule}`);
-        console.log(`   Gamification:      ${deploymentData.staking.gamificationModule}`);
-        console.log(`   View Module:       ${deploymentData.staking.viewModule}\n`);
+        console.log(`   Rewards Module:    ${deploymentData.staking.rewards}`);
+        console.log(`   Skills Module:     ${deploymentData.staking.skills}`);
+        console.log(`   Gamification:      ${deploymentData.staking.gamification}`);
+        console.log(`   View Module:       ${deploymentData.staking.view}\n`);
 
         console.log("📋 GAMEIFIED MARKETPLACE (UUPS PROXY + 4 SUB-MODULES):");
         console.log(`   Proxy (PRIMARY):   ${deploymentData.marketplace.proxy}`);
@@ -847,10 +851,9 @@ async function main() {
         console.log("🟢 FOR STAKING: Use EnhancedSmartStakingCore");
         console.log(`   Address: ${deploymentData.staking.core}\n`);
         console.log("🟢 FOR MARKETPLACE: Use GameifiedMarketplaceProxy (UUPS)");
-        console.log(`   Address: ${deploymentData.marketplace.proxy}`);
-        console.log(`   Address: ${deploymentData.staking.view}\n`);
+        console.log(`   Address: ${deploymentData.marketplace.proxy}\n`);
         console.log("🟢 FOR QUERIES: Use EnhancedSmartStakingView (read-only)");
-        console.log(`   Address: ${deploymentData.staking.viewModule}\n`);
+        console.log(`   Address: ${deploymentData.staking.view}\n`);
 
         return deploymentData;
 

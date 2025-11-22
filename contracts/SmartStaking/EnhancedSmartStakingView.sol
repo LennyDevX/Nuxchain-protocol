@@ -17,6 +17,7 @@ interface IStakingViewData {
     // State variables
     function totalPoolBalance() external view returns (uint256);
     function uniqueUsersCount() external view returns (uint256);
+    function getContractBalance() external view returns (uint256);
     
     // Skills and Gamification
     function getUserSkillProfile(address user) external view returns (IStakingIntegration.UserSkillProfile memory);
@@ -608,7 +609,7 @@ contract EnhancedSmartStakingView {
     ) {
         totalPoolValue = stakingContract.totalPoolBalance();
         activeUsersCount = stakingContract.uniqueUsersCount();
-        contractBalanceValue = address(stakingContract).balance;
+        contractBalanceValue = stakingContract.getContractBalance();
         
         // totalRewards and totalDeposits would need to iterate through all users
         // This is kept for interface compatibility but frontend should use per-user data
@@ -678,7 +679,7 @@ contract EnhancedSmartStakingView {
             return (3, "Empty", 10000, "No deposits in pool");
         }
         
-        uint256 currentBalance = address(stakingContract).balance;
+        uint256 currentBalance = stakingContract.getContractBalance();
         
         // Calculate reserve ratio (in basis points: 10000 = 100%)
         reserveRatio = (currentBalance * 10000) / poolBalance;
@@ -777,7 +778,7 @@ contract EnhancedSmartStakingView {
     ) {
         poolTotalValue = stakingContract.totalPoolBalance();
         poolActiveUsers = stakingContract.uniqueUsersCount();
-        poolContractBalance = address(stakingContract).balance;
+        poolContractBalance = stakingContract.getContractBalance();
         
         (poolHealthStatus, , , ) = this.getPoolHealth();
         

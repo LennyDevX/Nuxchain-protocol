@@ -39,14 +39,15 @@ describe("EnhancedSmartStaking System", function () {
     await core.setGamificationModule(gamificationAddr);
 
     // Setup module interconnections for modules
-    await skills.setMarketplaceContract(marketplace.address);
+    // Modules should accept calls from Core (delegation)
+    await skills.setMarketplaceContract(coreAddr);
     await skills.setCoreStakingContract(coreAddr);
 
-    await gamification.setMarketplaceContract(marketplace.address);
+    await gamification.setMarketplaceContract(coreAddr);
     await gamification.setCoreStakingContract(coreAddr);
 
-    // Set marketplace in core
-    await core.setMarketplaceAddress(marketplace.address);
+    // Set marketplace in core (Authorize the marketplace signer)
+    await core.setMarketplaceAuthorization(marketplace.address, true);
 
     // Fund Gamification Module for rewards
     await owner.sendTransaction({
@@ -592,12 +593,12 @@ describe("EnhancedSmartStaking System", function () {
   describe("EnhancedSmartStakingSkills", function () {
     describe("Skill Activation", function () {
       it("Should activate a skill for user", async function () {
-        const { skills, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { skills, core, marketplace, user1 } = await loadFixture(deployAllContracts);
         const nftId = 1;
         const skillType = 1; // STAKE_BOOST_I
 
         await expect(
-          skills
+          core
             .connect(marketplace)
             .notifySkillActivation(user1.address, nftId, skillType, 0)
         ).to.emit(skills, "SkillActivated");
@@ -607,52 +608,53 @@ describe("EnhancedSmartStaking System", function () {
       });
 
       it("Should reject duplicate skill activation", async function () {
-        const { skills, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { skills, core, marketplace, user1 } = await loadFixture(deployAllContracts);
         const nftId = 1;
         const skillType = 1;
 
-        await skills
+        await core
           .connect(marketplace)
           .notifySkillActivation(user1.address, nftId, skillType, 0);
 
         await expect(
-          skills
+          core
             .connect(marketplace)
             .notifySkillActivation(user1.address, nftId, skillType, 0)
         ).to.be.revertedWith("Skill already active");
       });
 
       it("Should enforce max active skills limit", async function () {
-        const { skills, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { skills, core, marketplace, user1 } = await loadFixture(deployAllContracts);
 
-        // Activate 10 skills (max)
-        for (let i = 1; i <= 10; i++) {
-          await skills
+        // Activate 5 skills (max per user)
+        // Use different skill types (1-5) so they don't conflict
+        for (let i = 1; i <= 5; i++) {
+          await core
             .connect(marketplace)
-            .notifySkillActivation(user1.address, i, 1, 0);
+            .notifySkillActivation(user1.address, i, i, 0);
         }
 
-        // Try to activate 11th
+        // Try to activate 6th
         await expect(
-          skills
+          core
             .connect(marketplace)
-            .notifySkillActivation(user1.address, 11, 1, 0)
+            .notifySkillActivation(user1.address, 6, 6, 0)
         ).to.be.revertedWith("Max skills reached");
       });
     });
 
     describe("Skill Deactivation", function () {
       it("Should deactivate a skill", async function () {
-        const { skills, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { skills, core, marketplace, user1 } = await loadFixture(deployAllContracts);
         const nftId = 1;
         const skillType = 1;
 
-        await skills
+        await core
           .connect(marketplace)
           .notifySkillActivation(user1.address, nftId, skillType, 0);
 
         await expect(
-          skills
+          core
             .connect(marketplace)
             .notifySkillDeactivation(user1.address, nftId)
         ).to.emit(skills, "SkillDeactivated");
@@ -662,10 +664,10 @@ describe("EnhancedSmartStaking System", function () {
       });
 
       it("Should reject deactivation of inactive skill", async function () {
-        const { skills, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { skills, core, marketplace, user1 } = await loadFixture(deployAllContracts);
 
         await expect(
-          skills
+          core
             .connect(marketplace)
             .notifySkillDeactivation(user1.address, 99)
         ).to.be.revertedWith("Skill not active");
@@ -674,7 +676,10 @@ describe("EnhancedSmartStaking System", function () {
 
     describe("Rarity Management", function () {
       it("Should set skill rarity", async function () {
-        const { skills, marketplace } = await loadFixture(deployAllContracts);
+        const { skills, marketplace, owner } = await loadFixture(deployAllContracts);
+        // Temporarily set marketplace as authorized for this test
+        await skills.connect(owner).setMarketplaceContract(marketplace.address);
+        
         const nftId = 1;
         const rarity = 2; // Rare
 
@@ -687,7 +692,9 @@ describe("EnhancedSmartStaking System", function () {
       });
 
       it("Should batch set rarities", async function () {
-        const { skills, marketplace } = await loadFixture(deployAllContracts);
+        const { skills, marketplace, owner } = await loadFixture(deployAllContracts);
+        await skills.connect(owner).setMarketplaceContract(marketplace.address);
+        
         const nftIds = [1, 2, 3];
         const rarities = [1, 2, 3];
 
@@ -702,7 +709,9 @@ describe("EnhancedSmartStaking System", function () {
       });
 
       it("Should get rarity multiplier", async function () {
-        const { skills, marketplace } = await loadFixture(deployAllContracts);
+        const { skills, marketplace, owner } = await loadFixture(deployAllContracts);
+        await skills.connect(owner).setMarketplaceContract(marketplace.address);
+        
         const nftId = 1;
 
         await skills.connect(marketplace).setSkillRarity(nftId, 4); // Legendary
@@ -714,9 +723,9 @@ describe("EnhancedSmartStaking System", function () {
 
     describe("Boost Calculations", function () {
       it("Should calculate user boosts", async function () {
-        const { skills, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { skills, core, marketplace, user1 } = await loadFixture(deployAllContracts);
 
-        await skills
+        await core
           .connect(marketplace)
           .notifySkillActivation(user1.address, 1, 1, 500); // 5% boost
 
@@ -726,12 +735,12 @@ describe("EnhancedSmartStaking System", function () {
       });
 
       it("Should accumulate boosts from multiple skills", async function () {
-        const { skills, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { skills, core, marketplace, user1 } = await loadFixture(deployAllContracts);
 
-        await skills
+        await core
           .connect(marketplace)
           .notifySkillActivation(user1.address, 1, 1, 500); // 5%
-        await skills
+        await core
           .connect(marketplace)
           .notifySkillActivation(user1.address, 2, 2, 1000); // 10%
 
@@ -740,16 +749,16 @@ describe("EnhancedSmartStaking System", function () {
       });
 
       it("Should recalculate boosts after deactivation", async function () {
-        const { skills, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { skills, core, marketplace, user1 } = await loadFixture(deployAllContracts);
 
-        await skills
+        await core
           .connect(marketplace)
           .notifySkillActivation(user1.address, 1, 1, 500);
-        await skills
+        await core
           .connect(marketplace)
           .notifySkillActivation(user1.address, 2, 2, 1000);
 
-        await skills
+        await core
           .connect(marketplace)
           .notifySkillDeactivation(user1.address, 1);
 
@@ -760,9 +769,9 @@ describe("EnhancedSmartStaking System", function () {
 
     describe("Skill Profile", function () {
       it("Should get user skill profile", async function () {
-        const { skills, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { skills, core, marketplace, user1 } = await loadFixture(deployAllContracts);
 
-        await skills
+        await core
           .connect(marketplace)
           .notifySkillActivation(user1.address, 1, 1, 500);
 
@@ -772,13 +781,18 @@ describe("EnhancedSmartStaking System", function () {
       });
 
       it("Should get active skills with details", async function () {
-        const { skills, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { skills, core, marketplace, user1, owner } = await loadFixture(deployAllContracts);
 
+        // Set rarity via temporary marketplace access
+        await skills.connect(owner).setMarketplaceContract(marketplace.address);
         await skills
           .connect(marketplace)
           .setSkillRarity(1, 2); // Rare
+        // Restore core as marketplace
+        const coreAddr = await core.getAddress();
+        await skills.connect(owner).setMarketplaceContract(coreAddr);
 
-        await skills
+        await core
           .connect(marketplace)
           .notifySkillActivation(user1.address, 1, 1, 500);
 
@@ -909,14 +923,14 @@ describe("EnhancedSmartStaking System", function () {
 
     describe("Quest System", function () {
       it("Should complete quest and award reward", async function () {
-        const { gamification, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { gamification, core, marketplace, user1 } = await loadFixture(deployAllContracts);
         const questId = 1;
         const rewardAmount = ethers.parseEther("10");
 
         await expect(
-          gamification
+          core
             .connect(marketplace)
-            .completeQuest(user1.address, questId, rewardAmount, 30)
+            .notifyQuestCompletion(user1.address, questId, rewardAmount)
         ).to.emit(gamification, "QuestCompleted");
 
         const reward = await gamification.getQuestReward(user1.address, questId);
@@ -925,29 +939,29 @@ describe("EnhancedSmartStaking System", function () {
       });
 
       it("Should reject duplicate quest completion", async function () {
-        const { gamification, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { gamification, core, marketplace, user1 } = await loadFixture(deployAllContracts);
         const questId = 1;
         const rewardAmount = ethers.parseEther("10");
 
-        await gamification
+        await core
           .connect(marketplace)
-          .completeQuest(user1.address, questId, rewardAmount, 30);
+          .notifyQuestCompletion(user1.address, questId, rewardAmount);
 
         await expect(
-          gamification
+          core
             .connect(marketplace)
-            .completeQuest(user1.address, questId, rewardAmount, 30)
+            .notifyQuestCompletion(user1.address, questId, rewardAmount)
         ).to.be.revertedWith("Quest already completed");
       });
 
       it("Should claim quest reward", async function () {
-        const { gamification, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { gamification, core, marketplace, user1 } = await loadFixture(deployAllContracts);
         const questId = 1;
         const rewardAmount = ethers.parseEther("10");
 
-        await gamification
+        await core
           .connect(marketplace)
-          .completeQuest(user1.address, questId, rewardAmount, 30);
+          .notifyQuestCompletion(user1.address, questId, rewardAmount);
 
         await expect(
           gamification.connect(user1).claimQuestReward(questId)
@@ -958,10 +972,12 @@ describe("EnhancedSmartStaking System", function () {
       });
 
       it("Should expire quest rewards", async function () {
-        const { gamification, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { gamification, marketplace, user1, owner } = await loadFixture(deployAllContracts);
         const questId = 1;
         const rewardAmount = ethers.parseEther("10");
 
+        // Use direct access to set custom expiration
+        await gamification.connect(owner).setMarketplaceContract(marketplace.address);
         await gamification
           .connect(marketplace)
           .completeQuest(user1.address, questId, rewardAmount, 1);
@@ -969,6 +985,8 @@ describe("EnhancedSmartStaking System", function () {
         await time.increase(86400 + 1);
 
         const questIds = [questId];
+        // expireQuestRewards is onlyAuthorized (marketplace or core or owner)
+        // marketplace is currently authorized
         await expect(
           gamification.connect(marketplace).expireQuestRewards(user1.address, questIds)
         ).to.emit(gamification, "RewardExpired");
@@ -978,14 +996,14 @@ describe("EnhancedSmartStaking System", function () {
       });
 
       it("Should get all quest rewards for user", async function () {
-        const { gamification, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { gamification, core, marketplace, user1 } = await loadFixture(deployAllContracts);
 
-        await gamification
+        await core
           .connect(marketplace)
-          .completeQuest(user1.address, 1, ethers.parseEther("10"), 30);
-        await gamification
+          .notifyQuestCompletion(user1.address, 1, ethers.parseEther("10"));
+        await core
           .connect(marketplace)
-          .completeQuest(user1.address, 2, ethers.parseEther("20"), 30);
+          .notifyQuestCompletion(user1.address, 2, ethers.parseEther("20"));
 
         const [questIds, rewards] = await gamification.getAllQuestRewards(user1.address);
 
@@ -996,14 +1014,14 @@ describe("EnhancedSmartStaking System", function () {
 
     describe("Achievement System", function () {
       it("Should unlock achievement", async function () {
-        const { gamification, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { gamification, core, marketplace, user1 } = await loadFixture(deployAllContracts);
         const achievementId = 1;
         const rewardAmount = ethers.parseEther("50");
 
         await expect(
-          gamification
+          core
             .connect(marketplace)
-            .unlockAchievement(user1.address, achievementId, rewardAmount, 30)
+            .notifyAchievementUnlocked(user1.address, achievementId, rewardAmount)
         ).to.emit(gamification, "AchievementUnlocked");
 
         const reward = await gamification.getAchievementReward(user1.address, achievementId);
@@ -1011,29 +1029,29 @@ describe("EnhancedSmartStaking System", function () {
       });
 
       it("Should reject duplicate achievement unlock", async function () {
-        const { gamification, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { gamification, core, marketplace, user1 } = await loadFixture(deployAllContracts);
         const achievementId = 1;
         const rewardAmount = ethers.parseEther("50");
 
-        await gamification
+        await core
           .connect(marketplace)
-          .unlockAchievement(user1.address, achievementId, rewardAmount, 30);
+          .notifyAchievementUnlocked(user1.address, achievementId, rewardAmount);
 
         await expect(
-          gamification
+          core
             .connect(marketplace)
-            .unlockAchievement(user1.address, achievementId, rewardAmount, 30)
+            .notifyAchievementUnlocked(user1.address, achievementId, rewardAmount)
         ).to.be.revertedWith("Achievement already unlocked");
       });
 
       it("Should claim achievement reward", async function () {
-        const { gamification, marketplace, user1 } = await loadFixture(deployAllContracts);
+        const { gamification, core, marketplace, user1 } = await loadFixture(deployAllContracts);
         const achievementId = 1;
         const rewardAmount = ethers.parseEther("50");
 
-        await gamification
+        await core
           .connect(marketplace)
-          .unlockAchievement(user1.address, achievementId, rewardAmount, 30);
+          .notifyAchievementUnlocked(user1.address, achievementId, rewardAmount);
 
         await expect(
           gamification.connect(user1).claimAchievementReward(achievementId)
@@ -1044,14 +1062,14 @@ describe("EnhancedSmartStaking System", function () {
       });
 
       it("Should get all achievement rewards", async function () {
-          const { gamification, marketplace, user1 } = await loadFixture(deployAllContracts);
+          const { gamification, core, marketplace, user1 } = await loadFixture(deployAllContracts);
 
-          await gamification
+          await core
             .connect(marketplace)
-            .unlockAchievement(user1.address, 1, ethers.parseEther("50"), 30);
-          await gamification
+            .notifyAchievementUnlocked(user1.address, 1, ethers.parseEther("50"));
+          await core
             .connect(marketplace)
-            .unlockAchievement(user1.address, 2, ethers.parseEther("100"), 30);
+            .notifyAchievementUnlocked(user1.address, 2, ethers.parseEther("100"));
 
         const [achievementIds, rewards] = await gamification.getAllAchievementRewards(
           user1.address
@@ -1206,7 +1224,7 @@ describe("EnhancedSmartStaking System", function () {
       const rewardsNoSkill = await core.calculateRewards(user1.address);
 
       // Activate skill to boost rewards
-      await skills
+      await core
         .connect(marketplace)
         .notifySkillActivation(user1.address, 1, 1, 1000); // 10% boost
 
@@ -1244,7 +1262,7 @@ describe("EnhancedSmartStaking System", function () {
 
       // User 1: deposit with skill
       await core.connect(user1).deposit(0, { value: depositAmount });
-      await skills
+      await core
         .connect(marketplace)
         .notifySkillActivation(user1.address, 1, 1, 500);
 
@@ -1261,14 +1279,14 @@ describe("EnhancedSmartStaking System", function () {
     });
 
     it("Should properly chain quest completion -> XP -> level up", async function () {
-      const { gamification, marketplace } = await loadFixture(deployAllContracts);
+      const { gamification, core, marketplace } = await loadFixture(deployAllContracts);
       const user = (await ethers.getSigners())[0];
 
       const xpBefore = (await gamification.getUserXPInfo(user.address))[1];
 
-      await gamification
+      await core
         .connect(marketplace)
-        .completeQuest(user.address, 1, ethers.parseEther("10"), 30);
+        .notifyQuestCompletion(user.address, 1, ethers.parseEther("10"));
 
       const xpAfter = (await gamification.getUserXPInfo(user.address))[1];
 
