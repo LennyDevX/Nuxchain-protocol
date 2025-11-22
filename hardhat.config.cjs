@@ -48,7 +48,7 @@ module.exports = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 10, // Ultra-optimized for code size (prioritize bytecode reduction)
+            runs: 200, 
             details: {
               yul: true,
               yulDetails: {

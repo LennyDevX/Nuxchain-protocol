@@ -30,7 +30,7 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     uint256 private constant DAILY_WITHDRAWAL_LIMIT = 1000 ether;
     uint256 private constant WITHDRAWAL_LIMIT_PERIOD = 1 days;
     uint16 private constant MAX_DEPOSITS_PER_USER = 300;
-    uint8 private constant MAX_ACTIVE_SKILL_SLOTS = 10;
+    uint8 private constant MAX_ACTIVE_SKILL_SLOTS = 5;
     
     // ════════════════════════════════════════════════════════════════════════════════════════
     // STRUCTS
@@ -436,6 +436,23 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
         );
     }
     
+    // VIEW FUNCTIONS NOW DELEGATED TO EnhancedSmartStakingView CONTRACT
+    // - getUserPortfolio() - Use EnhancedSmartStakingView.getUserPortfolio()
+    // - getUserDepositsByType() - Use EnhancedSmartStakingView.getUserDepositsByType()
+    // - getDepositDetails() - Use EnhancedSmartStakingView.getDepositDetails()
+    // - getContractBalance() - Use EnhancedSmartStakingView.getContractBalance()
+    // - getPoolStats() - Use EnhancedSmartStakingView.getPoolStats()
+    // - getPoolHealth() - Use EnhancedSmartStakingView.getPoolHealth()
+    // - getAPYRates() - Use EnhancedSmartStakingView.getAPYRates()
+    // - getDashboardUserSummary() - Use EnhancedSmartStakingView.getDashboardUserSummary()
+    // - getDashboardData() - Use EnhancedSmartStakingView.getDashboardData()
+    // - getEarningsBreakdown() - Use EnhancedSmartStakingView.getEarningsBreakdown()
+    // - getDepositSummaryByType() - Use EnhancedSmartStakingView.getDepositSummaryByType()
+    // - getLockedDepositInfo() - Use EnhancedSmartStakingView.getLockedDepositInfo()
+    // - getWithdrawableDeposits() - Use EnhancedSmartStakingView.getWithdrawableDeposits()
+    // - getNextUnlockTime() - Use EnhancedSmartStakingView.getNextUnlockTime()
+    // - getStakeDistribution() - Use EnhancedSmartStakingView.getStakeDistribution()
+    
     function getActiveSkills(address user) external view override returns (NFTSkill[] memory) {
         if (address(skillsModule) == address(0)) {
             return new NFTSkill[](0);
@@ -736,7 +753,7 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
         feeDiscountBps = uint16(feeAccumulator);
         lockReducerBps = uint16(lockAccumulator);
     }
-
+    
     function _initializeSkillFlags() internal {
         for (uint8 i = 1; i <= uint8(type(SkillType).max); i++) {
             _skillEnabled[SkillType(i)] = true;

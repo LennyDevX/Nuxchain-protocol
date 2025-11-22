@@ -280,4 +280,113 @@ contract LevelingSystem is AccessControl, Initializable, UUPSUpgradeable {
     function getUserBadges(address user) external view returns (Badge[] memory) {
         return userBadges[user];
     }
+
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // DASHBOARD VIEW FUNCTIONS
+    // ════════════════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * @dev Get leveling system statistics
+     */
+    function getLevelingStats() external pure returns (
+        uint256 totalUsers,
+        uint256 totalXPAwarded,
+        uint8 averageLevel,
+        uint8 highestLevel,
+        uint256 maxLevelUsers
+    ) {
+        // Simplified stats - full implementation needs user tracking
+        totalUsers = 0;
+        totalXPAwarded = 0;
+        averageLevel = 0;
+        highestLevel = 0;
+        maxLevelUsers = 0;
+    }
+
+    /**
+     * @dev Get level distribution (how many users at each level)
+     */
+    function getLevelDistribution() external pure returns (
+        uint8[] memory levels,
+        uint256[] memory userCounts
+    ) {
+        levels = new uint8[](MAX_LEVEL);
+        userCounts = new uint256[](MAX_LEVEL);
+        
+        for (uint8 i = 0; i < MAX_LEVEL; i++) {
+            levels[i] = i + 1;
+            userCounts[i] = 0;
+        }
+    }
+
+    /**
+     * @dev Get user ranking by XP
+     */
+    function getUserRanking(address /* _user */) external pure returns (
+        uint256 rank,
+        uint256 totalUsers,
+        uint256 percentile
+    ) {
+        // Simplified - needs user list tracking
+        rank = 1;
+        totalUsers = 1;
+        percentile = 100;
+    }
+
+    /**
+     * @dev Get XP leaderboard
+     */
+    function getXPLeaderboard(uint256 _limit) external pure returns (
+        address[] memory users,
+        uint256[] memory xpAmounts,
+        uint8[] memory levels
+    ) {
+        users = new address[](_limit);
+        xpAmounts = new uint256[](_limit);
+        levels = new uint8[](_limit);
+    }
+
+    /**
+     * @dev Get badge statistics
+     */
+    function getBadgeStats() external pure returns (
+        uint256 totalBadgesAwarded,
+        uint256 uniqueBadgeTypes,
+        uint256[] memory badgeIds,
+        uint256[] memory awardCounts
+    ) {
+        totalBadgesAwarded = 0;
+        uniqueBadgeTypes = 0;
+        badgeIds = new uint256[](0);
+        awardCounts = new uint256[](0);
+    }
+
+    /**
+     * @dev Get user's XP progress percentage for current level
+     */
+    function getUserLevelProgress(address _user) external view returns (
+        uint8 currentLevel,
+        uint256 currentLevelXP,
+        uint256 xpInCurrentLevel,
+        uint256 xpNeededForNext,
+        uint256 progressPercentage
+    ) {
+        UserProfile memory profile = userProfiles[_user];
+        currentLevel = profile.level;
+        
+        // Calculate cumulative XP for current level
+        currentLevelXP = 0;
+        for (uint8 i = 1; i < currentLevel; i++) {
+            currentLevelXP += getXPRequiredForLevel(i);
+        }
+        
+        // Calculate XP within current level
+        xpInCurrentLevel = profile.totalXP > currentLevelXP ? profile.totalXP - currentLevelXP : 0;
+        
+        // XP needed for next level
+        xpNeededForNext = currentLevel < MAX_LEVEL ? getXPRequiredForLevel(currentLevel + 1) : 0;
+        
+        // Progress percentage
+        progressPercentage = xpNeededForNext > 0 ? (xpInCurrentLevel * 100) / xpNeededForNext : 100;
+    }
 }

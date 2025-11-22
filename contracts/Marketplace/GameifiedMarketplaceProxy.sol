@@ -61,10 +61,10 @@ contract GameifiedMarketplaceProxy is ERC1967Proxy {
     // ════════════════════════════════════════════════════════════════════════════════════════
     
     /**
-     * @dev Prevenir que ETH se quede atrapado en el proxy
+     * @dev Prevenir que POL se quede atrapado en el proxy
      * @notice El proxy solo debe recibir llamadas delegadas al implementation
      */
     receive() external payable override {
-        revert("GameifiedMarketplaceProxy: Cannot receive ETH directly");
+        revert("GameifiedMarketplaceProxy: Cannot receive POL directly");
     }
 }

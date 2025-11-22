@@ -21,8 +21,8 @@ contract EnhancedSmartStakingSkills is Ownable, IEnhancedSmartStakingSkills {
     /// @notice Basis points denominator
     uint256 private constant BASIS_POINTS = 10000;
     
-    /// @notice Maximum active skills per user
-    uint8 private constant MAX_ACTIVE_SKILLS = 10;
+    /// @notice Maximum active skills per user (synchronized with system)
+    uint8 private constant MAX_ACTIVE_SKILLS = 5;
     
     /// @notice Number of skill types
     uint8 private constant SKILL_TYPE_COUNT = 17;

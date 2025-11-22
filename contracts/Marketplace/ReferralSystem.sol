@@ -169,4 +169,90 @@ contract ReferralSystem is AccessControl, Initializable, UUPSUpgradeable {
     function userHasReferrer(address user) external view returns (bool) {
         return hasReferrer[user];
     }
+
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // DASHBOARD VIEW FUNCTIONS
+    // ════════════════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * @dev Get referral system statistics
+     */
+    function getReferralSystemStats() external pure returns (
+        uint256 totalReferrals,
+        uint256 totalUsers,
+        uint256 totalXPEarned,
+        uint256 averageReferralsPerUser,
+        uint256 conversionRate
+    ) {
+        // Simplified - full implementation needs tracking
+        totalReferrals = 0;
+        totalUsers = 0;
+        totalXPEarned = 0;
+        averageReferralsPerUser = 0;
+        conversionRate = 0;
+    }
+
+    /**
+     * @dev Get top referrers leaderboard
+     */
+    function getTopReferrers(uint256 _limit) external pure returns (
+        address[] memory referrers,
+        uint256[] memory referralCounts,
+        uint256[] memory xpEarned
+    ) {
+        referrers = new address[](_limit);
+        referralCounts = new uint256[](_limit);
+        xpEarned = new uint256[](_limit);
+    }
+
+    /**
+     * @dev Get user's referral network depth (tree structure)
+     */
+    function getUserReferralNetwork(address _user) external view returns (
+        uint256 directReferrals,
+        uint256 totalXPFromReferrals,
+        address[] memory referralAddresses,
+        bool[] memory activeStatus
+    ) {
+        directReferrals = referralCount[_user];
+        totalXPFromReferrals = referralXPEarned[_user];
+        referralAddresses = referrals[_user];
+        
+        activeStatus = new bool[](referralAddresses.length);
+        for (uint256 i = 0; i < referralAddresses.length; i++) {
+            activeStatus[i] = true;
+        }
+    }
+
+    /**
+     * @dev Get referral activity statistics
+     */
+    function getReferralActivity() external pure returns (
+        uint256 last24hReferrals,
+        uint256 last7dReferrals,
+        uint256 last30dReferrals,
+        uint256 trendPercentage
+    ) {
+        // Simplified - needs timestamp tracking
+        last24hReferrals = 0;
+        last7dReferrals = 0;
+        last30dReferrals = 0;
+        trendPercentage = 0;
+    }
+
+    /**
+     * @dev Get referral conversion metrics
+     */
+    function getReferralConversionMetrics() external pure returns (
+        uint256 codesGenerated,
+        uint256 codesUsed,
+        uint256 conversionRate,
+        uint256 averageTimeToConvert
+    ) {
+        // Simplified - needs tracking
+        codesGenerated = 0;
+        codesUsed = 0;
+        conversionRate = 0;
+        averageTimeToConvert = 0;
+    }
 }

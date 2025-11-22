@@ -945,6 +945,255 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
     function getUserTotalActiveSkills(address _user) external view returns (uint256) {
         return userTotalActiveSkills[_user];
     }
+
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // DASHBOARD VIEW FUNCTIONS
+    // ════════════════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * @dev Get skill marketplace statistics
+     */
+    function getSkillMarketStats() external view returns (
+        uint256 totalSkillNFTs,
+        uint256 totalActiveSkills,
+        uint256 totalExpiredSkills,
+        uint256 totalSkillsSold,
+        uint256 totalRevenue,
+        uint256 averageSkillsPerNFT
+    ) {
+        uint256 counter = _skillNFTCounter.current();
+        uint256 validNFTs = 0;
+        uint256 activeCount = 0;
+        uint256 expiredCount = 0;
+        uint256 totalSkills = 0;
+        
+        for (uint256 i = 0; i < counter; i++) {
+            if (skillNFTs[i].creator != address(0)) {
+                validNFTs++;
+                totalRevenue += skillNFTs[i].basePrice;
+                uint256 skillCount = skillNFTs[i].skills.length;
+                totalSkills += skillCount;
+                
+                uint256 expiryTime = _getSkillExpiryTime(i);
+                if (block.timestamp < expiryTime) {
+                    activeCount++;
+                } else {
+                    expiredCount++;
+                }
+            }
+        }
+        
+        totalSkillNFTs = validNFTs;
+        totalActiveSkills = activeCount;
+        totalExpiredSkills = expiredCount;
+        totalSkillsSold = validNFTs;
+        averageSkillsPerNFT = validNFTs > 0 ? totalSkills / validNFTs : 0;
+    }
+
+    /**
+     * @dev Get user skill portfolio summary
+     */
+    function getUserSkillPortfolio(address _user) external view returns (
+        uint256 totalSkillNFTs,
+        uint256 activeSkillNFTs,
+        uint256 expiredSkillNFTs,
+        uint256 totalActiveSkills,
+        uint256 stakingSkillsCount,
+        uint256 platformSkillsCount,
+        uint256 expiringIn24h,
+        uint256 totalSpentOnSkills
+    ) {
+        uint256[] memory userNFTs = userSkillNFTs[_user];
+        totalSkillNFTs = userNFTs.length;
+        
+        uint256 cutoff24h = block.timestamp + 24 hours;
+        
+        for (uint256 i = 0; i < userNFTs.length; i++) {
+            uint256 tokenId = userNFTs[i];
+            SkillNFT storage nft = skillNFTs[tokenId];
+            
+            totalSpentOnSkills += nft.basePrice;
+            uint256 expiryTime = _getSkillExpiryTime(tokenId);
+            
+            if (block.timestamp < expiryTime) {
+                activeSkillNFTs++;
+                
+                if (expiryTime <= cutoff24h) {
+                    expiringIn24h++;
+                }
+            } else {
+                expiredSkillNFTs++;
+            }
+            
+            for (uint256 j = 0; j < nft.skills.length; j++) {
+                uint8 skillTypeInt = uint8(nft.skills[j].skillType);
+                if (skillTypeInt >= 1 && skillTypeInt <= 7) {
+                    stakingSkillsCount++;
+                } else if (skillTypeInt >= 8 && skillTypeInt <= 16) {
+                    platformSkillsCount++;
+                }
+            }
+        }
+        
+        totalActiveSkills = userTotalActiveSkills[_user];
+    }
+
+    /**
+     * @dev Get skills expiring soon for a user
+     * @param _user User address
+     * @param _hoursThreshold Hours until expiry (e.g., 24 for next day)
+     */
+    function getExpiringSkills(address _user, uint256 _hoursThreshold) 
+        external view returns (
+            uint256[] memory tokenIds,
+            uint256[] memory expiryTimes,
+            Skill[][] memory skills
+        )
+    {
+        uint256[] memory userNFTs = userSkillNFTs[_user];
+        uint256 cutoff = block.timestamp + (_hoursThreshold * 1 hours);
+        uint256 count = 0;
+        
+        for (uint256 i = 0; i < userNFTs.length; i++) {
+            uint256 expiryTime = _getSkillExpiryTime(userNFTs[i]);
+            if (expiryTime > block.timestamp && expiryTime <= cutoff) {
+                count++;
+            }
+        }
+        
+        tokenIds = new uint256[](count);
+        expiryTimes = new uint256[](count);
+        skills = new Skill[][](count);
+        uint256 index = 0;
+        
+        for (uint256 i = 0; i < userNFTs.length; i++) {
+            uint256 tokenId = userNFTs[i];
+            uint256 expiryTime = _getSkillExpiryTime(tokenId);
+            if (expiryTime > block.timestamp && expiryTime <= cutoff) {
+                tokenIds[index] = tokenId;
+                expiryTimes[index] = expiryTime;
+                skills[index] = skillNFTs[tokenId].skills;
+                index++;
+            }
+        }
+    }
+
+    /**
+     * @dev Get popular skills by purchase count
+     */
+    function getPopularSkills(uint256 _limit) external view returns (
+        IStakingIntegration.SkillType[] memory skillTypes,
+        uint256[] memory purchaseCounts,
+        IStakingIntegration.Rarity[] memory mostBoughtRarity
+    ) {
+        uint256 totalSkillTypes = 16;
+        uint256[] memory counts = new uint256[](totalSkillTypes);
+        
+        for (uint8 i = 1; i <= totalSkillTypes; i++) {
+            counts[i - 1] = skillTypeCount[IStakingIntegration.SkillType(i)];
+        }
+        
+        uint256 resultSize = _limit < totalSkillTypes ? _limit : totalSkillTypes;
+        skillTypes = new IStakingIntegration.SkillType[](resultSize);
+        purchaseCounts = new uint256[](resultSize);
+        mostBoughtRarity = new IStakingIntegration.Rarity[](resultSize);
+        
+        for (uint256 i = 0; i < resultSize; i++) {
+            uint256 maxCount = 0;
+            uint8 maxIndex = 0;
+            
+            for (uint8 j = 0; j < totalSkillTypes; j++) {
+                if (counts[j] > maxCount) {
+                    maxCount = counts[j];
+                    maxIndex = j;
+                }
+            }
+            
+            skillTypes[i] = IStakingIntegration.SkillType(maxIndex + 1);
+            purchaseCounts[i] = maxCount;
+            mostBoughtRarity[i] = IStakingIntegration.Rarity.COMMON;
+            counts[maxIndex] = 0;
+        }
+    }
+
+    /**
+     * @dev Get skill breakdown by rarity
+     */
+    function getSkillRarityDistribution() external view returns (
+        uint256 commonCount,
+        uint256 uncommonCount,
+        uint256 rareCount,
+        uint256 epicCount,
+        uint256 legendaryCount
+    ) {
+        uint256 counter = _skillNFTCounter.current();
+        
+        for (uint256 i = 0; i < counter; i++) {
+            if (skillNFTs[i].creator != address(0)) {
+                Skill[] storage skills = skillNFTs[i].skills;
+                for (uint256 j = 0; j < skills.length; j++) {
+                    if (skills[j].rarity == IStakingIntegration.Rarity.COMMON) {
+                        commonCount++;
+                    } else if (skills[j].rarity == IStakingIntegration.Rarity.UNCOMMON) {
+                        uncommonCount++;
+                    } else if (skills[j].rarity == IStakingIntegration.Rarity.RARE) {
+                        rareCount++;
+                    } else if (skills[j].rarity == IStakingIntegration.Rarity.EPIC) {
+                        epicCount++;
+                    } else if (skills[j].rarity == IStakingIntegration.Rarity.LEGENDARY) {
+                        legendaryCount++;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * @dev Get all user skills grouped by type and rarity
+     */
+    function getUserSkillsGrouped(address _user) external view returns (
+        IStakingIntegration.SkillType[] memory skillTypes,
+        IStakingIntegration.Rarity[] memory rarities,
+        uint256[] memory counts
+    ) {
+        uint256[] memory userNFTs = userSkillNFTs[_user];
+        uint256 maxSize = 16 * 5;
+        
+        IStakingIntegration.SkillType[] memory tempTypes = new IStakingIntegration.SkillType[](maxSize);
+        IStakingIntegration.Rarity[] memory tempRarities = new IStakingIntegration.Rarity[](maxSize);
+        uint256[] memory tempCounts = new uint256[](maxSize);
+        uint256 uniqueCount = 0;
+        
+        for (uint256 i = 0; i < userNFTs.length; i++) {
+            Skill[] storage skills = skillNFTs[userNFTs[i]].skills;
+            for (uint256 j = 0; j < skills.length; j++) {
+                bool found = false;
+                for (uint256 k = 0; k < uniqueCount; k++) {
+                    if (tempTypes[k] == skills[j].skillType && tempRarities[k] == skills[j].rarity) {
+                        tempCounts[k]++;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    tempTypes[uniqueCount] = skills[j].skillType;
+                    tempRarities[uniqueCount] = skills[j].rarity;
+                    tempCounts[uniqueCount] = 1;
+                    uniqueCount++;
+                }
+            }
+        }
+        
+        skillTypes = new IStakingIntegration.SkillType[](uniqueCount);
+        rarities = new IStakingIntegration.Rarity[](uniqueCount);
+        counts = new uint256[](uniqueCount);
+        
+        for (uint256 i = 0; i < uniqueCount; i++) {
+            skillTypes[i] = tempTypes[i];
+            rarities[i] = tempRarities[i];
+            counts[i] = tempCounts[i];
+        }
+    }
     
     function pause() external onlyRole(ADMIN_ROLE) {
         _pause();

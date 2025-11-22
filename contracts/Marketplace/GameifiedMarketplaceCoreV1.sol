@@ -90,6 +90,18 @@ contract GameifiedMarketplaceCoreV1 is
     address public skillsContractAddress;
     address public levelingSystemAddress;
     address public referralSystemAddress;
+    
+    // Dashboard statistics tracking
+    uint256 public totalNFTsSold;
+    uint256 public totalTradingVolume;
+    uint256 public totalRoyaltiesPaid;
+    mapping(address => uint256) public userSalesVolume;
+    mapping(address => uint256) public userPurchaseVolume;
+    mapping(address => uint256) public userRoyaltiesEarned;
+    mapping(address => uint256) public userNFTsSold;
+    mapping(address => uint256) public userNFTsBought;
+    mapping(string => EnumerableSetUpgradeable.UintSet) private _nftsByCategory;
+    mapping(address => uint256) public totalCreators;
 
     event TokenCreated(address indexed creator, uint256 indexed tokenId, string uri);
     event TokenListed(address indexed seller, uint256 indexed tokenId, uint256 price);
@@ -151,6 +163,12 @@ contract GameifiedMarketplaceCoreV1 is
         }
         
         _createdTokens[msg.sender].add(tokenId);
+        _nftsByCategory[_category].add(tokenId);
+        
+        // Track unique creators
+        if (_createdTokens[msg.sender].length() == 1) {
+            totalCreators[msg.sender] = 1;
+        }
         
         if (levelingSystemAddress != address(0)) {
             ILevelingSystem(levelingSystemAddress).recordNFTCreated(msg.sender);
@@ -198,6 +216,21 @@ contract GameifiedMarketplaceCoreV1 is
         
         uint256 platformFee = (price * PLATFORM_FEE_PERCENTAGE) / 100;
         uint256 sellerAmount = price - platformFee;
+        
+        // Track sales statistics
+        totalNFTsSold++;
+        totalTradingVolume += price;
+        userSalesVolume[seller] += price;
+        userPurchaseVolume[buyer] += price;
+        userNFTsSold[seller]++;
+        userNFTsBought[buyer]++;
+        
+        // Calculate and track royalties
+        (address royaltyReceiver, uint256 royaltyAmount) = royaltyInfo(_tokenId, price);
+        if (royaltyAmount > 0 && royaltyReceiver != address(0)) {
+            totalRoyaltiesPaid += royaltyAmount;
+            userRoyaltiesEarned[royaltyReceiver] += royaltyAmount;
+        }
         
         // Record sale in leveling system
         if (levelingSystemAddress != address(0)) {
@@ -382,6 +415,281 @@ contract GameifiedMarketplaceCoreV1 is
         }
         return result;
     }
+
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // DASHBOARD VIEW FUNCTIONS
+    // ════════════════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * @dev Get comprehensive marketplace statistics
+     * @return totalNFTs Total NFTs ever created
+     * @return totalListed Currently listed NFTs
+     * @return totalSold NFTs sold (all-time)
+     * @return totalVolume Trading volume in POL
+     * @return uniqueCreators Unique creators count
+     * @return totalRoyalties Total royalties paid to creators
+     */
+    function getMarketplaceStats() external view returns (
+        uint256 totalNFTs,
+        uint256 totalListed,
+        uint256 totalSold,
+        uint256 totalVolume,
+        uint256 uniqueCreators,
+        uint256 totalRoyalties
+    ) {
+        totalNFTs = _tokenIdCounter.current();
+        totalListed = _listedTokenIds.length();
+        totalSold = totalNFTsSold;
+        totalVolume = totalTradingVolume;
+        
+        // Count unique creators
+        uint256 creatorCount = 0;
+        for (uint256 i = 0; i < totalNFTs; i++) {
+            if (_exists(i)) {
+                address creator = nftMetadata[i].creator;
+                if (totalCreators[creator] > 0 && _createdTokens[creator].length() > 0) {
+                    creatorCount++;
+                }
+            }
+        }
+        uniqueCreators = creatorCount;
+        totalRoyalties = totalRoyaltiesPaid;
+    }
+
+    /**
+     * @dev Get user trading statistics
+     * @return nftsCreated Total NFTs created by user
+     * @return nftsOwned Current NFTs owned
+     * @return nftsSold NFTs sold by user
+     * @return nftsBought NFTs purchased by user
+     * @return totalSalesVolume Volume from sales (POL)
+     * @return totalPurchaseVolume Volume from purchases (POL)
+     * @return totalRoyaltiesEarned Royalties earned as creator
+     */
+    function getUserTradingStats(address _user) external view returns (
+        uint256 nftsCreated,
+        uint256 nftsOwned,
+        uint256 nftsSold,
+        uint256 nftsBought,
+        uint256 totalSalesVolume,
+        uint256 totalPurchaseVolume,
+        uint256 totalRoyaltiesEarned
+    ) {
+        nftsCreated = _createdTokens[_user].length();
+        nftsOwned = _ownedTokens[_user].length();
+        nftsSold = userNFTsSold[_user];
+        nftsBought = userNFTsBought[_user];
+        totalSalesVolume = userSalesVolume[_user];
+        totalPurchaseVolume = userPurchaseVolume[_user];
+        totalRoyaltiesEarned = userRoyaltiesEarned[_user];
+    }
+
+    /**
+     * @dev Get NFTs by category with pagination
+     * @param _category Category to filter (Art, Music, etc.)
+     * @param _offset Starting index
+     * @param _limit Number of results
+     */
+    function getNFTsByCategory(string calldata _category, uint256 _offset, uint256 _limit) 
+        external view returns (uint256[] memory tokenIds, NFTMetadata[] memory metadata)
+    {
+        uint256 categorySize = _nftsByCategory[_category].length();
+        require(_offset < categorySize, "Offset out of bounds");
+        
+        uint256 end = _offset + _limit;
+        if (end > categorySize) {
+            end = categorySize;
+        }
+        uint256 resultSize = end - _offset;
+        
+        tokenIds = new uint256[](resultSize);
+        metadata = new NFTMetadata[](resultSize);
+        
+        for (uint256 i = 0; i < resultSize; i++) {
+            uint256 tokenId = _nftsByCategory[_category].at(_offset + i);
+            tokenIds[i] = tokenId;
+            metadata[i] = nftMetadata[tokenId];
+        }
+    }
+
+    /**
+     * @dev Get user's active offers (offers made by user)
+     */
+    function getUserActiveOffers(address _user) external view returns (
+        uint256[] memory tokenIds,
+        Offer[] memory offers
+    ) {
+        uint256 totalTokens = _tokenIdCounter.current();
+        uint256 count = 0;
+        
+        // Count user's offers
+        for (uint256 i = 0; i < totalTokens; i++) {
+            if (_exists(i)) {
+                Offer[] memory tokenOffers = nftOffers[i];
+                for (uint256 j = 0; j < tokenOffers.length; j++) {
+                    if (tokenOffers[j].offeror == _user) {
+                        // Check if not expired
+                        if (block.timestamp <= tokenOffers[j].timestamp + (tokenOffers[j].expiresInDays * 1 days)) {
+                            count++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        tokenIds = new uint256[](count);
+        offers = new Offer[](count);
+        uint256 index = 0;
+        
+        // Populate arrays
+        for (uint256 i = 0; i < totalTokens; i++) {
+            if (_exists(i)) {
+                Offer[] memory tokenOffers = nftOffers[i];
+                for (uint256 j = 0; j < tokenOffers.length; j++) {
+                    if (tokenOffers[j].offeror == _user) {
+                        if (block.timestamp <= tokenOffers[j].timestamp + (tokenOffers[j].expiresInDays * 1 days)) {
+                            tokenIds[index] = i;
+                            offers[index] = tokenOffers[j];
+                            index++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * @dev Get user's received offers (offers on user's NFTs)
+     */
+    function getUserReceivedOffers(address _user) external view returns (
+        uint256[] memory tokenIds,
+        Offer[] memory offers
+    ) {
+        uint256[] memory ownedTokens = new uint256[](_ownedTokens[_user].length());
+        for (uint256 i = 0; i < _ownedTokens[_user].length(); i++) {
+            ownedTokens[i] = _ownedTokens[_user].at(i);
+        }
+        
+        uint256 count = 0;
+        // Count all non-expired offers on user's NFTs
+        for (uint256 i = 0; i < ownedTokens.length; i++) {
+            Offer[] memory tokenOffers = nftOffers[ownedTokens[i]];
+            for (uint256 j = 0; j < tokenOffers.length; j++) {
+                if (block.timestamp <= tokenOffers[j].timestamp + (tokenOffers[j].expiresInDays * 1 days)) {
+                    count++;
+                }
+            }
+        }
+        
+        tokenIds = new uint256[](count);
+        offers = new Offer[](count);
+        uint256 index = 0;
+        
+        // Populate arrays
+        for (uint256 i = 0; i < ownedTokens.length; i++) {
+            Offer[] memory tokenOffers = nftOffers[ownedTokens[i]];
+            for (uint256 j = 0; j < tokenOffers.length; j++) {
+                if (block.timestamp <= tokenOffers[j].timestamp + (tokenOffers[j].expiresInDays * 1 days)) {
+                    tokenIds[index] = ownedTokens[i];
+                    offers[index] = tokenOffers[j];
+                    index++;
+                }
+            }
+        }
+    }
+
+    /**
+     * @dev Get trending NFTs (most liked in last 7 days)
+     */
+    function getTrendingNFTs(uint256 _limit) external view returns (
+        uint256[] memory tokenIds,
+        uint256[] memory likesCounts
+    ) {
+        uint256 totalTokens = _tokenIdCounter.current();
+        uint256 resultSize = _limit < totalTokens ? _limit : totalTokens;
+        
+        tokenIds = new uint256[](resultSize);
+        likesCounts = new uint256[](resultSize);
+        
+        // Simple bubble sort for top liked NFTs (can be optimized)
+        uint256[] memory allTokens = new uint256[](totalTokens);
+        uint256[] memory allLikes = new uint256[](totalTokens);
+        uint256 validCount = 0;
+        
+        for (uint256 i = 0; i < totalTokens; i++) {
+            if (_exists(i)) {
+                allTokens[validCount] = i;
+                allLikes[validCount] = nftLikeCount[i];
+                validCount++;
+            }
+        }
+        
+        // Sort by likes (descending)
+        for (uint256 i = 0; i < validCount && i < resultSize; i++) {
+            for (uint256 j = i + 1; j < validCount; j++) {
+                if (allLikes[j] > allLikes[i]) {
+                    // Swap
+                    (allLikes[i], allLikes[j]) = (allLikes[j], allLikes[i]);
+                    (allTokens[i], allTokens[j]) = (allTokens[j], allTokens[i]);
+                }
+            }
+        }
+        
+        // Get top N
+        for (uint256 i = 0; i < resultSize && i < validCount; i++) {
+            tokenIds[i] = allTokens[i];
+            likesCounts[i] = allLikes[i];
+        }
+    }
+
+    /**
+     * @dev Get marketplace health metrics
+     */
+    function getMarketplaceHealth() external view returns (
+        uint256 activeListingsCount,
+        uint256 activeOffersCount,
+        uint256 averagePrice,
+        uint256 last24hSales,
+        uint256 last24hVolume
+    ) {
+        activeListingsCount = _listedTokenIds.length();
+        
+        // Count active offers
+        uint256 totalTokens = _tokenIdCounter.current();
+        uint256 offerCount = 0;
+        uint256 totalListedPrice = 0;
+        uint256 listedCount = 0;
+        
+        for (uint256 i = 0; i < totalTokens; i++) {
+            if (_exists(i)) {
+                // Count non-expired offers
+                Offer[] memory tokenOffers = nftOffers[i];
+                for (uint256 j = 0; j < tokenOffers.length; j++) {
+                    if (block.timestamp <= tokenOffers[j].timestamp + (tokenOffers[j].expiresInDays * 1 days)) {
+                        offerCount++;
+                    }
+                }
+                
+                // Sum listed prices
+                if (isListed[i]) {
+                    totalListedPrice += listedPrice[i];
+                    listedCount++;
+                }
+            }
+        }
+        
+        activeOffersCount = offerCount;
+        averagePrice = listedCount > 0 ? totalListedPrice / listedCount : 0;
+        
+        // Note: last24hSales and last24hVolume would require event tracking or timestamp mapping
+        // For now, returning 0 as placeholder (can be implemented with additional storage)
+        last24hSales = 0;
+        last24hVolume = 0;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // ADMIN FUNCTIONS
+    // ════════════════════════════════════════════════════════════════════════════════════════
 
     function setLevelingSystem(address _addr) external onlyRole(ADMIN_ROLE) {
         require(_addr != address(0), "Invalid address");

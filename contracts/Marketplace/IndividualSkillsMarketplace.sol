@@ -85,7 +85,7 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     uint8 private constant MIN_LEVEL = 1;
     uint8 private constant MAX_LEVEL = 50;                             // Synchronized with GameifiedMarketplaceQuests
     
-    uint256 private constant MAX_ACTIVE_SKILLS_PER_TYPE = 3;           // Max 3 active per type
+    uint256 private constant MAX_ACTIVE_SKILLS_TOTAL = 5;              // Max 5 active skills total (synchronized with system)
     uint256 private constant BASIS_POINTS = 10000;                     // For percentage calculations
     
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -97,10 +97,10 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     // Core storage
     mapping(uint256 => IndividualSkill) public individualSkills;                              // skillId => IndividualSkill
     mapping(address => uint256[]) public userIndividualSkills;                                 // user => [skillIds]
-    mapping(address => mapping(IStakingIntegration.SkillType => uint256[])) public userActiveSkills;  // user => skillType => [activeSkillIds]
+    mapping(address => uint256[]) public userActiveSkills;                                       // user => [activeSkillIds]
     
-    // Active count tracking (O(1) instead of O(n))
-    mapping(address => mapping(IStakingIntegration.SkillType => uint8)) public userActiveSkillCount;
+    // Active count tracking (O(1) instead of O(n)) - Global active count
+    mapping(address => uint8) public userActiveSkillCount;
     
     // Contract addresses
     address public treasuryAddress;
@@ -133,6 +133,15 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     
     // Old pricing mapping (kept for backward compatibility - will be overridden by new system)
     mapping(IStakingIntegration.SkillType => mapping(IStakingIntegration.Rarity => uint256)) public skillPrices;
+    
+    // Dashboard statistics tracking
+    uint256 public totalSkillsSold;
+    uint256 public totalRevenue;
+    mapping(IStakingIntegration.SkillType => uint256) public skillsSoldByType;
+    mapping(IStakingIntegration.Rarity => uint256) public skillsSoldByRarity;
+    mapping(IStakingIntegration.SkillType => uint256) public revenueBySkillType;
+    mapping(IStakingIntegration.Rarity => uint256) public revenueByRarity;
+    mapping(address => uint256) public userTotalSpent;
     
     // ════════════════════════════════════════════════════════════════════════════════════════
     // ERRORS
@@ -351,7 +360,6 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     // ════════════════════════════════════════════════════════════════════════════════════════
     
     /**
-     * @inheritdoc IIndividualSkills
      * @notice Implements CEI pattern and all security validations from audit
      * - Added skill type validation (1-17)
      * - Added rarity validation (0-4)
@@ -417,6 +425,15 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
         // Track skill for user
         userIndividualSkills[msg.sender].push(skillId);
         
+        // Track statistics for dashboard
+        totalSkillsSold++;
+        totalRevenue += price;
+        skillsSoldByType[_skillType]++;
+        skillsSoldByRarity[_rarity]++;
+        revenueBySkillType[_skillType] += price;
+        revenueByRarity[_rarity] += price;
+        userTotalSpent[msg.sender] += price;
+        
         // Emit event
         emit IndividualSkillPurchased(msg.sender, skillId, _skillType, _rarity, price);
         emit SkillPurchaseProcessed(msg.sender, skillId, _skillType, msg.value, "PURCHASE_INDIVIDUAL_SKILL");
@@ -451,17 +468,17 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
         // ✅ CRITICAL FIX: Validate staking requirement on activation
         _validateStakingRequirement(msg.sender);
         
-        // Check max active skills per type (3)
-        if (userActiveSkillCount[msg.sender][skill.skillType] >= MAX_ACTIVE_SKILLS_PER_TYPE) {
-            revert MaxActiveSkillsReached(uint8(MAX_ACTIVE_SKILLS_PER_TYPE));
+        // Check max active skills total (5)
+        if (userActiveSkillCount[msg.sender] >= MAX_ACTIVE_SKILLS_TOTAL) {
+            revert MaxActiveSkillsReached(uint8(MAX_ACTIVE_SKILLS_TOTAL));
         }
         
         // Update state
         skill.isActive = true;
-        userActiveSkills[msg.sender][skill.skillType].push(_skillId);
+        userActiveSkills[msg.sender].push(_skillId);
         
         unchecked {
-            userActiveSkillCount[msg.sender][skill.skillType]++;
+            userActiveSkillCount[msg.sender]++;
         }
         
         // Notify staking contract
@@ -485,13 +502,13 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
         skill.isActive = false;
         
         // ✅ CRITICAL FIX: Safe array removal with validation
-        bool found = _removeFromArray(userActiveSkills[msg.sender][skill.skillType], _skillId);
+        bool found = _removeFromArray(userActiveSkills[msg.sender], _skillId);
         if (!found) revert SkillNotInList(_skillId);
         
         // Decrement active count
-        if (userActiveSkillCount[msg.sender][skill.skillType] > 0) {
+        if (userActiveSkillCount[msg.sender] > 0) {
             unchecked {
-                userActiveSkillCount[msg.sender][skill.skillType]--;
+                userActiveSkillCount[msg.sender]--;
             }
         }
         
@@ -576,12 +593,12 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
         if (skill.isActive) {
             skill.isActive = false;
             
-            bool found = _removeFromArray(userActiveSkills[msg.sender][skill.skillType], _skillId);
+            bool found = _removeFromArray(userActiveSkills[msg.sender], _skillId);
             if (!found) revert SkillNotInList(_skillId);
             
-            if (userActiveSkillCount[msg.sender][skill.skillType] > 0) {
+            if (userActiveSkillCount[msg.sender] > 0) {
                 unchecked {
-                    userActiveSkillCount[msg.sender][skill.skillType]--;
+                    userActiveSkillCount[msg.sender]--;
                 }
             }
             
@@ -600,22 +617,21 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     // VIEW FUNCTIONS
     // ════════════════════════════════════════════════════════════════════════════════════════
     
-    /// @inheritdoc IIndividualSkills
+    /// @notice Get a specific individual skill by ID
     function getIndividualSkill(uint256 _skillId) external view returns (IndividualSkill memory) {
         return individualSkills[_skillId];
     }
     
-    /// @inheritdoc IIndividualSkills
+    /// @notice Get all individual skills owned by a user
     function getUserIndividualSkills(address _user) external view returns (uint256[] memory) {
         return userIndividualSkills[_user];
     }
     
-    /// @inheritdoc IIndividualSkills
-    function getUserActiveIndividualSkills(address _user, IStakingIntegration.SkillType _skillType) external view returns (uint256[] memory) {
-        return userActiveSkills[_user][_skillType];
+    /// @notice Get active individual skills for a user by skill type
+    function getUserActiveIndividualSkills(address _user, IStakingIntegration.SkillType /* _skillType */) external view returns (uint256[] memory) {
+        return userActiveSkills[_user];
     }
     
-    /// @inheritdoc IIndividualSkills
     /// @notice Returns price for specific skill type and rarity
     function getIndividualSkillPrice(IStakingIntegration.Rarity _rarity) external view returns (uint256) {
         // Returns price for ACTIVE skills COMMON rarity for backward compatibility
@@ -676,7 +692,7 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
         return (skillTypes, categories, prices);
     }
     
-    /// @inheritdoc IIndividualSkills
+    /// @notice Get detailed information about user's individual skills
     function getUserIndividualSkillsDetailed(address _user) external view returns (IndividualSkill[] memory skills, bool[] memory isActive) {
         uint256[] memory skillIds = userIndividualSkills[_user];
         skills = new IndividualSkill[](skillIds.length);
@@ -720,13 +736,12 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     }
     
     /**
-     * @dev Get active skill count per type for user (O(1) lookup)
+     * @dev Get active skill count for user (O(1) lookup)
      * @param _user Address of user
-     * @param _skillType Type of skill
-     * @return count Number of active skills of this type
+     * @return count Number of active skills (max 5 total)
      */
-    function getUserActiveSkillCountByType(address _user, IStakingIntegration.SkillType _skillType) external view returns (uint8 count) {
-        return userActiveSkillCount[_user][_skillType];
+    function getUserActiveSkillCount(address _user) external view returns (uint8 count) {
+        return userActiveSkillCount[_user];
     }
 
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -1298,6 +1313,138 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
         multipliers[1] = levelMultiplier[2];
         multipliers[2] = levelMultiplier[3];
         return multipliers;
+    }
+    
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // DASHBOARD VIEW FUNCTIONS
+    // ════════════════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * @dev Get individual skills marketplace statistics
+     */
+    function getIndividualSkillsMarketStats() external view returns (
+        uint256 skillsSold,
+        uint256 activeSkills,
+        uint256 revenue,
+        uint256 averagePricePerSkill,
+        uint256 uniqueBuyers
+    ) {
+        skillsSold = totalSkillsSold;
+        revenue = totalRevenue;
+        averagePricePerSkill = skillsSold > 0 ? revenue / skillsSold : 0;
+        
+        // Count active skills
+        uint256 counter = _skillCounter.current();
+        uint256 activeCount = 0;
+        
+        for (uint256 i = 0; i < counter; i++) {
+            if (individualSkills[i].owner != address(0) && individualSkills[i].isActive) {
+                activeCount++;
+            }
+        }
+        activeSkills = activeCount;
+        
+        // Count unique buyers (approximate - counts users with skills)
+        uint256 buyerCount = 0;
+        for (uint256 i = 0; i < counter; i++) {
+            address owner = individualSkills[i].owner;
+            if (owner != address(0) && userIndividualSkills[owner].length > 0) {
+                buyerCount++;
+                break;
+            }
+        }
+        uniqueBuyers = buyerCount;
+    }
+
+    /**
+     * @dev Get skill revenue breakdown by type
+     */
+    function getSkillRevenueByType() external view returns (
+        IStakingIntegration.SkillType[] memory skillTypes,
+        uint256[] memory revenue,
+        uint256[] memory salesCount
+    ) {
+        uint256 totalTypes = 16;
+        skillTypes = new IStakingIntegration.SkillType[](totalTypes);
+        revenue = new uint256[](totalTypes);
+        salesCount = new uint256[](totalTypes);
+        
+        for (uint8 i = 1; i <= totalTypes; i++) {
+            IStakingIntegration.SkillType skillType = IStakingIntegration.SkillType(i);
+            skillTypes[i - 1] = skillType;
+            revenue[i - 1] = revenueBySkillType[skillType];
+            salesCount[i - 1] = skillsSoldByType[skillType];
+        }
+    }
+
+    /**
+     * @dev Get skill revenue breakdown by rarity
+     */
+    function getSkillRevenueByRarity() external view returns (
+        IStakingIntegration.Rarity[] memory rarities,
+        uint256[] memory revenue,
+        uint256[] memory salesCount
+    ) {
+        rarities = new IStakingIntegration.Rarity[](5);
+        revenue = new uint256[](5);
+        salesCount = new uint256[](5);
+        
+        for (uint8 i = 0; i <= 4; i++) {
+            IStakingIntegration.Rarity rarity = IStakingIntegration.Rarity(i);
+            rarities[i] = rarity;
+            revenue[i] = revenueByRarity[rarity];
+            salesCount[i] = skillsSoldByRarity[rarity];
+        }
+    }
+
+    /**
+     * @dev Get user's total spending on skills
+     */
+    function getUserSkillSpending(address _user) external view returns (
+        uint256 totalSpent,
+        uint256 skillsPurchased,
+        uint256 averageSpentPerSkill,
+        IStakingIntegration.SkillType mostPurchasedType
+    ) {
+        totalSpent = userTotalSpent[_user];
+        skillsPurchased = userIndividualSkills[_user].length;
+        averageSpentPerSkill = skillsPurchased > 0 ? totalSpent / skillsPurchased : 0;
+        
+        // Find most purchased skill type (simplified - returns first found)
+        uint256[] memory userSkills = userIndividualSkills[_user];
+        if (userSkills.length > 0) {
+            mostPurchasedType = individualSkills[userSkills[0]].skillType;
+        } else {
+            mostPurchasedType = IStakingIntegration.SkillType.NONE;
+        }
+    }
+
+    /**
+     * @dev Get skill adoption rate (percentage of users with each skill)
+     */
+    function getSkillAdoptionRates() external view returns (
+        IStakingIntegration.SkillType[] memory skillTypes,
+        uint256[] memory userCounts,
+        uint256[] memory percentages
+    ) {
+        uint256 totalTypes = 16;
+        skillTypes = new IStakingIntegration.SkillType[](totalTypes);
+        userCounts = new uint256[](totalTypes);
+        percentages = new uint256[](totalTypes);
+        
+        // Simplified: count total purchases by type (not unique users)
+        for (uint8 i = 1; i <= totalTypes; i++) {
+            IStakingIntegration.SkillType skillType = IStakingIntegration.SkillType(i);
+            skillTypes[i - 1] = skillType;
+            userCounts[i - 1] = skillsSoldByType[skillType];
+            
+            // Calculate percentage of total sales
+            if (totalSkillsSold > 0) {
+                percentages[i - 1] = (skillsSoldByType[skillType] * 10000) / totalSkillsSold;
+            } else {
+                percentages[i - 1] = 0;
+            }
+        }
     }
     
     // ════════════════════════════════════════════════════════════════════════════════════════
