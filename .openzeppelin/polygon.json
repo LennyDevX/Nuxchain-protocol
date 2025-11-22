@@ -120,6 +120,21 @@
       "address": "0x905FB11fA27F548F384A8DD0b557328E9B2CC022",
       "txHash": "0x92e5217c13f9c5b178539c202f01118105239941ca03a3dd4adb4a148140bcbc",
       "kind": "uups"
+    },
+    {
+      "address": "0x4A68884abF0B56481F6bDB0E6D4521f0074a1F44",
+      "txHash": "0x6d71a2caeaa460e211bbe1585d0b518d9529ff0e7106bab0eeb2e720f73b4fa9",
+      "kind": "uups"
+    },
+    {
+      "address": "0xD558B2786e9C984d68BFf05c35F69bd473Bc5617",
+      "txHash": "0xf8903d7629fda4c30d86d8fcf08a2afb944ea2c6a7f763b626b8aec6c7af117d",
+      "kind": "uups"
+    },
+    {
+      "address": "0xd502fB2Eb3d345EE9A5A0286A472B38c77Fda6d5",
+      "txHash": "0xb6628cf57bae033ed46b95c67c6a12265ffee8f0508c21ee99f76d684f2a90a1",
+      "kind": "uups"
     }
   ],
   "impls": {
@@ -2653,6 +2668,687 @@
     "c9cc2160e91611fea6fec4426d1dd7f6d0ade895f3a3f67517db4d696d7b150b": {
       "address": "0x1CFfDDA79031dB4a97BbcbA96Bdb40635a039C09",
       "txHash": "0xeef4b7065e33706502d22f96e92c8093521c62b7d0b4f55d1da4989191a15458",
+      "layout": {
+        "solcVersion": "0.8.28",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:63",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:68"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol:40"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC165Upgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\utils\\introspection\\ERC165Upgradeable.sol:41"
+          },
+          {
+            "label": "_defaultRoyaltyInfo",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_struct(RoyaltyInfo)2717_storage",
+            "contract": "ERC2981Upgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\token\\common\\ERC2981Upgradeable.sol:31"
+          },
+          {
+            "label": "_tokenRoyaltyInfo",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_mapping(t_uint256,t_struct(RoyaltyInfo)2717_storage)",
+            "contract": "ERC2981Upgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\token\\common\\ERC2981Upgradeable.sol:32"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "103",
+            "type": "t_array(t_uint256)48_storage",
+            "contract": "ERC2981Upgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\token\\common\\ERC2981Upgradeable.sol:119"
+          },
+          {
+            "label": "_name",
+            "offset": 0,
+            "slot": "151",
+            "type": "t_string_storage",
+            "contract": "ERC721Upgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\token\\ERC721\\ERC721Upgradeable.sol:25"
+          },
+          {
+            "label": "_symbol",
+            "offset": 0,
+            "slot": "152",
+            "type": "t_string_storage",
+            "contract": "ERC721Upgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\token\\ERC721\\ERC721Upgradeable.sol:28"
+          },
+          {
+            "label": "_owners",
+            "offset": 0,
+            "slot": "153",
+            "type": "t_mapping(t_uint256,t_address)",
+            "contract": "ERC721Upgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\token\\ERC721\\ERC721Upgradeable.sol:31"
+          },
+          {
+            "label": "_balances",
+            "offset": 0,
+            "slot": "154",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "ERC721Upgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\token\\ERC721\\ERC721Upgradeable.sol:34"
+          },
+          {
+            "label": "_tokenApprovals",
+            "offset": 0,
+            "slot": "155",
+            "type": "t_mapping(t_uint256,t_address)",
+            "contract": "ERC721Upgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\token\\ERC721\\ERC721Upgradeable.sol:37"
+          },
+          {
+            "label": "_operatorApprovals",
+            "offset": 0,
+            "slot": "156",
+            "type": "t_mapping(t_address,t_mapping(t_address,t_bool))",
+            "contract": "ERC721Upgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\token\\ERC721\\ERC721Upgradeable.sol:40"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "157",
+            "type": "t_array(t_uint256)44_storage",
+            "contract": "ERC721Upgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\token\\ERC721\\ERC721Upgradeable.sol:477"
+          },
+          {
+            "label": "_tokenURIs",
+            "offset": 0,
+            "slot": "201",
+            "type": "t_mapping(t_uint256,t_string_storage)",
+            "contract": "ERC721URIStorageUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\token\\ERC721\\extensions\\ERC721URIStorageUpgradeable.sol:17"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "202",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "ERC721URIStorageUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\token\\ERC721\\extensions\\ERC721URIStorageUpgradeable.sol:86"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "251",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC721RoyaltyUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\token\\ERC721\\extensions\\ERC721RoyaltyUpgradeable.sol:50"
+          },
+          {
+            "label": "_roles",
+            "offset": 0,
+            "slot": "301",
+            "type": "t_mapping(t_bytes32,t_struct(RoleData)23_storage)",
+            "contract": "AccessControlUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\AccessControlUpgradeable.sol:57"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "302",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "AccessControlUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\AccessControlUpgradeable.sol:260"
+          },
+          {
+            "label": "_status",
+            "offset": 0,
+            "slot": "351",
+            "type": "t_uint256",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\ReentrancyGuardUpgradeable.sol:38"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "352",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\ReentrancyGuardUpgradeable.sol:88"
+          },
+          {
+            "label": "_paused",
+            "offset": 0,
+            "slot": "401",
+            "type": "t_bool",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\PausableUpgradeable.sol:29"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "402",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\PausableUpgradeable.sol:116"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "451",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC1967UpgradeUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\ERC1967\\ERC1967UpgradeUpgradeable.sol:169"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "501",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "UUPSUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\UUPSUpgradeable.sol:111"
+          },
+          {
+            "label": "_tokenIdCounter",
+            "offset": 0,
+            "slot": "551",
+            "type": "t_struct(Counter)3305_storage",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:53"
+          },
+          {
+            "label": "nftMetadata",
+            "offset": 0,
+            "slot": "552",
+            "type": "t_mapping(t_uint256,t_struct(NFTMetadata)5494_storage)",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:78"
+          },
+          {
+            "label": "isListed",
+            "offset": 0,
+            "slot": "553",
+            "type": "t_mapping(t_uint256,t_bool)",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:79"
+          },
+          {
+            "label": "listedPrice",
+            "offset": 0,
+            "slot": "554",
+            "type": "t_mapping(t_uint256,t_uint256)",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:80"
+          },
+          {
+            "label": "nftLikes",
+            "offset": 0,
+            "slot": "555",
+            "type": "t_mapping(t_uint256,t_mapping(t_address,t_bool))",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:81"
+          },
+          {
+            "label": "nftLikeCount",
+            "offset": 0,
+            "slot": "556",
+            "type": "t_mapping(t_uint256,t_uint256)",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:82"
+          },
+          {
+            "label": "nftComments",
+            "offset": 0,
+            "slot": "557",
+            "type": "t_mapping(t_uint256,t_array(t_string_storage)dyn_storage)",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:83"
+          },
+          {
+            "label": "nftOffers",
+            "offset": 0,
+            "slot": "558",
+            "type": "t_mapping(t_uint256,t_array(t_struct(Offer)5503_storage)dyn_storage)",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:84"
+          },
+          {
+            "label": "_ownedTokens",
+            "offset": 0,
+            "slot": "559",
+            "type": "t_mapping(t_address,t_struct(UintSet)5223_storage)",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:85"
+          },
+          {
+            "label": "_createdTokens",
+            "offset": 0,
+            "slot": "560",
+            "type": "t_mapping(t_address,t_struct(UintSet)5223_storage)",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:86"
+          },
+          {
+            "label": "_listedTokenIds",
+            "offset": 0,
+            "slot": "561",
+            "type": "t_struct(UintSet)5223_storage",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:87"
+          },
+          {
+            "label": "platformTreasury",
+            "offset": 0,
+            "slot": "563",
+            "type": "t_address",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:89"
+          },
+          {
+            "label": "skillsContractAddress",
+            "offset": 0,
+            "slot": "564",
+            "type": "t_address",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:90"
+          },
+          {
+            "label": "levelingSystemAddress",
+            "offset": 0,
+            "slot": "565",
+            "type": "t_address",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:91"
+          },
+          {
+            "label": "referralSystemAddress",
+            "offset": 0,
+            "slot": "566",
+            "type": "t_address",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:92"
+          },
+          {
+            "label": "totalNFTsSold",
+            "offset": 0,
+            "slot": "567",
+            "type": "t_uint256",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:95"
+          },
+          {
+            "label": "totalTradingVolume",
+            "offset": 0,
+            "slot": "568",
+            "type": "t_uint256",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:96"
+          },
+          {
+            "label": "totalRoyaltiesPaid",
+            "offset": 0,
+            "slot": "569",
+            "type": "t_uint256",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:97"
+          },
+          {
+            "label": "userSalesVolume",
+            "offset": 0,
+            "slot": "570",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:98"
+          },
+          {
+            "label": "userPurchaseVolume",
+            "offset": 0,
+            "slot": "571",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:99"
+          },
+          {
+            "label": "userRoyaltiesEarned",
+            "offset": 0,
+            "slot": "572",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:100"
+          },
+          {
+            "label": "userNFTsSold",
+            "offset": 0,
+            "slot": "573",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:101"
+          },
+          {
+            "label": "userNFTsBought",
+            "offset": 0,
+            "slot": "574",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:102"
+          },
+          {
+            "label": "_nftsByCategory",
+            "offset": 0,
+            "slot": "575",
+            "type": "t_mapping(t_string_memory_ptr,t_struct(UintSet)5223_storage)",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:103"
+          },
+          {
+            "label": "totalCreators",
+            "offset": 0,
+            "slot": "576",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "GameifiedMarketplaceCoreV1",
+            "src": "contracts\\Marketplace\\GameifiedMarketplaceCoreV1.sol:104"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_bytes32)dyn_storage": {
+            "label": "bytes32[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_string_storage)dyn_storage": {
+            "label": "string[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_struct(Offer)5503_storage)dyn_storage": {
+            "label": "struct GameifiedMarketplaceCoreV1.Offer[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)44_storage": {
+            "label": "uint256[44]",
+            "numberOfBytes": "1408"
+          },
+          "t_array(t_uint256)48_storage": {
+            "label": "uint256[48]",
+            "numberOfBytes": "1536"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_mapping(t_address,t_bool))": {
+            "label": "mapping(address => mapping(address => bool))",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_struct(UintSet)5223_storage)": {
+            "label": "mapping(address => struct EnumerableSetUpgradeable.UintSet)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(RoleData)23_storage)": {
+            "label": "mapping(bytes32 => struct AccessControlUpgradeable.RoleData)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_uint256)": {
+            "label": "mapping(bytes32 => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_string_memory_ptr,t_struct(UintSet)5223_storage)": {
+            "label": "mapping(string => struct EnumerableSetUpgradeable.UintSet)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_address)": {
+            "label": "mapping(uint256 => address)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_array(t_string_storage)dyn_storage)": {
+            "label": "mapping(uint256 => string[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_array(t_struct(Offer)5503_storage)dyn_storage)": {
+            "label": "mapping(uint256 => struct GameifiedMarketplaceCoreV1.Offer[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_bool)": {
+            "label": "mapping(uint256 => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_mapping(t_address,t_bool))": {
+            "label": "mapping(uint256 => mapping(address => bool))",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_string_storage)": {
+            "label": "mapping(uint256 => string)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(NFTMetadata)5494_storage)": {
+            "label": "mapping(uint256 => struct GameifiedMarketplaceCoreV1.NFTMetadata)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(RoyaltyInfo)2717_storage)": {
+            "label": "mapping(uint256 => struct ERC2981Upgradeable.RoyaltyInfo)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_uint256)": {
+            "label": "mapping(uint256 => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_string_memory_ptr": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(Counter)3305_storage": {
+            "label": "struct CountersUpgradeable.Counter",
+            "members": [
+              {
+                "label": "_value",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(NFTMetadata)5494_storage": {
+            "label": "struct GameifiedMarketplaceCoreV1.NFTMetadata",
+            "members": [
+              {
+                "label": "creator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "uri",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "category",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "createdAt",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "royaltyPercentage",
+                "type": "t_uint96",
+                "offset": 0,
+                "slot": "4"
+              }
+            ],
+            "numberOfBytes": "160"
+          },
+          "t_struct(Offer)5503_storage": {
+            "label": "struct GameifiedMarketplaceCoreV1.Offer",
+            "members": [
+              {
+                "label": "offeror",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "amount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "expiresInDays",
+                "type": "t_uint8",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "timestamp",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "128"
+          },
+          "t_struct(RoleData)23_storage": {
+            "label": "struct AccessControlUpgradeable.RoleData",
+            "members": [
+              {
+                "label": "members",
+                "type": "t_mapping(t_address,t_bool)",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "adminRole",
+                "type": "t_bytes32",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(RoyaltyInfo)2717_storage": {
+            "label": "struct ERC2981Upgradeable.RoyaltyInfo",
+            "members": [
+              {
+                "label": "receiver",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "royaltyFraction",
+                "type": "t_uint96",
+                "offset": 20,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(Set)4751_storage": {
+            "label": "struct EnumerableSetUpgradeable.Set",
+            "members": [
+              {
+                "label": "_values",
+                "type": "t_array(t_bytes32)dyn_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_indexes",
+                "type": "t_mapping(t_bytes32,t_uint256)",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(UintSet)5223_storage": {
+            "label": "struct EnumerableSetUpgradeable.UintSet",
+            "members": [
+              {
+                "label": "_inner",
+                "type": "t_struct(Set)4751_storage",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          },
+          "t_uint96": {
+            "label": "uint96",
+            "numberOfBytes": "12"
+          }
+        },
+        "namespaces": {}
+      }
+    },
+    "3a45e18cec63dfe755d4a82249c463069194c3db844fdc0b71d6b0a8dc8dc847": {
+      "address": "0xDa24E96D8F441B87E883eb9Fe4b5313670C852De",
+      "txHash": "0xbd660e399819e1ff566a7d335e1ef5400764550ebc1488af366dacdab6b5b18d",
       "layout": {
         "solcVersion": "0.8.28",
         "storage": [

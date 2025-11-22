@@ -58,6 +58,7 @@ async function main() {
     // Get deployer info
     const [deployer] = await ethers.getSigners();
     const deployerBalance = await ethers.provider.getBalance(deployer.address);
+    const initialBalance = deployerBalance;
 
     console.log(`📍 Deployer: ${deployer.address}`);
     console.log(`💰 Balance: ${ethers.formatEther(deployerBalance)} POL`);
@@ -72,15 +73,23 @@ async function main() {
     console.log("⛽ Getting current gas price...");
     const feeData = await ethers.provider.getFeeData();
     // Use base gas price without multiplier for better acceptance rate
-    // Polygon typically uses 30-80 Gwei, adding 20% buffer made it too high (128 Gwei)
+    // Polygon typically uses 30-80 Gwei, minimum tip is 25 Gwei
     if (!feeData.maxFeePerGas || !feeData.maxPriorityFeePerGas) {
         throw new Error("❌ Invalid gas fee data from RPC. maxFeePerGas or maxPriorityFeePerGas is null. Please check your network/RPC or set a fallback gas price.");
     }
-    // Optimización: Reducir 15% para Polygon (menos congestionada)
-    const maxFeePerGas = (feeData.maxFeePerGas * 85n) / 100n;
-    const maxPriorityFeePerGas = (feeData.maxPriorityFeePerGas * 85n) / 100n;
-    console.log(`   Base: ${ethers.formatUnits(feeData.maxFeePerGas, "gwei")} Gwei`);
-    console.log(`   Optimized: ${ethers.formatUnits(maxFeePerGas, "gwei")} Gwei (-15% for Polygon)\n`);
+    // IMPORTANT: Polygon has minimum priority fee of 25 Gwei, so we use actual values with 10% buffer
+    // DO NOT reduce by more than 5% to stay above minimums
+    const baseMaxFee = feeData.maxFeePerGas;
+    const baseMaxPriority = feeData.maxPriorityFeePerGas;
+    
+    // Apply 10% buffer (not reduction) to ensure we meet network minimums
+    const maxFeePerGas = (baseMaxFee * 110n) / 100n;
+    const maxPriorityFeePerGas = (baseMaxPriority * 110n) / 100n;
+    
+    console.log(`   Base Fee: ${ethers.formatUnits(baseMaxFee, "gwei")} Gwei`);
+    console.log(`   Base Priority: ${ethers.formatUnits(baseMaxPriority, "gwei")} Gwei`);
+    console.log(`   Final Max Fee: ${ethers.formatUnits(maxFeePerGas, "gwei")} Gwei (+10% buffer)`);
+    console.log(`   Final Priority Fee: ${ethers.formatUnits(maxPriorityFeePerGas, "gwei")} Gwei (+10% buffer)\n`);
 
     const gasOptions = { 
         maxFeePerGas, 
@@ -854,6 +863,18 @@ async function main() {
         console.log(`   Address: ${deploymentData.marketplace.proxy}\n`);
         console.log("🟢 FOR QUERIES: Use EnhancedSmartStakingView (read-only)");
         console.log(`   Address: ${deploymentData.staking.view}\n`);
+
+        // Calculate and display gas costs
+        const finalBalance = await ethers.provider.getBalance(deployer.address);
+        const gasCostPOL = ethers.formatEther(initialBalance - finalBalance);
+        const gasCostWei = initialBalance - finalBalance;
+        
+        console.log("╔════════════════════════════════════════════════════════════════════════════════╗");
+        console.log("║  💰 DEPLOYMENT COST SUMMARY                                                  ║");
+        console.log("╚════════════════════════════════════════════════════════════════════════════════╝\n");
+        console.log(`Initial Balance:    ${ethers.formatEther(initialBalance)} POL`);
+        console.log(`Final Balance:      ${ethers.formatEther(finalBalance)} POL`);
+        console.log(`Total Gas Cost:     ${gasCostPOL} POL (${gasCostWei.toString()} Wei)\n`);
 
         return deploymentData;
 
