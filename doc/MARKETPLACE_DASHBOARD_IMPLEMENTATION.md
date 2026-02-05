@@ -1,6 +1,7 @@
-# Marketplace Dashboard View Functions - Implementation Complete ✅
+# Marketplace Dashboard View Functions - Implementation Complete (ARCHIVED)
 
-## Executive Summary
+**Este documento fue archivado.** Se ha movido a `doc/archive/MARKETPLACE_DASHBOARD_IMPLEMENTATION.md` para mantener el repositorio con documentación condensada. Consulta `doc/contracts/*` para documentación resumida por contrato.
+
 
 Successfully implemented **35 new view functions** across **6 Marketplace contracts** to provide comprehensive dashboard statistics and analytics. All contracts compile without errors.
 

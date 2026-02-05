@@ -1,6 +1,7 @@
-# Marketplace View Functions Analysis
+# Marketplace View Functions Analysis (ARCHIVED)
 
-## Executive Summary
+**Este documento fue archivado.** Se ha movido a `doc/archive/MARKETPLACE_VIEW_FUNCTIONS_ANALYSIS.md` para mantener el repositorio con documentación condensada. Consulta `doc/contracts/*` para documentación resumida por contrato.
+
 
 Este documento analiza las funciones view existentes en los contratos de Marketplace y propone nuevas funciones para crear un dashboard completo con estadísticas detalladas.
 

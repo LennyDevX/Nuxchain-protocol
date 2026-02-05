@@ -24,12 +24,12 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     // ════════════════════════════════════════════════════════════════════════════════════════
     
     uint16 private constant COMMISSION_PERCENTAGE = 600; // 6%
-    uint256 private constant MAX_DEPOSIT = 10000 ether;
+    uint256 private constant MAX_DEPOSIT = 100000 ether;
     uint256 private constant MIN_DEPOSIT = 10 ether;
     uint256 private constant BASIS_POINTS = 10000;
-    uint256 private constant DAILY_WITHDRAWAL_LIMIT = 1000 ether;
+    uint256 private constant DAILY_WITHDRAWAL_LIMIT = 2000 ether;
     uint256 private constant WITHDRAWAL_LIMIT_PERIOD = 1 days;
-    uint16 private constant MAX_DEPOSITS_PER_USER = 300;
+    uint16 private constant MAX_DEPOSITS_PER_USER = 400;
     uint8 private constant MAX_ACTIVE_SKILL_SLOTS = 5;
     
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -62,6 +62,7 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     mapping(address => User) private users;
     mapping(address => uint256) private _dailyWithdrawalAmount;
     mapping(address => uint256) private _lastWithdrawalDay;
+    mapping(address => uint256) public totalRewardsClaimed;
     
     // ════════════════════════════════════════════════════════════════════════════════════════
     // STATE VARIABLES - MODULE REFERENCES
@@ -302,6 +303,9 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
         }
         user.lastWithdrawTime = currentTime;
 
+        // Track total rewards claimed
+        totalRewardsClaimed[msg.sender] += netAmount;
+
         _transferCommission(commission);
         payable(msg.sender).sendValue(netAmount);
 
@@ -402,7 +406,7 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
         onlyMarketplace
     {
         if (address(gamificationModule) == address(0)) revert ModuleNotSet("Gamification");
-        gamificationModule.completeQuest(user, questId, rewardAmount, 30);
+        gamificationModule.completeQuest(user, questId, rewardAmount, 15, 30);
     }
 
     function notifyAchievementUnlocked(address user, uint256 achievementId, uint256 rewardAmount)
@@ -435,6 +439,13 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
             user.deposits.length,
             user.lastWithdrawTime
         );
+    }
+    
+    /// @notice Get total rewards claimed by user
+    /// @param userAddress The address of the user
+    /// @return Total amount of rewards claimed in POL
+    function getTotalClaimedRewards(address userAddress) external view returns (uint256) {
+        return totalRewardsClaimed[userAddress];
     }
     
     // VIEW FUNCTIONS NOW DELEGATED TO EnhancedSmartStakingView CONTRACT

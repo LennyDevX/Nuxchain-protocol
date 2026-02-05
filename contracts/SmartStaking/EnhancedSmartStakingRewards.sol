@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../interfaces/IEnhancedSmartStakingRewards.sol";
 import "../interfaces/IEnhancedSmartStakingSkills.sol";
 import "../interfaces/IEnhancedSmartStakingGamification.sol";
+import "../interfaces/ITreasuryManager.sol";
 
 /**
  * @title EnhancedSmartStakingRewards
@@ -20,12 +21,16 @@ contract EnhancedSmartStakingRewards is Ownable, ReentrancyGuard, IEnhancedSmart
     
     uint256 private constant BASIS_POINTS = 10000;
     
+    /// @notice Quest reward commission (2%)
+    uint256 private constant QUEST_COMMISSION_PERCENTAGE = 200; // 2% in basis points
+    
     // ============================================
     // STATE VARIABLES
     // ============================================
     
     IEnhancedSmartStakingSkills public skillsModule;
     IEnhancedSmartStakingGamification public gamificationModule;
+    ITreasuryManager public treasuryManager;
     
     // Staking Yield Configuration
     uint256[] private lockupPeriods;
@@ -39,16 +44,14 @@ contract EnhancedSmartStakingRewards is Ownable, ReentrancyGuard, IEnhancedSmart
         // Initialize lockup periods: 0, 30, 90, 180, 365 days
         lockupPeriods = [0, 30 days, 90 days, 180 days, 365 days];
         
-        // Initialize base APYs (Can be 0 for "Sustainable" model, or low values)
-        // Example: 1% base APY for 365 days, 0% for others.
-        // Or standard values if user wants hybrid.
-        // Let's set conservative base values, assuming skills provide the main boost.
+        // Initialize base APYs - All values are hourly ROI converted to annual
+        // Formula: Hourly ROI × 24 hours × 365 days = Annual APY
         baseAPYs = [
-            100,    // 1% APY (No Lock)
-            200,    // 2% APY (30 Days)
-            300,    // 3% APY (90 Days)
-            500,    // 5% APY (180 Days)
-            800     // 8% APY (365 Days)
+            263,    // 26.3% APY (No Lock)     - 0.003% per hour
+            438,    // 43.8% APY (30 Days)     - 0.005% per hour
+            788,    // 78.8% APY (90 Days)     - 0.009% per hour
+            1051,   // 105.12% APY (180 Days)  - 0.012% per hour
+            1577    // 157.68% APY (365 Days)  - 0.018% per hour
         ];
     }
     
@@ -64,6 +67,15 @@ contract EnhancedSmartStakingRewards is Ownable, ReentrancyGuard, IEnhancedSmart
     function setGamificationModule(address _gamificationModule) external onlyOwner {
         require(_gamificationModule != address(0), "Invalid address");
         gamificationModule = IEnhancedSmartStakingGamification(_gamificationModule);
+    }
+    
+    /**
+     * @notice Set the treasury manager contract address
+     * @param _treasuryManager The treasury manager contract address
+     */
+    function setTreasuryManager(address _treasuryManager) external onlyOwner {
+        require(_treasuryManager != address(0), "Invalid address");
+        treasuryManager = ITreasuryManager(_treasuryManager);
     }
 
     /**
@@ -103,14 +115,30 @@ contract EnhancedSmartStakingRewards is Ownable, ReentrancyGuard, IEnhancedSmart
         // 2. Calculate final reward with boosts
         uint256 finalReward = calculateQuestReward(msg.sender, reward.amount);
         
-        // 3. Mark as claimed in Gamification module
+        // 3. Calculate and deduct 2% commission
+        uint256 commission = (finalReward * QUEST_COMMISSION_PERCENTAGE) / BASIS_POINTS;
+        uint256 userReward = finalReward - commission;
+        
+        // 4. Mark as claimed in Gamification module
         gamificationModule.setQuestClaimed(msg.sender, questId);
         
-        // 4. Transfer reward
-        require(address(this).balance >= finalReward, "Insufficient reward funds");
-        payable(msg.sender).transfer(finalReward);
+        // 5. Transfer commission to Treasury Manager if available
+        if (address(treasuryManager) != address(0) && commission > 0) {
+            (bool commissionSent, ) = payable(address(treasuryManager)).call{value: commission}("");
+            if (!commissionSent) {
+                // If treasury transfer fails, add back to user reward
+                userReward = finalReward;
+            }
+        } else {
+            // No treasury set, user gets full reward
+            userReward = finalReward;
+        }
         
-        emit QuestRewardClaimed(msg.sender, questId, finalReward, finalReward - reward.amount);
+        // 6. Transfer reward to user
+        require(address(this).balance >= userReward, "Insufficient reward funds");
+        payable(msg.sender).transfer(userReward);
+        
+        emit QuestRewardClaimed(msg.sender, questId, userReward, userReward - reward.amount);
     }
     
     // ============================================

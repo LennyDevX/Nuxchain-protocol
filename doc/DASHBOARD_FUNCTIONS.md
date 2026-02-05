@@ -1,6 +1,7 @@
-# 🎯 Dashboard Functions - Staking Contract v2
+# 🎯 Dashboard Functions - Staking Contract v2 (ARCHIVED)
 
-## Descripción General
+**Este documento fue archivado.** Se ha movido a `doc/archive/DASHBOARD_FUNCTIONS.md` para mantener el repositorio con documentación condensada. Consulta `doc/contracts/*` para documentación resumida por contrato.
+
 
 Se han agregado **6 nuevas funciones optimizadas específicamente para el dashboard** de staking. Estas funciones permiten obtener toda la información necesaria para mostrar un dashboard como el de la imagen con **mínimas llamadas al contrato**.
 

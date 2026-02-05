@@ -20,7 +20,24 @@ contract LevelingSystem is AccessControl, Initializable, UUPSUpgradeable {
     // XP and Level Constants
     uint8 private constant MAX_LEVEL = 50;
     uint256 private constant MAX_XP_TOTAL = 7500;
-    uint256 public constant LEVEL_UP_REWARD = 20 ether; // 20 POL
+    
+    // Dynamic Level-Up Reward System (Scaled 1-5 POL based on level)
+    // Formula: min(5, 1 + (level / 10)) POL
+    // Level 1: 1.1 POL → 1 POL (rounded down)
+    // Level 10: 2 POL
+    // Level 20: 3 POL
+    // Level 30: 4 POL
+    // Level 40: 5 POL (max cap)
+    // Level 50: 6 POL → 5 POL (max cap)
+    uint256 private constant MIN_LEVEL_REWARD = 1 ether;      // 1 POL minimum
+    uint256 private constant MAX_LEVEL_REWARD = 5 ether;      // 5 POL maximum
+    uint256 private constant REWARD_SCALE_DIVISOR = 10;       // level / 10 for scaling
+    
+    // Batch NFT Creation XP Constants
+    uint256 private constant BASE_NFT_XP = 10;
+    uint256 private constant MAX_BATCH_XP = 250; // Cap per batch
+    uint256 private constant DAILY_XP_CAP = 1000; // Daily limit per user
+    uint256 private constant BATCH_SCALE_DIVISOR = 500; // For scaling formula
 
     struct Badge {
         uint256 id;
@@ -67,6 +84,32 @@ contract LevelingSystem is AccessControl, Initializable, UUPSUpgradeable {
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+
+    /**
+     * @dev Calculate dynamic level-up reward based on user's new level
+     * Formula: min(MAX_LEVEL_REWARD, MIN_LEVEL_REWARD + (level / REWARD_SCALE_DIVISOR))
+     * 
+     * Examples:10) = 1.1 POL → 1 POL (integer division)
+     * - Level 10: 1 + (10/10) = 2 POL
+     * - Level 20: 1 + (20/10) = 3 POL
+     * - Level 30: 1 + (30/10) = 4 POL
+     * - Level 40: 1 + (40/10) = 5 POL (max cap)
+     * - Level 50: 1 + (50/10) = 6 POL → capped at 5 POL
+     */
+    function _calculateLevelUpReward(uint8 level) internal pure returns (uint256) {
+        require(level >= 1 && level <= MAX_LEVEL, "Invalid level");
+        
+        // Formula: 1 + (level / 10), capped at 5
+        // Formula: 1 + (level / 5), capped at 10 POL
+        uint256 scaledReward = MIN_LEVEL_REWARD + (uint256(level) * 1 ether / REWARD_SCALE_DIVISOR);
+        
+        // Apply max cap
+        if (scaledReward > MAX_LEVEL_REWARD) {
+            return MAX_LEVEL_REWARD;
+        }
+        
+        return scaledReward;
+    }
 
     /**
      * @dev Get XP required for a specific level (not cumulative)
@@ -124,16 +167,19 @@ contract LevelingSystem is AccessControl, Initializable, UUPSUpgradeable {
         // Emit level up event if level increased
         if (newLevel > oldLevel) {
             emit LevelUp(user, newLevel);
-            _distributeLevelUpReward(user, newLevel - oldLevel);
+            _distributeLevelUpReward(user, newLevel);
         }
     }
 
-    function _distributeLevelUpReward(address user, uint256 levelsGained) internal {
-        uint256 rewardAmount = levelsGained * LEVEL_UP_REWARD;
-        if (address(this).balance >= rewardAmount) {
-            (bool success, ) = payable(user).call{value: rewardAmount}("");
+    function _distributeLevelUpReward(address user, uint8 newLevel) internal {
+        // Calculate reward based on new level reached
+        uint256 levelReward = _calculateLevelUpReward(newLevel);
+        
+        // Only pay if contract has sufficient balance
+        if (address(this).balance >= levelReward) {
+            (bool success, ) = payable(user).call{value: levelReward}("");
             if (success) {
-                emit RewardPaid(user, rewardAmount);
+                emit RewardPaid(user, levelReward);
             }
         }
     }
@@ -206,13 +252,78 @@ contract LevelingSystem is AccessControl, Initializable, UUPSUpgradeable {
     }
 
     /**
-     * @dev Record NFT created
+     * @dev Record NFT created (single)
      */
     function recordNFTCreated(address creator) external onlyRole(MARKETPLACE_ROLE) {
         require(creator != address(0), "Invalid creator");
         userProfiles[creator].nftsCreated++;
-        _updateUserXP(creator, 10, "NFT_CREATED");
+        _updateUserXP(creator, BASE_NFT_XP, "NFT_CREATED");
         emit NFTCreated(creator);
+    }
+
+    /**
+     * @dev Record batch NFT creation with scaled XP rewards
+     * @param creator Address of the NFT creator
+     * @param count Number of NFTs created in the batch
+     * @return xpAwarded Total XP awarded for this batch
+     * 
+     * Formula: baseXP * count * min(1.5, 1 + count/500)
+     * - Encourages batch creation with diminishing returns
+     * - Cap: 250 XP per batch (prevents abuse)
+     * - Daily Cap: 1000 XP per user (anti-farming)
+     * 
+     * Examples:
+     * - 1 NFT: 10 XP (same as single)
+     * - 50 NFTs: 10 * 50 * 1.1 = 550 → capped to 250 XP
+     * - 250 NFTs: 10 * 250 * 1.5 = 3750 → capped to 250 XP
+     * - 500 NFTs: 10 * 500 * 2.0 = 10000 → capped to 250 XP
+     */
+    function recordNFTCreatedBatch(address creator, uint256 count) 
+        external 
+        onlyRole(MARKETPLACE_ROLE) 
+        returns (uint256) 
+    {
+        require(creator != address(0), "Invalid creator");
+        require(count > 0 && count <= 500, "Invalid count");
+        
+        // Reset daily tracking if new day
+        uint256 currentDay = block.timestamp / 1 days;
+        if (lastXPDay[creator] != currentDay) {
+            dailyXPGained[creator] = 0;
+            lastXPDay[creator] = currentDay;
+        }
+        
+        // Calculate scaled XP with formula: baseXP * count * scaleFactor
+        // scaleFactor = min(1.5, 1 + count/500)
+        uint256 scaleFactor = 10000 + (count * 10000) / BATCH_SCALE_DIVISOR; // In basis points
+        if (scaleFactor > 15000) scaleFactor = 15000; // Cap at 1.5x
+        
+        uint256 rawXP = (BASE_NFT_XP * count * scaleFactor) / 10000;
+        
+        // Apply batch cap
+        uint256 batchXP = rawXP > MAX_BATCH_XP ? MAX_BATCH_XP : rawXP;
+        
+        // Check daily cap
+        uint256 availableDailyXP = dailyXPGained[creator] < DAILY_XP_CAP 
+            ? DAILY_XP_CAP - dailyXPGained[creator] 
+            : 0;
+            
+        uint256 xpToAward = batchXP > availableDailyXP ? availableDailyXP : batchXP;
+        
+        // If XP is being capped, still allow at least BASE_NFT_XP
+        if (xpToAward == 0 && availableDailyXP > 0) {
+            xpToAward = availableDailyXP >= BASE_NFT_XP ? BASE_NFT_XP : availableDailyXP;
+        }
+        
+        // Update profile and daily tracking
+        if (xpToAward > 0) {
+            userProfiles[creator].nftsCreated += count;
+            dailyXPGained[creator] += xpToAward;
+            _updateUserXP(creator, xpToAward, "NFT_CREATED_BATCH");
+        }
+        
+        emit NFTCreated(creator);
+        return xpToAward;
     }
 
     /**

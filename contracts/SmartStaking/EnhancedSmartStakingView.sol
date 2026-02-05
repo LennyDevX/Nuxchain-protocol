@@ -640,11 +640,11 @@ contract EnhancedSmartStakingView {
     }
     
     /// @notice Get recommended APY rates for different lockup periods
-    /// @return flexibleAPY Annual percentage yield for flexible deposits
-    /// @return locked30APY APY for 30-day lock
-    /// @return locked90APY APY for 90-day lock
-    /// @return locked180APY APY for 180-day lock
-    /// @return locked365APY APY for 365-day lock
+    /// @return flexibleAPY Annual percentage yield for flexible deposits (basis points)
+    /// @return locked30APY APY for 30-day lock (basis points)
+    /// @return locked90APY APY for 90-day lock (basis points)
+    /// @return locked180APY APY for 180-day lock (basis points)
+    /// @return locked365APY APY for 365-day lock (basis points)
     function getAPYRates() external pure returns (
         uint256 flexibleAPY,
         uint256 locked30APY,
@@ -652,15 +652,230 @@ contract EnhancedSmartStakingView {
         uint256 locked180APY,
         uint256 locked365APY
     ) {
-        // Return base APY values (can be customized based on reward module implementation)
-        // Typical values in basis points (100 = 1%)
+        // APY values in basis points (100 = 1%)
+        // Based on hourly ROI: 0.003%, 0.005%, 0.009%, 0.012%, 0.018%
         return (
-            0,      // Flexible - 0% base APY
-            365,    // 30-day - ~3.65% APY
-            912,    // 90-day - ~9.12% APY
-            1825,   // 180-day - ~18.25% APY
-            3650    // 365-day - ~36.50% APY
+            263,    // 26.3% APY (No Lock)     - 0.003% per hour
+            438,    // 43.8% APY (30 Days)     - 0.005% per hour
+            788,    // 78.8% APY (90 Days)     - 0.009% per hour
+            1051,   // 105.12% APY (180 Days)  - 0.012% per hour
+            1577    // 157.68% APY (365 Days)  - 0.018% per hour
         );
+    }
+    
+    /// @notice Get hourly ROI rates for different lockup periods
+    /// @dev Returns rates in basis points where 10000 = 100% = 1.0
+    /// @return rates Array of hourly ROI rates [flexible, 30d, 90d, 180d, 365d]
+    function getHourlyROIRates() external pure returns (uint256[5] memory rates) {
+        // Hourly ROI in basis points (30 = 0.003%)
+        return [
+            uint256(30),    // 0.003% per hour (No Lock)
+            uint256(50),    // 0.005% per hour (30 Days)
+            uint256(90),    // 0.009% per hour (90 Days)
+            uint256(120),   // 0.012% per hour (180 Days)
+            uint256(180)    // 0.018% per hour (365 Days)
+        ];
+    }
+    
+    /// @notice Get comprehensive staking rates info for frontend display
+    /// @return info Structured rate information
+    function getStakingRatesInfo() external pure returns (StakingRatesInfo memory info) {
+        info.lockupPeriods = [uint256(0), 30, 90, 180, 365];
+        info.hourlyROI = [uint256(30), 50, 90, 120, 180]; // in basis points (30 = 0.003%)
+        info.annualAPY = [uint256(263), 438, 788, 1051, 1577]; // in basis points
+        info.periodNames = ["Flexible", "30 Days", "90 Days", "180 Days", "365 Days"];
+    }
+    
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // NEW VIEW FUNCTIONS FOR FRONTEND
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    
+    /// @notice Get global staking statistics for dashboard
+    /// @return stats Global platform statistics
+    function getGlobalStats() external view returns (GlobalStakingStats memory stats) {
+        stats.totalValueLocked = stakingContract.totalPoolBalance();
+        stats.totalUniqueUsers = stakingContract.uniqueUsersCount();
+        stats.contractBalance = stakingContract.getContractBalance();
+        stats.availableRewards = stats.contractBalance > stats.totalValueLocked 
+            ? stats.contractBalance - stats.totalValueLocked 
+            : 0;
+        (stats.healthStatus, , , ) = this.getPoolHealth();
+        stats.timestamp = block.timestamp;
+    }
+    
+    /// @notice Get user's projected rewards over different time periods
+    /// @param _user User address
+    /// @return projection Rewards projection breakdown
+    function getUserRewardsProjection(address _user) external view returns (UserRewardsProjection memory projection) {
+        (uint256 dailyEst, uint256 monthlyEst, uint256 annualEst) = this.getEarningsBreakdown(_user);
+        
+        projection.currentPendingRewards = stakingContract.calculateRewards(_user);
+        projection.dailyRewards = dailyEst;
+        projection.hourlyRewards = dailyEst / 24;
+        projection.weeklyRewards = dailyEst * 7;
+        projection.monthlyRewards = monthlyEst;
+        projection.yearlyRewards = annualEst;
+    }
+    
+    /// @notice Get detailed lockup analysis for a user
+    /// @param _user User address
+    /// @return analysis Lockup breakdown and unlock info
+    function getUserLockupAnalysis(address _user) external view returns (LockupAnalysis memory analysis) {
+        uint256[] memory summaries = this.getDepositSummaryByType(_user);
+        
+        analysis.totalFlexible = summaries[0];
+        analysis.totalLocked30 = summaries[1];
+        analysis.totalLocked90 = summaries[2];
+        analysis.totalLocked180 = summaries[3];
+        analysis.totalLocked365 = summaries[4];
+        
+        (, analysis.nextUnlockTime) = this.getNextUnlockTime(_user);
+        
+        // Find the amount that will unlock next
+        (,,uint256 depCount,) = stakingContract.getUserInfo(_user);
+        for (uint256 i = 0; i < depCount; i++) {
+            (uint128 amount, uint64 timestamp, , uint64 lockupDuration) = stakingContract.getUserDeposit(_user, i);
+            uint256 unlockTime = uint256(timestamp) + uint256(lockupDuration);
+            if (unlockTime == analysis.nextUnlockTime) {
+                analysis.nextUnlockAmount += uint256(amount);
+            }
+        }
+    }
+    
+    /// @notice Calculate potential earnings for a hypothetical deposit
+    /// @param amount Amount to deposit in wei
+    /// @param lockupPeriodIndex Lockup period (0=flexible, 1=30d, 2=90d, 3=180d, 4=365d)
+    /// @param daysToProject Number of days to project earnings
+    /// @return projectedEarnings Estimated earnings in wei
+    /// @return effectiveAPY The APY applied (in basis points)
+    function calculatePotentialEarnings(
+        uint256 amount,
+        uint8 lockupPeriodIndex,
+        uint256 daysToProject
+    ) external pure returns (uint256 projectedEarnings, uint256 effectiveAPY) {
+        require(lockupPeriodIndex < 5, "Invalid lockup period");
+        
+        uint256[5] memory apyRates = [uint256(263), 438, 788, 1051, 1577];
+        effectiveAPY = apyRates[lockupPeriodIndex];
+        
+        // Calculate: amount * APY * days / (365 * 10000)
+        projectedEarnings = (amount * effectiveAPY * daysToProject) / (365 * 10000);
+    }
+    
+    /// @notice Get user's staking efficiency metrics
+    /// @param _user User address
+    /// @return efficiency Percentage of optimal staking (0-100)
+    /// @return suggestions Array of improvement suggestions
+    function getStakingEfficiency(address _user) external view returns (
+        uint256 efficiency,
+        string[3] memory suggestions
+    ) {
+        (uint256 totalDep, , uint256 depCount, ) = stakingContract.getUserInfo(_user);
+        
+        if (totalDep == 0) {
+            return (0, ["Start staking to earn rewards", "Consider 365-day lockup for max APY", ""]);
+        }
+        
+        uint256[] memory summaries = this.getDepositSummaryByType(_user);
+        
+        // Calculate efficiency based on lockup distribution
+        // Higher lockups = higher efficiency
+        uint256 weightedScore = 
+            (summaries[0] * 1) +   // Flexible = 1x weight
+            (summaries[1] * 2) +   // 30d = 2x weight
+            (summaries[2] * 3) +   // 90d = 3x weight
+            (summaries[3] * 4) +   // 180d = 4x weight
+            (summaries[4] * 5);    // 365d = 5x weight
+        
+        // Max possible score is totalDep * 5 (if all in 365d)
+        efficiency = (weightedScore * 100) / (totalDep * 5);
+        
+        // Generate suggestions
+        uint8 suggestionIndex = 0;
+        
+        if (summaries[0] > totalDep / 2) {
+            suggestions[suggestionIndex++] = "Move flexible deposits to locked for higher APY";
+        }
+        if (summaries[4] == 0) {
+            suggestions[suggestionIndex++] = "Consider 365-day lockup for 157.68% APY";
+        }
+        if (depCount > 10) {
+            suggestions[suggestionIndex++] = "Consider compounding to consolidate deposits";
+        }
+    }
+    
+    /// @notice Check if user can withdraw and get details
+    /// @param _user User address
+    /// @return canWithdraw True if user has withdrawable rewards
+    /// @return withdrawableRewards Amount of withdrawable rewards
+    /// @return lockedUntil Timestamp when locked funds become available (0 if none locked)
+    /// @return dailyLimitRemaining Remaining daily withdrawal limit
+    function getWithdrawalStatus(address _user) external view returns (
+        bool canWithdraw,
+        uint256 withdrawableRewards,
+        uint256 lockedUntil,
+        uint256 dailyLimitRemaining
+    ) {
+        withdrawableRewards = stakingContract.calculateRewards(_user);
+        canWithdraw = withdrawableRewards > 0;
+        
+        // Check for locked deposits
+        (,,uint256 depCount,) = stakingContract.getUserInfo(_user);
+        uint256 earliestUnlock = type(uint256).max;
+        
+        for (uint256 i = 0; i < depCount; i++) {
+            (, uint64 timestamp, , uint64 lockupDuration) = stakingContract.getUserDeposit(_user, i);
+            if (lockupDuration > 0) {
+                uint256 unlockTime = uint256(timestamp) + uint256(lockupDuration);
+                if (unlockTime > block.timestamp && unlockTime < earliestUnlock) {
+                    earliestUnlock = unlockTime;
+                    canWithdraw = false; // Has locked deposits
+                }
+            }
+        }
+        
+        lockedUntil = earliestUnlock == type(uint256).max ? 0 : earliestUnlock;
+        dailyLimitRemaining = 1000 ether; // DAILY_WITHDRAWAL_LIMIT - would need to track actual usage
+    }
+    
+    /// @notice Get time-based reward breakdown for a specific deposit
+    /// @param _user User address
+    /// @param _depositIndex Index of the deposit
+    /// @return hourlyRate Rewards per hour
+    /// @return dailyRate Rewards per day
+    /// @return monthlyRate Rewards per month
+    /// @return totalAccrued Total rewards accrued so far
+    function getDepositRewardRates(address _user, uint256 _depositIndex) external view returns (
+        uint256 hourlyRate,
+        uint256 dailyRate,
+        uint256 monthlyRate,
+        uint256 totalAccrued
+    ) {
+        (uint128 amount, , uint64 lastClaimTime, uint64 lockupDuration) = stakingContract.getUserDeposit(_user, _depositIndex);
+        
+        uint8 lockupIndex;
+        if (lockupDuration == 0) lockupIndex = 0;
+        else if (lockupDuration == 30 days) lockupIndex = 1;
+        else if (lockupDuration == 90 days) lockupIndex = 2;
+        else if (lockupDuration == 180 days) lockupIndex = 3;
+        else if (lockupDuration == 365 days) lockupIndex = 4;
+        
+        uint256[5] memory apyRates = [uint256(263), 438, 788, 1051, 1577];
+        uint256 apy = apyRates[lockupIndex];
+        
+        // Calculate rates
+        // Annual: amount * APY / 10000
+        // Monthly: annual / 12
+        // Daily: annual / 365
+        // Hourly: daily / 24
+        uint256 annualRate = (uint256(amount) * apy) / 10000;
+        dailyRate = annualRate / 365;
+        hourlyRate = dailyRate / 24;
+        monthlyRate = annualRate / 12;
+        
+        // Calculate total accrued
+        uint256 timeElapsed = block.timestamp - uint256(lastClaimTime);
+        totalAccrued = (uint256(amount) * apy * timeElapsed) / (365 days * 10000);
     }
     
     /// @notice Get pool health status based on various metrics
@@ -1039,6 +1254,41 @@ contract EnhancedSmartStakingView {
         IStakingIntegration.Rarity rarity;
         bool isActive;
         uint256 impactValue;
+    }
+    
+    struct StakingRatesInfo {
+        uint256[5] lockupPeriods;     // [0, 30, 90, 180, 365] days
+        uint256[5] hourlyROI;          // Hourly ROI in basis points
+        uint256[5] annualAPY;          // Annual APY in basis points
+        string[5] periodNames;         // Human readable names
+    }
+    
+    struct GlobalStakingStats {
+        uint256 totalValueLocked;
+        uint256 totalUniqueUsers;
+        uint256 contractBalance;
+        uint256 availableRewards;
+        uint8 healthStatus;
+        uint256 timestamp;
+    }
+    
+    struct UserRewardsProjection {
+        uint256 hourlyRewards;
+        uint256 dailyRewards;
+        uint256 weeklyRewards;
+        uint256 monthlyRewards;
+        uint256 yearlyRewards;
+        uint256 currentPendingRewards;
+    }
+    
+    struct LockupAnalysis {
+        uint256 totalFlexible;
+        uint256 totalLocked30;
+        uint256 totalLocked90;
+        uint256 totalLocked180;
+        uint256 totalLocked365;
+        uint256 nextUnlockAmount;
+        uint256 nextUnlockTime;
     }
 }
 

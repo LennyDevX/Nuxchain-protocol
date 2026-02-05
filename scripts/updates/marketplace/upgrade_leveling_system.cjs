@@ -4,7 +4,7 @@ async function main() {
     // ====================================================
     // CONFIGURACIÓN - REEMPLAZAR CON DIRECCIONES REALES
     // ====================================================
-    const PROXY_ADDRESS = "0x..."; // Dirección del Proxy del Leveling System
+    const PROXY_ADDRESS = "0x4A68884abF0B56481F6bDB0E6D4521f0074a1F44"; // Dirección del Proxy del Leveling System
     
     // ====================================================
     

@@ -151,6 +151,13 @@ interface IGameifiedMarketplace {
         uint96 _royaltyPercentage
     ) external returns (uint256);
 
+    function createStandardNFTBatch(
+        string memory _tokenURI,
+        string memory _category,
+        uint96 _royaltyPercentage,
+        uint256 _count
+    ) external returns (uint256[] memory);
+
     function createSkillNFT(
         string memory _tokenURI,
         string memory _category,

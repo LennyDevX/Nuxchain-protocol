@@ -151,7 +151,8 @@ npx hardhat test test/EnhancedSmartStaking.cjs --network polygon
 - Issues: github.com/nuxchain/protocol/issues
 
 **Documentation**:
-- See `/doc` folder for detailed guides
+- See `/doc/contracts` for concise per-contract guides
+- Deep/technical documents have been archived in `/doc/archive` (kept for history)
 
 ---
 

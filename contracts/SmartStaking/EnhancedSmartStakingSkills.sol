@@ -27,6 +27,15 @@ contract EnhancedSmartStakingSkills is Ownable, IEnhancedSmartStakingSkills {
     /// @notice Number of skill types
     uint8 private constant SKILL_TYPE_COUNT = 17;
     
+    /// @notice Maximum total staking boost (+50% APY cap)
+    uint256 private constant MAX_TOTAL_STAKING_BOOST = 5000; // 50% in basis points
+    
+    /// @notice Maximum total fee discount (75% cap)
+    uint256 private constant MAX_TOTAL_FEE_DISCOUNT = 7500; // 75% in basis points
+    
+    /// @notice Maximum lock time reduction (50% cap)
+    uint256 private constant MAX_LOCK_TIME_REDUCTION = 5000; // 50% in basis points
+    
     // ============================================
     // STATE VARIABLES
     // ============================================
@@ -76,6 +85,13 @@ contract EnhancedSmartStakingSkills is Ownable, IEnhancedSmartStakingSkills {
         require(msg.sender == coreStakingContract, "Only core");
         _;
     }
+    
+    // ============================================
+    // EVENTS
+    // ============================================
+    
+    event BoostLimitReached(address indexed user, string boostType, uint256 attemptedValue, uint256 maxAllowed);
+    event SkillActivationRejected(address indexed user, uint256 nftId, string reason);
     
     // ============================================
     // CONSTRUCTOR
@@ -164,22 +180,55 @@ contract EnhancedSmartStakingSkills is Ownable, IEnhancedSmartStakingSkills {
         UserSkillProfile storage profile = _userSkillProfiles[user];
         require(_userActiveSkillNFTs[user].length() < MAX_ACTIVE_SKILLS, "Max skills reached");
         
-        _userActiveSkillNFTs[user].add(nftId);
-        
-        if (_nftRarity[nftId] == SkillRarity.Common) {
+        uint16 resolvedBoost = effectValue > 0 ? effectValue : _skillBoosts[skillType];
+        SkillRarity rarity = _nftRarity[nftId];
+        if (rarity == SkillRarity.Common && _nftRarity[nftId] == SkillRarity.Common) {
             _nftRarity[nftId] = SkillRarity.Common;
         }
         
-        uint16 resolvedBoost = effectValue > 0 ? effectValue : _skillBoosts[skillType];
+        uint16 rarityMult = _rarityMultipliers[rarity];
+        uint16 effectiveValue = uint16((uint256(resolvedBoost) * rarityMult) / 100);
+        
+        // VALIDATE LIMITS BEFORE ACTIVATION
+        if (skillType == IStakingIntegration.SkillType.STAKE_BOOST_I || 
+            skillType == IStakingIntegration.SkillType.STAKE_BOOST_II || 
+            skillType == IStakingIntegration.SkillType.STAKE_BOOST_III) {
+            
+            uint256 newStakingBoost = profile.stakingBoostTotal + effectiveValue;
+            if (newStakingBoost > MAX_TOTAL_STAKING_BOOST) {
+                emit BoostLimitReached(user, "staking", newStakingBoost, MAX_TOTAL_STAKING_BOOST);
+                emit SkillActivationRejected(user, nftId, "Staking boost limit exceeded");
+                return; // Reject activation
+            }
+        } 
+        else if (skillType == IStakingIntegration.SkillType.FEE_REDUCER_I || 
+                 skillType == IStakingIntegration.SkillType.FEE_REDUCER_II) {
+            
+            uint256 newFeeDiscount = profile.feeDiscountTotal + effectiveValue;
+            if (newFeeDiscount > MAX_TOTAL_FEE_DISCOUNT) {
+                emit BoostLimitReached(user, "fee_discount", newFeeDiscount, MAX_TOTAL_FEE_DISCOUNT);
+                emit SkillActivationRejected(user, nftId, "Fee discount limit exceeded");
+                return; // Reject activation
+            }
+        }
+        else if (skillType == IStakingIntegration.SkillType.LOCK_REDUCER) {
+            uint256 newLockReduction = profile.lockTimeReduction + effectiveValue;
+            if (newLockReduction > MAX_LOCK_TIME_REDUCTION) {
+                emit BoostLimitReached(user, "lock_reduction", newLockReduction, MAX_LOCK_TIME_REDUCTION);
+                emit SkillActivationRejected(user, nftId, "Lock reduction limit exceeded");
+                return; // Reject activation
+            }
+        }
+        
+        // ACTIVATION APPROVED - Proceed with normal logic
+        _userActiveSkillNFTs[user].add(nftId);
+        
         SkillInstance storage detail = _userSkillDetails[user][nftId];
         detail.skillType = skillType;
         detail.effectValue = resolvedBoost;
         detail.activatedAt = uint64(block.timestamp);
         detail.cooldownEnds = 0;
         detail.isActive = true;
-        
-        SkillRarity rarity = _nftRarity[nftId];
-        uint16 rarityMult = _rarityMultipliers[rarity];
         
         profile.totalBoost += resolvedBoost;
         profile.activeSkillCount = uint8(_userActiveSkillNFTs[user].length());
@@ -190,9 +239,7 @@ contract EnhancedSmartStakingSkills is Ownable, IEnhancedSmartStakingSkills {
             profile.rarityMultiplier = rarityMult;
         }
         
-        // Categorize boost for the new skill
-        uint16 effectiveValue = uint16((uint256(resolvedBoost) * rarityMult) / 100);
-        
+        // Apply boosts to profile
         if (skillType == IStakingIntegration.SkillType.STAKE_BOOST_I || 
             skillType == IStakingIntegration.SkillType.STAKE_BOOST_II || 
             skillType == IStakingIntegration.SkillType.STAKE_BOOST_III) {

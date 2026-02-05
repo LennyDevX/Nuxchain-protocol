@@ -27,6 +27,7 @@ interface ILevelingSystem {
     }
     function getUserProfile(address user) external view returns (UserProfile memory);
     function updateUserXP(address user, uint256 xpAmount, string memory reason) external;
+    function recordNFTCreatedBatch(address creator, uint256 count) external returns (uint256);
 }
 
 contract GameifiedMarketplaceQuests is AccessControl, Pausable, ReentrancyGuard {
