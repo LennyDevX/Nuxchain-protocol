@@ -11,6 +11,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "../interfaces/ITreasuryManager.sol";
 
 /**
  * @title GameifiedMarketplaceCoreV1
@@ -41,7 +42,7 @@ contract GameifiedMarketplaceCoreV1 is
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
     
-    uint256 public constant PLATFORM_FEE_PERCENTAGE = 5;
+    uint256 public constant PLATFORM_FEE_PERCENTAGE = 6;
     uint8 private constant MAX_LEVEL = 50;                    // Maximum level cap (synchronized with Quests)
     uint256 private constant MAX_XP = 5000;                   // Max XP: 50 levels × 100 XP per level
     uint256 private constant MAX_COMMENTS_PER_NFT = 1000;
@@ -81,7 +82,8 @@ contract GameifiedMarketplaceCoreV1 is
     mapping(address => EnumerableSet.UintSet) private _createdTokens;
     EnumerableSet.UintSet private _listedTokenIds;
     
-    address public platformTreasury;
+    address public platformTreasury;  // @dev Deprecated: Use treasuryManager instead
+    ITreasuryManager public treasuryManager;
     address public skillsContractAddress;
     address public levelingSystemAddress;  // Mantener para compatibilidad
     address public referralSystemAddress;  // Mantener para compatibilidad
@@ -102,6 +104,9 @@ contract GameifiedMarketplaceCoreV1 is
     address public questsContractAddress;
     address public stakingContractAddress;
     mapping(address => UserProfile) public userProfiles;
+    mapping(uint256 => bool) public isBadge;
+    mapping(address => bool) public hasBadge;
+    address public collaboratorRewardsContract;
 
     event TokenCreated(address indexed creator, uint256 indexed tokenId, string uri);
     event TokenListed(address indexed seller, uint256 indexed tokenId, uint256 price);
@@ -118,12 +123,34 @@ contract GameifiedMarketplaceCoreV1 is
     event QuestsContractUpdated(address indexed oldAddress, address indexed newAddress);
     event StakingContractUpdated(address indexed oldAddress, address indexed newAddress);
     event PlatformFeeTransferred(address indexed from, uint256 amount, address indexed to, string operation);
+    event TreasuryManagerUpdated(address indexed newManager);
 
     error TokenNotFound();
     error NotTokenOwner();
     error TokenNotListed();
     error InsufficientPayment();
     error NoOffersAvailable();
+    error InvalidRoyalty();
+    error InvalidPrice();
+    error InvalidOfferId();
+    error InvalidOfferExpiry();
+    error InvalidOffer();
+    error OfferExpired();
+    error NotOfferor();
+    error NotExists();
+    error InvalidCommentLength();
+    error TooManyComments();
+    error InvalidCount();
+    error AlreadyHasBadge();
+    error NotBadge();
+    error XPOverflow();
+    error InvalidAddress();
+    error TreasuryFailed();
+    error CollaboratorFailed();
+    error FallbackFailed();
+    error SellerFailed();
+    error RefundFailed();
+    error BadgeSoulbound();
 
     function initialize(address _platformTreasury) public initializer {
         __ERC721_init("GameifiedNFT", "GNFT");
@@ -146,7 +173,7 @@ contract GameifiedMarketplaceCoreV1 is
         string calldata _category,
         uint96 _royaltyPercentage
     ) external whenNotPaused returns (uint256) {
-        require(_royaltyPercentage <= 10000, "Invalid royalty");
+        if (_royaltyPercentage > 10000) revert InvalidRoyalty();
         
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
@@ -170,6 +197,12 @@ contract GameifiedMarketplaceCoreV1 is
         userProfiles[msg.sender].totalXP += 10;
         _createdTokens[msg.sender].add(tokenId);
         
+        if (_isBadgeCategory(_category)) {
+            if (hasBadge[msg.sender]) revert AlreadyHasBadge();
+            isBadge[tokenId] = true;
+            hasBadge[msg.sender] = true;
+        }
+
         emit TokenCreated(msg.sender, tokenId, _tokenURI);
         emit XPGained(msg.sender, 10, "NFT_CREATED");
         
@@ -177,21 +210,28 @@ contract GameifiedMarketplaceCoreV1 is
     }
 
     /**
-     * @dev Create multiple identical NFT copies in a single transaction (gas optimized)
-     * @param _tokenURI IPFS metadata URI (same for all copies)
-     * @param _category NFT category
-     * @param _royaltyPercentage Royalty percentage in basis points (0-10000)
-     * @param _count Number of copies to mint (1-500)
-     * @return tokenIds Array of minted token IDs
+     * @dev Check if category belongs to a Collaborator Badge
      */
+    function _isBadgeCategory(string memory _category) internal pure returns (bool) {
+        bytes32 catHash = keccak256(abi.encodePacked(_category));
+        return (
+            catHash == keccak256(abi.encodePacked("Mods")) ||
+            catHash == keccak256(abi.encodePacked("Influencer")) ||
+            catHash == keccak256(abi.encodePacked("Ambassador")) ||
+            catHash == keccak256(abi.encodePacked("BetaTester")) ||
+            catHash == keccak256(abi.encodePacked("VIPPartner"))
+        );
+    }
+
+    /// @dev Batch mint NFTs
     function createStandardNFTBatch(
         string calldata _tokenURI,
         string calldata _category,
         uint96 _royaltyPercentage,
         uint256 _count
     ) external whenNotPaused returns (uint256[] memory) {
-        require(_royaltyPercentage <= 10000, "Invalid royalty");
-        require(_count > 0 && _count <= 500, "Count must be 1-500");
+        if (_royaltyPercentage > 10000) revert InvalidRoyalty();
+        if (_count == 0 || _count > 500) revert InvalidCount();
         
         uint256[] memory tokenIds = new uint256[](_count);
         
@@ -217,6 +257,13 @@ contract GameifiedMarketplaceCoreV1 is
             }
             
             _createdTokens[msg.sender].add(tokenId);
+
+            if (_isBadgeCategory(_category)) {
+                if (hasBadge[msg.sender]) revert AlreadyHasBadge();
+                isBadge[tokenId] = true;
+                hasBadge[msg.sender] = true;
+            }
+
             emit TokenCreated(msg.sender, tokenId, _tokenURI);
         }
         
@@ -234,8 +281,8 @@ contract GameifiedMarketplaceCoreV1 is
         uint256 _tokenId,
         uint256 _price
     ) external whenNotPaused {
-        require(ownerOf(_tokenId) == msg.sender, "Not owner");
-        require(_price > 0, "Invalid price");
+        if (ownerOf(_tokenId) != msg.sender) revert NotTokenOwner();
+        if (_price == 0) revert InvalidPrice();
         
         isListed[_tokenId] = true;
         listedPrice[_tokenId] = _price;
@@ -245,8 +292,8 @@ contract GameifiedMarketplaceCoreV1 is
     }
 
     function unlistToken(uint256 _tokenId) external whenNotPaused {
-        require(ownerOf(_tokenId) == msg.sender, "Not owner");
-        require(isListed[_tokenId], "Not listed");
+        if (ownerOf(_tokenId) != msg.sender) revert NotTokenOwner();
+        if (!isListed[_tokenId]) revert TokenNotListed();
         
         isListed[_tokenId] = false;
         listedPrice[_tokenId] = 0;
@@ -256,17 +303,17 @@ contract GameifiedMarketplaceCoreV1 is
     }
 
     function updatePrice(uint256 _tokenId, uint256 _newPrice) external whenNotPaused {
-        require(ownerOf(_tokenId) == msg.sender, "Not owner");
-        require(isListed[_tokenId], "Not listed");
-        require(_newPrice > 0, "Invalid price");
+        if (ownerOf(_tokenId) != msg.sender) revert NotTokenOwner();
+        if (!isListed[_tokenId]) revert TokenNotListed();
+        if (_newPrice == 0) revert InvalidPrice();
         
         listedPrice[_tokenId] = _newPrice;
         emit PriceUpdated(msg.sender, _tokenId, _newPrice);
     }
 
     function buyToken(uint256 _tokenId) public payable whenNotPaused nonReentrant {
-        require(isListed[_tokenId], "Not listed");
-        require(msg.value >= listedPrice[_tokenId], "Insufficient payment");
+        if (!isListed[_tokenId]) revert TokenNotListed();
+        if (msg.value < listedPrice[_tokenId]) revert InsufficientPayment();
         
         address seller = ownerOf(_tokenId);
         uint256 price = listedPrice[_tokenId];
@@ -286,11 +333,10 @@ contract GameifiedMarketplaceCoreV1 is
         _listedTokenIds.remove(_tokenId);
         delete nftOffers[_tokenId];
         
-        (bool treasurySuccess, ) = payable(platformTreasury).call{value: platformFee}("");
-        require(treasurySuccess, "Treasury transfer failed");
+        _distributeFee(platformFee);
         
-        (bool sellerSuccess, ) = payable(seller).call{value: sellerAmount}("");
-        require(sellerSuccess, "Seller transfer failed");
+        (bool s,) = payable(seller).call{value: sellerAmount}("");
+        if (!s) revert SellerFailed();
         
         emit PlatformFeeTransferred(msg.sender, platformFee, platformTreasury, "TOKEN_SALE");
         emit TokenSold(seller, msg.sender, _tokenId, price);
@@ -302,9 +348,9 @@ contract GameifiedMarketplaceCoreV1 is
         uint256 _tokenId,
         uint8 _expiresInDays
     ) external payable whenNotPaused {
-        require(isListed[_tokenId], "Not listed");
-        require(msg.value > 0, "Invalid offer");
-        require(_expiresInDays > 0 && _expiresInDays <= 30, "Invalid expiry");
+        if (!isListed[_tokenId]) revert TokenNotListed();
+        if (msg.value == 0) revert InvalidOffer();
+        if (_expiresInDays == 0 || _expiresInDays > 30) revert InvalidOfferExpiry();
         
         nftOffers[_tokenId].push(Offer({
             offeror: msg.sender,
@@ -317,14 +363,11 @@ contract GameifiedMarketplaceCoreV1 is
     }
 
     function acceptOffer(uint256 _tokenId, uint256 _offerIndex) external nonReentrant {
-        require(ownerOf(_tokenId) == msg.sender, "Not owner");
-        require(_offerIndex < nftOffers[_tokenId].length, "Invalid offer");
+        if (ownerOf(_tokenId) != msg.sender) revert NotTokenOwner();
+        if (_offerIndex >= nftOffers[_tokenId].length) revert InvalidOfferId();
         
         Offer memory offer = nftOffers[_tokenId][_offerIndex];
-        require(
-            block.timestamp <= offer.timestamp + (offer.expiresInDays * 1 days),
-            "Offer expired"
-        );
+        if (block.timestamp > offer.timestamp + (offer.expiresInDays * 1 days)) revert OfferExpired();
         
         address buyer = offer.offeror;
         uint256 amount = offer.amount;
@@ -343,33 +386,32 @@ contract GameifiedMarketplaceCoreV1 is
         listedPrice[_tokenId] = 0;
         delete nftOffers[_tokenId];
         
-        (bool treasurySuccess, ) = payable(platformTreasury).call{value: platformFee}("");
-        require(treasurySuccess, "Treasury transfer failed");
+        _distributeFee(platformFee);
         
-        (bool sellerSuccess, ) = payable(msg.sender).call{value: sellerAmount}("");
-        require(sellerSuccess, "Seller transfer failed");
+        (bool s,) = payable(msg.sender).call{value: sellerAmount}("");
+        if (!s) revert SellerFailed();
         
         emit PlatformFeeTransferred(buyer, platformFee, platformTreasury, "OFFER_ACCEPTED");
         emit OfferAccepted(msg.sender, buyer, _tokenId, amount);
     }
 
     function cancelOffer(uint256 _tokenId, uint256 _offerIndex) external nonReentrant {
-        require(_offerIndex < nftOffers[_tokenId].length, "Invalid offer");
+        if (_offerIndex >= nftOffers[_tokenId].length) revert InvalidOfferId();
         
         Offer memory offer = nftOffers[_tokenId][_offerIndex];
-        require(offer.offeror == msg.sender, "Not offeror");
+        if (offer.offeror != msg.sender) revert NotOfferor();
         
         uint256 amount = offer.amount;
         
         nftOffers[_tokenId][_offerIndex] = nftOffers[_tokenId][nftOffers[_tokenId].length - 1];
         nftOffers[_tokenId].pop();
         
-        (bool success, ) = payable(msg.sender).call{value: amount}("");
-        require(success, "Refund failed");
+        (bool s,) = payable(msg.sender).call{value: amount}("");
+        if (!s) revert RefundFailed();
     }
 
     function toggleLike(uint256 _tokenId) external whenNotPaused {
-        require(ownerOf(_tokenId) != address(0), "Not exists");
+        if (ownerOf(_tokenId) == address(0)) revert NotExists();
         
         if (nftLikes[_tokenId][msg.sender]) {
             nftLikes[_tokenId][msg.sender] = false;
@@ -391,9 +433,10 @@ contract GameifiedMarketplaceCoreV1 is
     }
 
     function addComment(uint256 _tokenId, string calldata _text) external whenNotPaused {
-        require(ownerOf(_tokenId) != address(0), "Not exists");
-        require(bytes(_text).length > 0 && bytes(_text).length <= 280, "Invalid comment length");
-        require(nftComments[_tokenId].length < MAX_COMMENTS_PER_NFT, "Too many comments");
+        if (ownerOf(_tokenId) == address(0)) revert NotExists();
+        uint256 len = bytes(_text).length;
+        if (len == 0 || len > 280) revert InvalidCommentLength();
+        if (nftComments[_tokenId].length >= MAX_COMMENTS_PER_NFT) revert TooManyComments();
         
         nftComments[_tokenId].push(_text);
         userProfiles[msg.sender].totalXP += 2;
@@ -402,65 +445,36 @@ contract GameifiedMarketplaceCoreV1 is
         emit XPGained(msg.sender, 2, "COMMENT");
     }
 
-    // ════════════════════════════════════════════════════════════════════════════════════════
-    // VIEW FUNCTIONS - NFT DETAILS & MARKETPLACE
-    // ════════════════════════════════════════════════════════════════════════════════════════
-    
-    /**
-     * @dev Get user profile (XP, level, NFTs stats)
-     */
+    /// @dev Get user profile
     function getUserProfile(address _user) external view returns (UserProfile memory) {
         return userProfiles[_user];
     }
     
-    /**
-     * @dev Get NFT metadata by token ID
-     * @param _tokenId Token ID
-     * @return NFT metadata including creator, URI, category, created at, royalty
-     */
+    /// @dev Get NFT metadata
     function getNFTMetadata(uint256 _tokenId) external view returns (NFTMetadata memory) {
-        require(_exists(_tokenId), "NFT does not exist");
+        if (!_exists(_tokenId)) revert NotExists();
         return nftMetadata[_tokenId];
     }
     
-    /**
-     * @dev Get like count for an NFT
-     * @param _tokenId Token ID
-     * @return Number of likes
-     */
+    /// @dev Get like count
     function getNFTLikeCount(uint256 _tokenId) external view returns (uint256) {
-        require(_exists(_tokenId), "NFT does not exist");
+        if (!_exists(_tokenId)) revert NotExists();
         return nftLikeCount[_tokenId];
     }
     
-    /**
-     * @dev Get all comments for an NFT
-     * @param _tokenId Token ID
-     * @return Array of comment strings
-     */
+    /// @dev Get comments
     function getNFTComments(uint256 _tokenId) external view returns (string[] memory) {
-        require(_exists(_tokenId), "NFT does not exist");
+        if (!_exists(_tokenId)) revert NotExists();
         return nftComments[_tokenId];
     }
     
-    /**
-     * @dev Get all offers for an NFT
-     * @param _tokenId Token ID
-     * @return Array of offers with offeror, amount, expiry, timestamp
-     */
+    /// @dev Get offers
     function getNFTOffers(uint256 _tokenId) external view returns (Offer[] memory) {
-        require(_exists(_tokenId), "NFT does not exist");
+        if (!_exists(_tokenId)) revert NotExists();
         return nftOffers[_tokenId];
     }
     
-    /**
-     * @dev Paginate a set of token IDs.
-     * @param set The EnumerableSet to paginate.
-     * @param cursor The starting index.
-     * @param size The number of items to return.
-     * @return tokens Array of token IDs in the page.
-     * @return newCursor The next cursor position.
-     */
+    /// @dev Paginate tokens
     function _paginateTokenSet(
         EnumerableSet.UintSet storage set,
         uint256 cursor,
@@ -503,11 +517,7 @@ contract GameifiedMarketplaceCoreV1 is
         return _paginateTokenSet(_ownedTokens[_user], cursor, size);
     }
 
-    /**
-     * @dev Get all NFTs created by a user
-     * @param _user User address (creator)
-     * @return tokens Array of token IDs created by user
-     */
+    /// @dev Get created NFTs
     function getUserCreatedNFTs(address _user) external view returns (uint256[] memory) {
         uint256 createdCount = _createdTokens[_user].length();
         uint256[] memory result = new uint256[](createdCount);
@@ -525,10 +535,7 @@ contract GameifiedMarketplaceCoreV1 is
         return _paginateTokenSet(_createdTokens[_user], cursor, size);
     }
 
-    /**
-     * @dev Get all currently listed NFTs for sale
-     * @return tokens Array of token IDs that are listed
-     */
+    /// @dev Get listed NFTs
     function getListedNFTs() external view returns (uint256[] memory) {
         uint256 listedCount = _listedTokenIds.length();
         uint256[] memory result = new uint256[](listedCount);
@@ -546,11 +553,7 @@ contract GameifiedMarketplaceCoreV1 is
         return _paginateTokenSet(_listedTokenIds, cursor, size);
     }
 
-    /**
-     * @dev Get all NFTs owned by a user with their metadata and listing info
-     * @param _user User address
-     * @return Array of NFT metadata for all user's NFTs
-     */
+    /// @dev Get detailed user NFTs
     function getUserNFTsDetailed(address _user) external view returns (NFTMetadata[] memory) {
         uint256 balance = _ownedTokens[_user].length();
         NFTMetadata[] memory result = new NFTMetadata[](balance);
@@ -562,37 +565,26 @@ contract GameifiedMarketplaceCoreV1 is
         return result;
     }
     
-    /**
-     * @dev Check if a user has liked an NFT
-     * @param _tokenId Token ID
-     * @param _user User address
-     * @return Boolean indicating if user liked the NFT
-     */
+    /// @dev Check if user liked NFT
     function getUserNFTLike(uint256 _tokenId, address _user) external view returns (bool) {
-        require(_exists(_tokenId), "NFT does not exist");
+        if (!_exists(_tokenId)) revert NotExists();
         return nftLikes[_tokenId][_user];
     }
     
-    /**
-     * @dev Get NFT market info (price, owner, listing status)
-     * @param _tokenId Token ID
-     * @return owner Address of NFT owner
-     * @return isListedStatus Whether NFT is listed for sale
-     * @return price Current listing price (0 if not listed)
-     */
+    /// @dev Get market info
     function getNFTMarketInfo(uint256 _tokenId) external view returns (
         address owner,
         bool isListedStatus,
         uint256 price
     ) {
-        require(_exists(_tokenId), "NFT does not exist");
+        if (!_exists(_tokenId)) revert NotExists();
         owner = ownerOf(_tokenId);
         isListedStatus = isListed[_tokenId];
         price = isListed[_tokenId] ? listedPrice[_tokenId] : 0;
     }
 
     function updateUserXP(address _user, uint256 _amount) external onlyRole(ADMIN_ROLE) {
-        require(userProfiles[_user].totalXP + _amount <= MAX_XP, "XP overflow protection");
+        if (userProfiles[_user].totalXP + _amount > MAX_XP) revert XPOverflow();
         
         userProfiles[_user].totalXP += _amount;
         
@@ -611,24 +603,42 @@ contract GameifiedMarketplaceCoreV1 is
     }
 
     function setSkillsContract(address _skillsAddress) external onlyRole(ADMIN_ROLE) {
-        require(_skillsAddress != address(0), "Invalid address");
+        if (_skillsAddress == address(0)) revert InvalidAddress();
         address oldAddress = skillsContractAddress;
         skillsContractAddress = _skillsAddress;
         emit SkillsContractUpdated(oldAddress, _skillsAddress);
     }
 
     function setQuestsContract(address _questsAddress) external onlyRole(ADMIN_ROLE) {
-        require(_questsAddress != address(0), "Invalid address");
+        if (_questsAddress == address(0)) revert InvalidAddress();
         address oldAddress = questsContractAddress;
         questsContractAddress = _questsAddress;
         emit QuestsContractUpdated(oldAddress, _questsAddress);
     }
 
     function setStakingContract(address _stakingAddress) external onlyRole(ADMIN_ROLE) {
-        require(_stakingAddress != address(0), "Invalid address");
+        if (_stakingAddress == address(0)) revert InvalidAddress();
         address oldAddress = stakingContractAddress;
         stakingContractAddress = _stakingAddress;
         emit StakingContractUpdated(oldAddress, _stakingAddress);
+    }
+
+    function setCollaboratorRewardsContract(address _collaboratorRewards) external onlyRole(ADMIN_ROLE) {
+        if (_collaboratorRewards == address(0)) revert InvalidAddress();
+        collaboratorRewardsContract = _collaboratorRewards;
+    }
+
+    function setTreasuryManager(address _treasuryManager) external onlyRole(ADMIN_ROLE) {
+        if (_treasuryManager == address(0)) revert InvalidAddress();
+        treasuryManager = ITreasuryManager(_treasuryManager);
+        emit TreasuryManagerUpdated(_treasuryManager);
+    }
+
+    /// @dev Burn badge
+    function burnBadge(uint256 _tokenId) external {
+        if (ownerOf(_tokenId) != msg.sender) revert NotTokenOwner();
+        if (!isBadge[_tokenId]) revert NotBadge();
+        _burn(_tokenId);
     }
 
     function pause() external onlyRole(ADMIN_ROLE) {
@@ -655,7 +665,13 @@ contract GameifiedMarketplaceCoreV1 is
 
         if (from != address(0)) {
             for (uint256 i = 0; i < batchSize; i++) {
-                _ownedTokens[from].remove(firstTokenId + i);
+                uint256 tokenId = firstTokenId + i;
+                if (isBadge[tokenId] && to != address(0)) revert BadgeSoulbound();
+                // Reset hasBadge on burn
+                if (isBadge[tokenId] && to == address(0)) {
+                    hasBadge[from] = false;
+                }
+                _ownedTokens[from].remove(tokenId);
             }
         }
 
@@ -666,8 +682,27 @@ contract GameifiedMarketplaceCoreV1 is
         }
     }
 
+    /// @dev Internal fee distribution (100% to TreasuryManager integrated model)
+    function _distributeFee(uint256 platformFee) internal {
+        // Send 100% of platform fee to TreasuryManager
+        // TreasuryManager automatically distributes: 35% rewards, 25% collaborators, 30% staking, 10% dev
+        if (address(treasuryManager) != address(0)) {
+            try treasuryManager.receiveRevenue{value: platformFee}("marketplace_fee") {
+                // Fee successfully routed to TreasuryManager for integrated distribution
+            } catch {
+                // Fallback to old platformTreasury
+                (bool t,) = payable(platformTreasury).call{value: platformFee}("");
+                if (!t) revert TreasuryFailed();
+            }
+        } else {
+            // Use old platformTreasury if treasuryManager not set
+            (bool t,) = payable(platformTreasury).call{value: platformFee}("");
+            if (!t) revert TreasuryFailed();
+        }
+    }
+
     function _transfer(address from, address to, uint256 tokenId) internal override {
-        require(to != address(0), "Cannot transfer to zero address");
+        if (to == address(0)) revert InvalidAddress();
         super._transfer(from, to, tokenId);
     }
 

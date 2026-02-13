@@ -203,8 +203,8 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
             skillPrices[st][IStakingIntegration.Rarity.LEGENDARY] = STAKING_LEGENDARY_PRICE;
         }
         
-        // ACTIVE SKILLS (8-16)
-        for (uint8 skillType = 8; skillType <= 16; skillType++) {
+        // ACTIVE SKILLS (8-19)
+        for (uint8 skillType = 8; skillType <= 19; skillType++) {
             IStakingIntegration.SkillType st = IStakingIntegration.SkillType(skillType);
             skillPrices[st][IStakingIntegration.Rarity.COMMON] = ACTIVE_COMMON_PRICE;
             skillPrices[st][IStakingIntegration.Rarity.UNCOMMON] = ACTIVE_UNCOMMON_PRICE;
@@ -212,6 +212,18 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
             skillPrices[st][IStakingIntegration.Rarity.EPIC] = ACTIVE_EPIC_PRICE;
             skillPrices[st][IStakingIntegration.Rarity.LEGENDARY] = ACTIVE_LEGENDARY_PRICE;
         }
+    }
+
+    /**
+     * @dev Check if skill type is a Collaborator Badge
+     */
+    function _isBadgeSkill(IStakingIntegration.SkillType _skillType) internal pure returns (bool) {
+        return (
+            _skillType == IStakingIntegration.SkillType.MODERATOR ||
+            _skillType == IStakingIntegration.SkillType.BETA_TESTER ||
+            _skillType == IStakingIntegration.SkillType.VIP_PARTNER ||
+            _skillType == IStakingIntegration.SkillType.AMBASSADOR
+        );
     }
     
     /**
@@ -252,7 +264,16 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
         }
         
         // Verify minimum staking requirement (250 POL)
-        if (stakingContractAddress != address(0)) {
+        // BYPASS if it's a badge skill
+        bool hasBadgeSkill = false;
+        for (uint256 i = 0; i < _skillTypes.length; i++) {
+            if (_isBadgeSkill(_skillTypes[i])) {
+                hasBadgeSkill = true;
+                break;
+            }
+        }
+
+        if (!hasBadgeSkill && stakingContractAddress != address(0)) {
             try IEnhancedSmartStaking(stakingContractAddress).getTotalDeposit(msg.sender) returns (uint256 totalDeposit) {
                 if (totalDeposit < MIN_STAKING_REQUIREMENT) {
                     revert InsufficientStakingBalance(MIN_STAKING_REQUIREMENT, totalDeposit);
@@ -284,7 +305,7 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
         
         // Validate no duplicate skill types within this registration
         for (uint256 i = 0; i < _skillTypes.length; i++) {
-            if (uint8(_skillTypes[i]) < 1 || uint8(_skillTypes[i]) > 16) revert InvalidSkillType();
+            if (uint8(_skillTypes[i]) < 1 || uint8(_skillTypes[i]) > 19) revert InvalidSkillType();
             if (uint8(_rarities[i]) > 4) revert InvalidRarity(uint8(_rarities[i]));
             
             for (uint256 j = i + 1; j < _skillTypes.length; j++) {
@@ -298,7 +319,6 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
         nft.createdAt = block.timestamp;
         
         uint256 totalXP = 0;
-        uint256 expiryTime = block.timestamp + SKILL_DURATION;
         uint256 totalPrice = 0;
         
         // Calculate total price and validate amounts
@@ -319,12 +339,13 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
         nft.basePrice = totalPrice;
         
         for (uint256 i = 0; i < _skillTypes.length; i++) {
+            uint256 skillExpiry = _isBadgeSkill(_skillTypes[i]) ? type(uint256).max : block.timestamp + SKILL_DURATION;
             Skill memory skill = Skill(
                 _skillTypes[i],
                 _rarities[i],
                 _levels[i],
                 block.timestamp,
-                expiryTime
+                skillExpiry
             );
             
             nft.skills.push(skill);
@@ -353,8 +374,9 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
                 DEFAULT_FREE_SKILL_RARITY,
                 DEFAULT_FREE_SKILL_LEVEL,
                 block.timestamp,
-                expiryTime
+                block.timestamp + SKILL_DURATION
             );
+
 
             nft.skills.push(freeSkill);
             skillTypeCount[DEFAULT_FREE_SKILL_TYPE]++;
@@ -414,6 +436,7 @@ contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuar
         if (nft.creator == address(0)) revert SkillNFTNotFound();
         
         uint256 expiryTime = _getSkillExpiryTime(_tokenId);
+        if (expiryTime == type(uint256).max) return; // Badges never expire
         if (block.timestamp < expiryTime) revert SkillNotExpiredYet(expiryTime);
         
         for (uint256 i = 0; i < nft.skills.length; i++) {

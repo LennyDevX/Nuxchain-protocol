@@ -35,8 +35,12 @@ interface IStakingIntegration {
         AMBASSADOR,            // 2x referral bonus
         VIP_ACCESS,            // Access to exclusive drops
         EARLY_ACCESS,          // 24h early access
-        PRIVATE_AUCTIONS       // Access to private auctions
+        PRIVATE_AUCTIONS,       // Access to private auctions
+        MODERATOR,             // Community moderator
+        BETA_TESTER,           // Beta testing access
+        VIP_PARTNER            // VIP partnership rewards
     }
+
     
     /**
      * @dev Enum representing skill rarity tiers

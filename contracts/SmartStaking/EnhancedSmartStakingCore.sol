@@ -9,6 +9,7 @@ import "../interfaces/IStakingIntegration.sol";
 import "../interfaces/IEnhancedSmartStakingRewards.sol";
 import "../interfaces/IEnhancedSmartStakingSkills.sol";
 import "../interfaces/IEnhancedSmartStakingGamification.sol";
+import "../interfaces/ITreasuryManager.sol";
 
 /// @title EnhancedSmartStaking Core - Modular Architecture
 /// @notice Core orchestration contract for modular staking system
@@ -53,7 +54,8 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     // STATE VARIABLES - CORE
     // ════════════════════════════════════════════════════════════════════════════════════════
     
-    address public treasury;
+    address public treasury;  // @dev Deprecated: Use treasuryManager instead
+    ITreasuryManager public treasuryManager;
     uint256 public totalPoolBalance;
     uint256 public uniqueUsersCount;
     bool public migrated;
@@ -87,6 +89,7 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     event CommissionPaid(address indexed receiver, uint256 amount, uint256 timestamp);
     event ModuleUpdated(string indexed moduleName, address indexed oldModule, address indexed newModule);
     event MarketplaceAuthorizationUpdated(address indexed marketplace, bool isAuthorized);
+    event TreasuryManagerUpdated(address indexed newManager);
     
     // ════════════════════════════════════════════════════════════════════════════════════════
     // ERRORS
@@ -709,6 +712,11 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
         emit TreasuryUpdated(previousTreasury, _newTreasury);
     }
     
+    function setTreasuryManager(address _treasuryManager) external onlyOwner validAddress(_treasuryManager) {
+        treasuryManager = ITreasuryManager(_treasuryManager);
+        emit TreasuryManagerUpdated(_treasuryManager);
+    }
+    
     function pause() external onlyOwner {
         _pause();
     }
@@ -732,6 +740,17 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     // ════════════════════════════════════════════════════════════════════════════════════════
     
     function _transferCommission(uint256 commission) internal {
+        // Priority: Send to TreasuryManager if available, fallback to old treasury
+        if (address(treasuryManager) != address(0)) {
+            try treasuryManager.receiveRevenue{value: commission}("staking_commission") {
+                emit CommissionPaid(address(treasuryManager), commission, block.timestamp);
+                return;
+            } catch {
+                // Fallback to old treasury if TreasuryManager fails
+            }
+        }
+        
+        // Fallback to old treasury address
         if (treasury == address(0)) revert InvalidAddress();
         
         (bool sent, ) = payable(treasury).call{value: commission}("");

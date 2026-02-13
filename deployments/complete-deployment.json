@@ -7,24 +7,33 @@
     "timestamp": "2025-11-22T20:34:23.255Z",
     "blockNumber": 79369315
   },
+  "lastUpdates": {
+    "timestamp": "2026-02-12",
+    "reason": "Sustainability Update - APY -25%, Reserve Fund, Treasury Integration",
+    "note": "Items with 'codebaseUpdate': true need to be updated in frontend .env"
+  },
   "staking": {
     "core": {
-      "address": "0x4633E9f7F638E12C7D7E569D53942399789B5697",
+      "address": "0xC67F0a0cB719e4f4358D980a5D966878Fd6f3946",
       "name": "EnhancedSmartStakingCore",
       "contract": "EnhancedSmartStaking",
       "description": "Core staking contract - Orchestrator"
     },
     "rewards": {
-      "address": "0x72FCA7d14E5f29046f8B82ca70B24981b03A266f",
-      "name": "EnhancedSmartStakingRewards",
+      "address": "0xEB02b4cC589B7017e621a8b4A02295793d6cB32E",
+      "name": "EnhancedSmartStakingRewards v5.1.0",
       "contract": "EnhancedSmartStakingRewards",
-      "description": "Rewards & APY calculation module"
+      "description": "Rewards & APY calculation module (APY reduced 25%)",
+      "codebaseUpdate": true,
+      "oldAddress": "0x6AEd79f8567a9AAE27401E61D240fCce531561f3"
     },
     "skills": {
-      "address": "0x8Ea7278c3000a0628D0BA2925308aE0973Be3140",
-      "name": "EnhancedSmartStakingSkills",
+      "address": "0x2c8E2A5902dACEd9705e5AB9A3eE2EdAAe0e7F38",
+      "name": "EnhancedSmartStakingSkills v5.1.0",
       "contract": "EnhancedSmartStakingSkills",
-      "description": "Skill activation & management module"
+      "description": "Skill activation & management module (Boosts reduced 25%)",
+      "codebaseUpdate": true,
+      "oldAddress": "0x8Ea7278c3000a0628D0BA2925308aE0973Be3140"
     },
     "gamification": {
       "address": "0x90216d0227EfbBae880EC2b8F03695cB82326598",
@@ -37,6 +46,13 @@
       "name": "EnhancedSmartStakingView",
       "contract": "EnhancedSmartStakingView",
       "description": "View-only queries contract (Read-only)"
+    },
+    "dynamicAPY": {
+      "address": "0xF07B192F42E0eB84ba08c6DB591d08B1c753aC68",
+      "name": "DynamicAPYCalculator v1.0.0",
+      "contract": "DynamicAPYCalculator",
+      "description": "TVL-adjusted APY calculator (NEW - Feb 12, 2026)",
+      "codebaseUpdate": true
     }
   },
   "marketplace": {
@@ -84,19 +100,67 @@
       "description": "Quest creation, completion & rewards"
     }
   },
+  "treasury": {
+    "manager": {
+      "address": "0x8f3554Fca1Bd1b79bBf531706FA2C67fEcC5401F",
+      "name": "TreasuryManager v2.0.0",
+      "contract": "TreasuryManager",
+      "description": "Centralized revenue hub with auto-distribution and emergency reserve fund (NEW - Feb 12, 2026)",
+      "codebaseUpdate": true,
+      "allocations": {
+        "rewards": "30% (quest rewards)",
+        "staking": "35% (core liquidity pool)",
+        "collaborators": "20% (badge holder passive income)",
+        "development": "15% (dev wallet)"
+      },
+      "reserveFund": {
+        "enabled": true,
+        "acumulationPercentage": "10%",
+        "description": "Emergency fund, auto-accumulated before distributions"
+      }
+    },
+    "collaboratorBadgeRewards": {
+      "address": "0xd0F4c324ad5C34A9502A51e38807e1EdcfACDeAB",
+      "proxy": "0xd0F4c324ad5C34A9502A51e38807e1EdcfACDeAB",
+      "implementation": "0xcc17cad9c69911e98f1aCaADf6e026bec886459e",
+      "name": "CollaboratorBadgeRewards (UUPS Proxy)",
+      "contract": "CollaboratorBadgeRewards",
+      "description": "Quest rewards and badge holder distributions (DEPLOYED Feb 13, 2026)",
+      "codebaseUpdate": false,
+      "status": "✅ DEPLOYED"
+    }
+  },
   "synchronization": {
     "bidirectional": {
       "staking_marketplace": {
         "status": "✅ SYNCHRONIZED",
         "staking_to_marketplace": "0xd502fB2Eb3d345EE9A5A0286A472B38c77Fda6d5",
-        "marketplace_to_staking": "0x4633E9f7F638E12C7D7E569D53942399789B5697"
+        "marketplace_to_staking": "0xC67F0a0cB719e4f4358D980a5D966878Fd6f3946"
       },
       "core_modules": {
         "status": "✅ SYNCHRONIZED",
-        "core": "0x4633E9f7F638E12C7D7E569D53942399789B5697",
-        "rewards": "0x72FCA7d14E5f29046f8B82ca70B24981b03A266f",
-        "skills": "0x8Ea7278c3000a0628D0BA2925308aE0973Be3140",
-        "gamification": "0x90216d0227EfbBae880EC2b8F03695cB82326598"
+        "core": "0xC67F0a0cB719e4f4358D980a5D966878Fd6f3946",
+        "rewards": "0xEB02b4cC589B7017e621a8b4A02295793d6cB32E",
+        "skills": "0x2c8E2A5902dACEd9705e5AB9A3eE2EdAAe0e7F38",
+        "gamification": "0x90216d0227EfbBae880EC2b8F03695cB82326598",
+        "dynamicAPY": "0xF07B192F42E0eB84ba08c6DB591d08B1c753aC68"
+      },
+      "treasury_integration": {
+        "status": "✅ CONFIGURED (PARTIAL)",
+        "description": "TreasuryManager connected, awaiting CollaboratorBadgeRewards deployment",
+        "treasuryManager": "0x8f3554Fca1Bd1b79bBf531706FA2C67fEcC5401F",
+        "revenueReceivers": [
+          {
+            "name": "IndividualSkillsMarketplace",
+            "address": "0xB23257758B385444dF5A78aC2F315bd653470df3",
+            "status": "⏳ Awaiting setTreasuryManager() call"
+          },
+          {
+            "name": "Core Staking",
+            "address": "0xC67F0a0cB719e4f4358D980a5D966878Fd6f3946",
+            "status": "✅ Authorized"
+          }
+        ]
       },
       "notifications": {
         "status": "✅ CONFIGURED",
@@ -106,10 +170,36 @@
       }
     }
   },
+  "changelog": {
+    "v2_0_sustainability": {
+      "date": "2026-02-12",
+      "title": "Sustainability Update - APY Reduction & Treasury Integration",
+      "changes": [
+        "✅ APY reduced 25% (max 118.3% → more sustainable yield)",
+        "✅ Skill boosts reduced 25% (competitive advantage preserved)",
+        "✅ DynamicAPYCalculator deployed (TVL-adjusted scaling)",
+        "✅ TreasuryManager v2 deployed (revenue aggregation + reserve fund)",
+        "✅ CollaboratorBadgeRewards deployed (0xd0F4c324ad5C34A9502A51e38807e1EdcfACDeAB)",
+        "✅ Treasury wallets configured (rewards/staking/collaborators/development)",
+        "⏳ IndividualSkillsMarketplace.setTreasuryManager() (pending gas)"
+      ],
+      "estimatedAnnualSavings": "$187,000",
+      "breakEvenTVL": "$29.8M POL"
+    },
+    "updatesCodebase": {
+      "description": "Frontend .env variables that MUST be updated",
+      "requiredChanges": [
+        "VITE_ENHANCED_SMARTSTAKING_REWARDS_ADDRESS → 0xEB02b4cC589B7017e621a8b4A02295793d6cB32E",
+        "VITE_ENHANCED_SMARTSTAKING_SKILLS_ADDRESS → 0x2c8E2A5902dACEd9705e5AB9A3eE2EdAAe0e7F38",
+        "VITE_TREASURY_MANAGER_ADDRESS → 0x8f3554Fca1Bd1b79bBf531706FA2C67fEcC5401F (NEW)"
+      ]
+    }
+  },
   "architecture": {
-    "pattern": "UUPS Proxy + Modular",
+    "pattern": "UUPS Proxy + Modular + Treasury Hub",
     "staking_modules": 5,
     "marketplace_modules": 4,
-    "description": "Complete bidirectional synchronization with modular architecture"
+    "treasury_integration": true,
+    "description": "Complete bidirectional synchronization with centralized treasury and dynamic APY scaling"
   }
 }

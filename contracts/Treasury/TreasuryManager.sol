@@ -3,13 +3,20 @@ pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "../interfaces/ITreasuryManager.sol";
 
 /**
  * @title TreasuryManager
  * @notice Centralizes all protocol revenue streams and distributes to specialized treasuries
- * @dev Receives commissions from Staking (6%), Marketplace (5%), Skills, and distributes automatically
+ * @dev Receives commissions from Staking (6%), Marketplace (5%), Individual Skills sales, and distributes automatically
+ * 
+ * RESERVE FUND SYSTEM:
+ * - Automatically allocates a percentage of revenue to emergency reserve
+ * - Reserve provides 6-12 month buffer for volatility protection
+ * - Can be withdrawn by owner during deficit periods or emergencies
+ * - Helps maintain protocol sustainability during low-revenue periods
  */
-contract TreasuryManager is Ownable, ReentrancyGuard {
+contract TreasuryManager is Ownable, ReentrancyGuard, ITreasuryManager {
     
     // ============================================
     // CONSTANTS
@@ -20,6 +27,12 @@ contract TreasuryManager is Ownable, ReentrancyGuard {
     
     /// @notice Minimum balance to trigger auto-distribution (1 POL)
     uint256 private constant MIN_AUTO_DISTRIBUTION = 1 ether;
+    
+    /// @notice Default reserve fund allocation (10% of incoming revenue)
+    uint256 private constant DEFAULT_RESERVE_PERCENTAGE = 1000; // 10% in basis points
+    
+    /// @notice Basis points constant
+    uint256 private constant BASIS_POINTS = 10000;
     
     // ============================================
     // STATE VARIABLES
@@ -50,6 +63,25 @@ contract TreasuryManager is Ownable, ReentrancyGuard {
     mapping(address => bool) public authorizedRequester;
     
     // ============================================
+    // RESERVE FUND STATE VARIABLES
+    // ============================================
+    
+    /// @notice Reserve fund balance (emergency buffer)
+    uint256 public reserveFundBalance;
+    
+    /// @notice Percentage of revenue allocated to reserve (in basis points)
+    uint256 public reserveAllocationPercentage;
+    
+    /// @notice Total accumulated in reserve over time
+    uint256 public totalReserveAccumulated;
+    
+    /// @notice Total withdrawn from reserve
+    uint256 public totalReserveWithdrawn;
+    
+    /// @notice Enable/disable automatic reserve accumulation
+    bool public reserveAccumulationEnabled;
+    
+    // ============================================
     // EVENTS
     // ============================================
     
@@ -62,6 +94,10 @@ contract TreasuryManager is Ownable, ReentrancyGuard {
     event RequesterAuthorized(address indexed requester, bool authorized);
     event AutoDistributionToggled(bool enabled);
     event EmergencyWithdrawal(address indexed to, uint256 amount);
+    event ReserveFundDeposit(uint256 amount, uint256 newBalance);
+    event ReserveFundWithdrawal(address indexed to, uint256 amount, uint256 remainingBalance, string reason);
+    event ReserveAllocationUpdated(uint256 oldPercentage, uint256 newPercentage);
+    event ReserveAccumulationToggled(bool enabled);
     
     // ============================================
     // CONSTRUCTOR
@@ -69,10 +105,14 @@ contract TreasuryManager is Ownable, ReentrancyGuard {
     
     constructor() {
         // Default allocations (can be changed by owner)
-        allocations["rewards"] = 4000;      // 40% - Quest/Achievement/Level-up rewards
-        allocations["staking"] = 3000;      // 30% - Staking operations & sustainability
-        allocations["marketplace"] = 2000;  // 20% - Marketplace operations
-        allocations["development"] = 1000;  // 10% - Protocol development & maintenance
+        allocations["rewards"] = 3000;      // 30% - Quest/Achievement/Level-up rewards
+        allocations["staking"] = 3500;      // 35% - Staking operations & sustainability
+        allocations["collaborators"] = 2000;// 20% - Collaborator badge holder rewards (passive income)
+        allocations["development"] = 1500;  // 15% - Protocol development & maintenance
+        
+        // Initialize reserve fund system
+        reserveAllocationPercentage = DEFAULT_RESERVE_PERCENTAGE; // 10%
+        reserveAccumulationEnabled = true;
         
         autoDistributionEnabled = true;
         lastDistributionTime = block.timestamp;
@@ -130,17 +170,33 @@ contract TreasuryManager is Ownable, ReentrancyGuard {
     }
     
     /**
-     * @notice Internal distribution logic
+     * @notice Internal distribution logic with reserve fund accumulation
+     * @dev First allocates to reserve fund, then distributes remaining to treasuries
      */
     function _distributeRevenue() internal {
         uint256 balance = address(this).balance;
         if (balance == 0) return;
         
-        // Calculate and distribute to each treasury
-        _distributeTo("rewards", balance);
-        _distributeTo("staking", balance);
-        _distributeTo("marketplace", balance);
-        _distributeTo("development", balance);
+        uint256 distribuTable = balance;
+        
+        // Step 1: Allocate to reserve fund if enabled
+        if (reserveAccumulationEnabled && reserveAllocationPercentage > 0) {
+            uint256 reserveAmount = (balance * reserveAllocationPercentage) / BASIS_POINTS;
+            if (reserveAmount > 0) {
+                reserveFundBalance += reserveAmount;
+                totalReserveAccumulated += reserveAmount;
+                distribuTable -= reserveAmount;
+                
+                emit ReserveFundDeposit(reserveAmount, reserveFundBalance);
+            }
+        }
+        
+        // Step 2: Distribute remaining balance to treasuries
+        _distributeTo("rewards", distribuTable);
+        _distributeTo("staking", distribuTable);
+        _distributeTo("marketplace", distribuTable);
+        _distributeTo("development", distribuTable);
+        _distributeTo("collaborators", distribuTable);
         
         lastDistributionTime = block.timestamp;
     }
@@ -193,7 +249,7 @@ contract TreasuryManager is Ownable, ReentrancyGuard {
         
         // Verify total doesn't exceed 100%
         uint256 total = percentage;
-        string[4] memory types = ["rewards", "staking", "marketplace", "development"];
+        string[5] memory types = ["rewards", "staking", "marketplace", "development", "collaborators"];
         
         for (uint256 i = 0; i < types.length; i++) {
             if (keccak256(bytes(types[i])) != keccak256(bytes(treasuryType))) {
@@ -273,6 +329,68 @@ contract TreasuryManager is Ownable, ReentrancyGuard {
         emit AutoDistributionToggled(enabled);
     }
     
+    // ============================================
+    // RESERVE FUND MANAGEMENT
+    // ============================================
+    
+    /**
+     * @notice Update reserve fund allocation percentage
+     * @param percentage Percentage in basis points (e.g., 1000 = 10%)
+     */
+    function setReserveAllocation(uint256 percentage) external onlyOwner {
+        require(percentage <= 3000, "Max 30% reserve"); // Cap at 30%
+        
+        uint256 oldPercentage = reserveAllocationPercentage;
+        reserveAllocationPercentage = percentage;
+        
+        emit ReserveAllocationUpdated(oldPercentage, percentage);
+    }
+    
+    /**
+     * @notice Toggle reserve fund accumulation
+     * @param enabled True to enable, false to disable
+     */
+    function setReserveAccumulation(bool enabled) external onlyOwner {
+        reserveAccumulationEnabled = enabled;
+        emit ReserveAccumulationToggled(enabled);
+    }
+    
+    /**
+     * @notice Withdraw from reserve fund (emergency/deficit situations)
+     * @param to Recipient address
+     * @param amount Amount to withdraw
+     * @param reason Reason for withdrawal (for transparency)
+     */
+    function withdrawFromReserve(
+        address to,
+        uint256 amount,
+        string calldata reason
+    ) external onlyOwner {
+        require(to != address(0), "Invalid address");
+        require(amount > 0 && amount <= reserveFundBalance, "Invalid amount");
+        
+        reserveFundBalance -= amount;
+        totalReserveWithdrawn += amount;
+        
+        (bool success, ) = payable(to).call{value: amount}("");
+        require(success, "Transfer failed");
+        
+        emit ReserveFundWithdrawal(to, amount, reserveFundBalance, reason);
+    }
+    
+    /**
+     * @notice Manually deposit to reserve fund
+     * @dev Allows owner to manually boost reserve during high-revenue periods
+     */
+    function depositToReserve() external payable onlyOwner {
+        require(msg.value > 0, "Must send POL");
+        
+        reserveFundBalance += msg.value;
+        totalReserveAccumulated += msg.value;
+        
+        emit ReserveFundDeposit(msg.value, reserveFundBalance);
+    }
+    
     /**
      * @notice Emergency withdrawal (only owner, when paused/emergency)
      * @param to Recipient address
@@ -320,14 +438,16 @@ contract TreasuryManager is Ownable, ReentrancyGuard {
             uint256 rewardsAlloc,
             uint256 stakingAlloc,
             uint256 marketplaceAlloc,
-            uint256 developmentAlloc
+            uint256 developmentAlloc,
+            uint256 collaboratorsAlloc
         ) 
     {
         return (
             allocations["rewards"],
             allocations["staking"],
             allocations["marketplace"],
-            allocations["development"]
+            allocations["development"],
+            allocations["collaborators"]
         );
     }
     
@@ -352,5 +472,47 @@ contract TreasuryManager is Ownable, ReentrancyGuard {
             lastDistributionTime,
             autoDistributionEnabled
         );
+    }
+    
+    /**
+     * @notice Get reserve fund statistics
+     * @return currentBalance Current reserve fund balance
+     * @return totalAccumulated Total accumulated over time
+     * @return totalWithdrawn Total withdrawn from reserve
+     * @return allocationPercentage Current allocation percentage (basis points)
+     * @return isEnabled Whether accumulation is enabled
+     */
+    function getReserveStats()
+        external
+        view
+        returns (
+            uint256 currentBalance,
+            uint256 totalAccumulated,
+            uint256 totalWithdrawn,
+            uint256 allocationPercentage,
+            bool isEnabled
+        )
+    {
+        return (
+            reserveFundBalance,
+            totalReserveAccumulated,
+            totalReserveWithdrawn,
+            reserveAllocationPercentage,
+            reserveAccumulationEnabled
+        );
+    }
+    
+    /**
+     * @notice Calculate months of runway with current reserve
+     * @param monthlyBurnRate Estimated monthly expense in wei
+     * @return months Number of months reserve can cover
+     */
+    function getReserveRunwayMonths(uint256 monthlyBurnRate)
+        external
+        view
+        returns (uint256 months)
+    {
+        if (monthlyBurnRate == 0) return 0;
+        return reserveFundBalance / monthlyBurnRate;
     }
 }

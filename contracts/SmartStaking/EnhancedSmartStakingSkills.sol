@@ -25,16 +25,16 @@ contract EnhancedSmartStakingSkills is Ownable, IEnhancedSmartStakingSkills {
     uint8 private constant MAX_ACTIVE_SKILLS = 5;
     
     /// @notice Number of skill types
-    uint8 private constant SKILL_TYPE_COUNT = 17;
+    uint8 private constant SKILL_TYPE_COUNT = 20;
     
-    /// @notice Maximum total staking boost (+50% APY cap)
-    uint256 private constant MAX_TOTAL_STAKING_BOOST = 5000; // 50% in basis points
+    /// @notice Maximum total staking boost (+37.5% APY cap) - REDUCED 25% FOR SUSTAINABILITY
+    uint256 private constant MAX_TOTAL_STAKING_BOOST = 3750; // 37.5% in basis points (was 50%)
     
-    /// @notice Maximum total fee discount (75% cap)
-    uint256 private constant MAX_TOTAL_FEE_DISCOUNT = 7500; // 75% in basis points
+    /// @notice Maximum total fee discount (56.25% cap) - REDUCED 25% FOR SUSTAINABILITY
+    uint256 private constant MAX_TOTAL_FEE_DISCOUNT = 5625; // 56.25% in basis points (was 75%)
     
-    /// @notice Maximum lock time reduction (50% cap)
-    uint256 private constant MAX_LOCK_TIME_REDUCTION = 5000; // 50% in basis points
+    /// @notice Maximum lock time reduction (37.5% cap) - REDUCED 25% FOR SUSTAINABILITY
+    uint256 private constant MAX_LOCK_TIME_REDUCTION = 3750; // 37.5% in basis points (was 50%)
     
     // ============================================
     // STATE VARIABLES
@@ -105,24 +105,29 @@ contract EnhancedSmartStakingSkills is Ownable, IEnhancedSmartStakingSkills {
         _rarityMultipliers[SkillRarity.Epic] = 300;        // 3x
         _rarityMultipliers[SkillRarity.Legendary] = 500;   // 5x
         
-        // Initialize default skill boosts mapped to staking integration enum
+        // Initialize default skill boosts mapped to staking integration enum - REDUCED 25% (v5.1.0)
         _skillBoosts[IStakingIntegration.SkillType.NONE] = 0;
-        _skillBoosts[IStakingIntegration.SkillType.STAKE_BOOST_I] = 500;    // +5% APY
-        _skillBoosts[IStakingIntegration.SkillType.STAKE_BOOST_II] = 1000;  // +10% APY
-        _skillBoosts[IStakingIntegration.SkillType.STAKE_BOOST_III] = 2000; // +20% APY
+        _skillBoosts[IStakingIntegration.SkillType.STAKE_BOOST_I] = 375;    // +3.75% APY (was +5%)
+        _skillBoosts[IStakingIntegration.SkillType.STAKE_BOOST_II] = 750;   // +7.5% APY (was +10%)
+        _skillBoosts[IStakingIntegration.SkillType.STAKE_BOOST_III] = 1500; // +15% APY (was +20%)
         _skillBoosts[IStakingIntegration.SkillType.AUTO_COMPOUND] = 0;      // handled separately
-        _skillBoosts[IStakingIntegration.SkillType.LOCK_REDUCER] = 250;     // -2.5% lock time equivalent
-        _skillBoosts[IStakingIntegration.SkillType.FEE_REDUCER_I] = 1000;   // -10% fees
-        _skillBoosts[IStakingIntegration.SkillType.FEE_REDUCER_II] = 2500;  // -25% fees
+        _skillBoosts[IStakingIntegration.SkillType.LOCK_REDUCER] = 188;     // -1.88% lock time (was -2.5%)
+        _skillBoosts[IStakingIntegration.SkillType.FEE_REDUCER_I] = 750;    // -7.5% fees (was -10%)
+        _skillBoosts[IStakingIntegration.SkillType.FEE_REDUCER_II] = 1875;  // -18.75% fees (was -25%)
         _skillBoosts[IStakingIntegration.SkillType.PRIORITY_LISTING] = 0;
         _skillBoosts[IStakingIntegration.SkillType.BATCH_MINTER] = 0;
         _skillBoosts[IStakingIntegration.SkillType.VERIFIED_CREATOR] = 0;
         _skillBoosts[IStakingIntegration.SkillType.INFLUENCER] = 0;
         _skillBoosts[IStakingIntegration.SkillType.CURATOR] = 0;
-        _skillBoosts[IStakingIntegration.SkillType.AMBASSADOR] = 0;
+        _skillBoosts[IStakingIntegration.SkillType.AMBASSADOR] = 375;   // +3.75% APY (was +5%)
         _skillBoosts[IStakingIntegration.SkillType.VIP_ACCESS] = 0;
         _skillBoosts[IStakingIntegration.SkillType.EARLY_ACCESS] = 0;
         _skillBoosts[IStakingIntegration.SkillType.PRIVATE_AUCTIONS] = 0;
+        
+        // Badge skill types - Collaborator Badges (+3.75% APY each, was +5%)
+        _skillBoosts[IStakingIntegration.SkillType.MODERATOR] = 375;    // +3.75% APY (was +5%)
+        _skillBoosts[IStakingIntegration.SkillType.BETA_TESTER] = 375;  // +3.75% APY (was +5%)
+        _skillBoosts[IStakingIntegration.SkillType.VIP_PARTNER] = 375;  // +3.75% APY (was +5%)
     }
     
     // ============================================
@@ -192,7 +197,11 @@ contract EnhancedSmartStakingSkills is Ownable, IEnhancedSmartStakingSkills {
         // VALIDATE LIMITS BEFORE ACTIVATION
         if (skillType == IStakingIntegration.SkillType.STAKE_BOOST_I || 
             skillType == IStakingIntegration.SkillType.STAKE_BOOST_II || 
-            skillType == IStakingIntegration.SkillType.STAKE_BOOST_III) {
+            skillType == IStakingIntegration.SkillType.STAKE_BOOST_III ||
+            skillType == IStakingIntegration.SkillType.MODERATOR ||
+            skillType == IStakingIntegration.SkillType.BETA_TESTER ||
+            skillType == IStakingIntegration.SkillType.VIP_PARTNER ||
+            skillType == IStakingIntegration.SkillType.AMBASSADOR) {
             
             uint256 newStakingBoost = profile.stakingBoostTotal + effectiveValue;
             if (newStakingBoost > MAX_TOTAL_STAKING_BOOST) {
@@ -242,7 +251,11 @@ contract EnhancedSmartStakingSkills is Ownable, IEnhancedSmartStakingSkills {
         // Apply boosts to profile
         if (skillType == IStakingIntegration.SkillType.STAKE_BOOST_I || 
             skillType == IStakingIntegration.SkillType.STAKE_BOOST_II || 
-            skillType == IStakingIntegration.SkillType.STAKE_BOOST_III) {
+            skillType == IStakingIntegration.SkillType.STAKE_BOOST_III ||
+            skillType == IStakingIntegration.SkillType.MODERATOR ||
+            skillType == IStakingIntegration.SkillType.BETA_TESTER ||
+            skillType == IStakingIntegration.SkillType.VIP_PARTNER ||
+            skillType == IStakingIntegration.SkillType.AMBASSADOR) {
             profile.stakingBoostTotal += effectiveValue;
         } 
         else if (skillType == IStakingIntegration.SkillType.FEE_REDUCER_I || 
@@ -467,7 +480,11 @@ contract EnhancedSmartStakingSkills is Ownable, IEnhancedSmartStakingSkills {
             
             if (sType == IStakingIntegration.SkillType.STAKE_BOOST_I || 
                 sType == IStakingIntegration.SkillType.STAKE_BOOST_II || 
-                sType == IStakingIntegration.SkillType.STAKE_BOOST_III) {
+                sType == IStakingIntegration.SkillType.STAKE_BOOST_III ||
+                sType == IStakingIntegration.SkillType.MODERATOR ||
+                sType == IStakingIntegration.SkillType.BETA_TESTER ||
+                sType == IStakingIntegration.SkillType.VIP_PARTNER ||
+                sType == IStakingIntegration.SkillType.AMBASSADOR) {
                 profile.stakingBoostTotal += effectiveValue;
             } 
             else if (sType == IStakingIntegration.SkillType.FEE_REDUCER_I || 

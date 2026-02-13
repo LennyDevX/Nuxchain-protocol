@@ -8,6 +8,11 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "../interfaces/IStakingIntegration.sol";
 import "../interfaces/IIndividualSkills.sol";
 
+// Minimal interface for TreasuryManager
+interface ITreasuryManager {
+    function receiveRevenue(string calldata revenueType) external payable;
+}
+
 /**
  * @title IndividualSkillsMarketplace
  * @dev Marketplace for purchasing and managing individual skills without NFT minting
@@ -103,7 +108,7 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     mapping(address => uint8) public userActiveSkillCount;
     
     // Contract addresses
-    address public treasuryAddress;
+    address public treasuryManager;
     address public stakingContractAddress;
     
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -169,7 +174,7 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     // EVENTS (Additional to IIndividualSkills)
     // ════════════════════════════════════════════════════════════════════════════════════════
     
-    event TreasuryAddressUpdated(address indexed oldTreasury, address indexed newTreasury);
+    event TreasuryManagerUpdated(address indexed oldManager, address indexed newManager);
     event StakingContractUpdated(address indexed oldStaking, address indexed newStaking);
     event SkillCleanedUp(address indexed user, uint256 indexed skillId);
     event SkillPricingUpdated(IStakingIntegration.SkillType indexed skillType, uint256 basePrice, uint256 rarityMultiplier);
@@ -184,13 +189,13 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     // CONSTRUCTOR
     // ════════════════════════════════════════════════════════════════════════════════════════
     
-    constructor(address _treasuryAddress) {
-        if (_treasuryAddress == address(0)) revert InvalidAddress();
+    constructor(address _treasuryManager) {
+        if (_treasuryManager == address(0)) revert InvalidAddress();
         
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ADMIN_ROLE, msg.sender);
         
-        treasuryAddress = _treasuryAddress;
+        treasuryManager = _treasuryManager;
         
         // Initialize professional dynamic pricing system
         _initializeSkillPricing();
@@ -440,9 +445,8 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
         
         // ═══ INTERACTIONS ═══
         
-        // Transfer payment to treasury (CEI pattern - external call last)
-        (bool success, ) = payable(treasuryAddress).call{value: msg.value}("");
-        if (!success) revert InvalidAddress();
+        // Transfer payment to treasury manager (CEI pattern - external call last)
+        ITreasuryManager(treasuryManager).receiveRevenue{value: msg.value}("individual_skill_purchase");
         
         return skillId;
     }
@@ -573,8 +577,7 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
         emit SkillPurchaseProcessed(msg.sender, _skillId, skill.skillType, msg.value, "RENEW_INDIVIDUAL_SKILL");
         
         // ═══ INTERACTIONS ═══
-        (bool success, ) = payable(treasuryAddress).call{value: msg.value}("");
-        if (!success) revert InvalidAddress();
+        ITreasuryManager(treasuryManager).receiveRevenue{value: msg.value}("individual_skill_renewal");
     }
     
     /**
@@ -1463,14 +1466,14 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     }
     
     /**
-     * @dev Set treasury address
-     * @param _treasuryAddress Address of treasury
+     * @dev Set treasury manager address
+     * @param _treasuryManager Address of treasury manager contract
      */
-    function setTreasuryAddress(address _treasuryAddress) external onlyRole(ADMIN_ROLE) {
-        if (_treasuryAddress == address(0)) revert InvalidAddress();
-        address oldTreasury = treasuryAddress;
-        treasuryAddress = _treasuryAddress;
-        emit TreasuryAddressUpdated(oldTreasury, _treasuryAddress);
+    function setTreasuryManager(address _treasuryManager) external onlyRole(ADMIN_ROLE) {
+        if (_treasuryManager == address(0)) revert InvalidAddress();
+        address oldManager = treasuryManager;
+        treasuryManager = _treasuryManager;
+        emit TreasuryManagerUpdated(oldManager, _treasuryManager);
     }
     
     /**
@@ -1572,12 +1575,12 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     function emergencyWithdraw(uint256 _amount) external onlyRole(ADMIN_ROLE) {
         if (_amount == 0) revert InvalidPrice(_amount, 0);
         if (_amount > address(this).balance) revert InvalidPrice(_amount, address(this).balance);
-        if (treasuryAddress == address(0)) revert InvalidAddress();
+        if (treasuryManager == address(0)) revert InvalidAddress();
         
-        (bool success, ) = payable(treasuryAddress).call{value: _amount}("");
+        (bool success, ) = payable(treasuryManager).call{value: _amount}("");
         if (!success) revert InvalidAddress();
         
-        emit EmergencyWithdrawal(msg.sender, _amount, treasuryAddress);
+        emit EmergencyWithdrawal(msg.sender, _amount, treasuryManager);
     }
     
     /**
@@ -1586,12 +1589,12 @@ contract IndividualSkillsMarketplace is AccessControl, Pausable, ReentrancyGuard
     function emergencyWithdrawAll() external onlyRole(ADMIN_ROLE) {
         uint256 balance = address(this).balance;
         if (balance == 0) revert InvalidPrice(balance, 0);
-        if (treasuryAddress == address(0)) revert InvalidAddress();
+        if (treasuryManager == address(0)) revert InvalidAddress();
         
-        (bool success, ) = payable(treasuryAddress).call{value: balance}("");
+        (bool success, ) = payable(treasuryManager).call{value: balance}("");
         if (!success) revert InvalidAddress();
         
-        emit EmergencyWithdrawal(msg.sender, balance, treasuryAddress);
+        emit EmergencyWithdrawal(msg.sender, balance, treasuryManager);
     }
     
     /**

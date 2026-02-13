@@ -44,14 +44,15 @@ contract EnhancedSmartStakingRewards is Ownable, ReentrancyGuard, IEnhancedSmart
         // Initialize lockup periods: 0, 30, 90, 180, 365 days
         lockupPeriods = [0, 30 days, 90 days, 180 days, 365 days];
         
-        // Initialize base APYs - All values are hourly ROI converted to annual
+        // Initialize base APYs - REDUCED 25% FOR SUSTAINABILITY (v5.1.0)
         // Formula: Hourly ROI × 24 hours × 365 days = Annual APY
+        // Previous rates reduced by 25% to ensure long-term protocol viability
         baseAPYs = [
-            263,    // 26.3% APY (No Lock)     - 0.003% per hour
-            438,    // 43.8% APY (30 Days)     - 0.005% per hour
-            788,    // 78.8% APY (90 Days)     - 0.009% per hour
-            1051,   // 105.12% APY (180 Days)  - 0.012% per hour
-            1577    // 157.68% APY (365 Days)  - 0.018% per hour
+            197,    // 19.7% APY (No Lock)     - 0.0022% per hour (was 26.3%)
+            328,    // 32.8% APY (30 Days)     - 0.0037% per hour (was 43.8%)
+            591,    // 59.1% APY (90 Days)     - 0.0067% per hour (was 78.8%)
+            788,    // 78.8% APY (180 Days)    - 0.0090% per hour (was 105.12%)
+            1183    // 118.3% APY (365 Days)   - 0.0135% per hour (was 157.68%)
         ];
     }
     
