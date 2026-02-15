@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "../interfaces/IStakingIntegration.sol";
 
 /**
- * @title GameifiedMarketplaceSkillsV2
+ * @title GameifiedMarketplaceSkillsNft
  * @dev NFT Skills system - embedded skills in marketplace NFTs
  * 
  * ARCHITECTURE:
@@ -42,7 +42,7 @@ interface IEnhancedSmartStaking {
     function getTotalDeposit(address user) external view returns (uint256);
 }
 
-contract GameifiedMarketplaceSkillsV2 is AccessControl, Pausable, ReentrancyGuard {
+contract GameifiedMarketplaceSkillsNft is AccessControl, Pausable, ReentrancyGuard {
     using Counters for Counters.Counter;
     
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");

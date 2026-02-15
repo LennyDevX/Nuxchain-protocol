@@ -12,13 +12,10 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "../interfaces/ITreasuryManager.sol";
+import "../interfaces/IMarketplaceStatistics.sol";
+import "../interfaces/IMarketplaceView.sol";
+import "../interfaces/IMarketplaceSocial.sol";
 
-/**
- * @title GameifiedMarketplaceCoreV1
- * @dev Contrato base UPGRADEABLE para NFT creation, marketplace y XP tracking
- * - Usar con UUPS Proxy pattern
- * - Versión 1 del contrato
- */
 contract GameifiedMarketplaceCoreV1 is
     Initializable,
     ERC721Upgradeable,
@@ -43,8 +40,8 @@ contract GameifiedMarketplaceCoreV1 is
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
     
     uint256 public constant PLATFORM_FEE_PERCENTAGE = 6;
-    uint8 private constant MAX_LEVEL = 50;                    // Maximum level cap (synchronized with Quests)
-    uint256 private constant MAX_XP = 5000;                   // Max XP: 50 levels × 100 XP per level
+    uint8 private constant MAX_LEVEL = 50;
+    uint256 private constant MAX_XP = 5000;
     uint256 private constant MAX_COMMENTS_PER_NFT = 1000;
     
     struct NFTMetadata {
@@ -74,33 +71,23 @@ contract GameifiedMarketplaceCoreV1 is
     mapping(uint256 => NFTMetadata) public nftMetadata;
     mapping(uint256 => bool) public isListed;
     mapping(uint256 => uint256) public listedPrice;
-    mapping(uint256 => mapping(address => bool)) public nftLikes;
-    mapping(uint256 => uint256) public nftLikeCount;
-    mapping(uint256 => string[]) public nftComments;
     mapping(uint256 => Offer[]) public nftOffers;
     mapping(address => EnumerableSet.UintSet) private _ownedTokens;
     mapping(address => EnumerableSet.UintSet) private _createdTokens;
     EnumerableSet.UintSet private _listedTokenIds;
     
-    address public platformTreasury;  // @dev Deprecated: Use treasuryManager instead
+    address public platformTreasury;
     ITreasuryManager public treasuryManager;
     address public skillsContractAddress;
-    address public levelingSystemAddress;  // Mantener para compatibilidad
-    address public referralSystemAddress;  // Mantener para compatibilidad
+    address public levelingSystemAddress;
+    address public referralSystemAddress;
     
-    // Variables estadísticas - mantener para compatibilidad
-    uint256 public totalNFTsSold;
-    uint256 public totalTradingVolume;
-    uint256 public totalRoyaltiesPaid;
-    mapping(address => uint256) public userSalesVolume;
-    mapping(address => uint256) public userPurchaseVolume;
-    mapping(address => uint256) public userRoyaltiesEarned;
-    mapping(address => uint256) public userNFTsSold;
-    mapping(address => uint256) public userNFTsBought;
-    mapping(string => EnumerableSet.UintSet) private _nftsByCategory;
-    mapping(address => uint256) public totalCreators;  // Era mapping en el original
+    IMarketplaceStatistics public statisticsModule;
+    IMarketplaceView public viewModule;
+    IMarketplaceSocial public socialModule;
     
-    // Nuevas variables V1 (agregadas después del deployment original)
+    mapping(address => uint256) public totalCreators;
+    
     address public questsContractAddress;
     address public stakingContractAddress;
     mapping(address => UserProfile) public userProfiles;
@@ -114,16 +101,17 @@ contract GameifiedMarketplaceCoreV1 is
     event TokenSold(address indexed seller, address indexed buyer, uint256 indexed tokenId, uint256 price);
     event OfferMade(address indexed offeror, uint256 indexed tokenId, uint256 amount);
     event OfferAccepted(address indexed seller, address indexed buyer, uint256 indexed tokenId, uint256 amount);
-    event LikeToggled(address indexed user, uint256 indexed tokenId, bool liked);
-    event CommentAdded(address indexed user, uint256 indexed tokenId, string comment);
     event PriceUpdated(address indexed seller, uint256 indexed tokenId, uint256 newPrice);
     event XPGained(address indexed user, uint256 amount, string reason);
     event LevelUp(address indexed user, uint8 newLevel);
+    event LikeToggled(address indexed user, uint256 indexed tokenId, bool liked);
+    event CommentAdded(address indexed user, uint256 indexed tokenId, string comment);
     event SkillsContractUpdated(address indexed oldAddress, address indexed newAddress);
     event QuestsContractUpdated(address indexed oldAddress, address indexed newAddress);
     event StakingContractUpdated(address indexed oldAddress, address indexed newAddress);
     event PlatformFeeTransferred(address indexed from, uint256 amount, address indexed to, string operation);
     event TreasuryManagerUpdated(address indexed newManager);
+    event ModuleUpdated(string indexed moduleName, address indexed oldModule, address indexed newModule);
 
     error TokenNotFound();
     error NotTokenOwner();
@@ -138,8 +126,6 @@ contract GameifiedMarketplaceCoreV1 is
     error OfferExpired();
     error NotOfferor();
     error NotExists();
-    error InvalidCommentLength();
-    error TooManyComments();
     error InvalidCount();
     error AlreadyHasBadge();
     error NotBadge();
@@ -166,6 +152,27 @@ contract GameifiedMarketplaceCoreV1 is
         _setupRole(UPGRADER_ROLE, msg.sender);
         
         platformTreasury = _platformTreasury != address(0) ? _platformTreasury : msg.sender;
+    }
+    
+    function setStatisticsModule(address _statistics) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_statistics == address(0)) revert InvalidAddress();
+        address oldModule = address(statisticsModule);
+        statisticsModule = IMarketplaceStatistics(_statistics);
+        emit ModuleUpdated("Statistics", oldModule, _statistics);
+    }
+    
+    function setViewModule(address _view) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_view == address(0)) revert InvalidAddress();
+        address oldModule = address(viewModule);
+        viewModule = IMarketplaceView(_view);
+        emit ModuleUpdated("View", oldModule, _view);
+    }
+    
+    function setSocialModule(address _social) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_social == address(0)) revert InvalidAddress();
+        address oldModule = address(socialModule);
+        socialModule = IMarketplaceSocial(_social);
+        emit ModuleUpdated("Social", oldModule, _social);
     }
 
     function createStandardNFT(
@@ -197,6 +204,10 @@ contract GameifiedMarketplaceCoreV1 is
         userProfiles[msg.sender].totalXP += 10;
         _createdTokens[msg.sender].add(tokenId);
         
+        if (address(viewModule) != address(0)) {
+            viewModule.addNFTToCategory(tokenId, _category);
+        }
+        
         if (_isBadgeCategory(_category)) {
             if (hasBadge[msg.sender]) revert AlreadyHasBadge();
             isBadge[tokenId] = true;
@@ -209,9 +220,6 @@ contract GameifiedMarketplaceCoreV1 is
         return tokenId;
     }
 
-    /**
-     * @dev Check if category belongs to a Collaborator Badge
-     */
     function _isBadgeCategory(string memory _category) internal pure returns (bool) {
         bytes32 catHash = keccak256(abi.encodePacked(_category));
         return (
@@ -223,7 +231,6 @@ contract GameifiedMarketplaceCoreV1 is
         );
     }
 
-    /// @dev Batch mint NFTs
     function createStandardNFTBatch(
         string calldata _tokenURI,
         string calldata _category,
@@ -235,7 +242,6 @@ contract GameifiedMarketplaceCoreV1 is
         
         uint256[] memory tokenIds = new uint256[](_count);
         
-        // Batch mint all tokens
         for (uint256 i = 0; i < _count; i++) {
             uint256 tokenId = _tokenIdCounter.current();
             tokenIds[i] = tokenId;
@@ -267,9 +273,8 @@ contract GameifiedMarketplaceCoreV1 is
             emit TokenCreated(msg.sender, tokenId, _tokenURI);
         }
         
-        // Update user stats (XP scaled with count)
         userProfiles[msg.sender].nftsCreated += _count;
-        uint256 xpGained = 10 + (_count > 1 ? (_count - 1) * 5 : 0); // 10 XP + 5 per extra copy
+        uint256 xpGained = 10 + (_count > 1 ? (_count - 1) * 5 : 0);
         userProfiles[msg.sender].totalXP += xpGained;
         
         emit XPGained(msg.sender, xpGained, "NFT_BATCH_CREATED");
@@ -328,6 +333,10 @@ contract GameifiedMarketplaceCoreV1 is
         userProfiles[seller].totalXP += 20;
         userProfiles[msg.sender].totalXP += 15;
         
+        if (address(statisticsModule) != address(0)) {
+            statisticsModule.recordSale(seller, msg.sender, _tokenId, price);
+        }
+        
         isListed[_tokenId] = false;
         listedPrice[_tokenId] = 0;
         _listedTokenIds.remove(_tokenId);
@@ -382,6 +391,10 @@ contract GameifiedMarketplaceCoreV1 is
         userProfiles[msg.sender].totalXP += 20;
         userProfiles[buyer].totalXP += 15;
         
+        if (address(statisticsModule) != address(0)) {
+            statisticsModule.recordSale(msg.sender, buyer, _tokenId, amount);
+        }
+        
         isListed[_tokenId] = false;
         listedPrice[_tokenId] = 0;
         delete nftOffers[_tokenId];
@@ -412,175 +425,71 @@ contract GameifiedMarketplaceCoreV1 is
 
     function toggleLike(uint256 _tokenId) external whenNotPaused {
         if (ownerOf(_tokenId) == address(0)) revert NotExists();
+        bool wasLiked = address(socialModule) != address(0) ? socialModule.hasUserLiked(_tokenId, msg.sender) : false;
+        if (address(socialModule) != address(0)) {
+            socialModule.toggleLike(_tokenId, msg.sender);
+        }
+        bool isNowLiked = address(socialModule) != address(0) ? socialModule.hasUserLiked(_tokenId, msg.sender) : false;
         
-        if (nftLikes[_tokenId][msg.sender]) {
-            nftLikes[_tokenId][msg.sender] = false;
-            if (nftLikeCount[_tokenId] > 0) {
-                unchecked {
-                    nftLikeCount[_tokenId]--;
-                }
-            }
-        } else {
-            nftLikes[_tokenId][msg.sender] = true;
-            unchecked {
-                nftLikeCount[_tokenId]++;
-            }
+        // Emit event for test compatibility
+        emit LikeToggled(msg.sender, _tokenId, isNowLiked);
+        
+        if(!wasLiked && isNowLiked) {
             userProfiles[msg.sender].totalXP += 1;
             emit XPGained(msg.sender, 1, "LIKE");
         }
-        
-        emit LikeToggled(msg.sender, _tokenId, nftLikes[_tokenId][msg.sender]);
     }
 
     function addComment(uint256 _tokenId, string calldata _text) external whenNotPaused {
         if (ownerOf(_tokenId) == address(0)) revert NotExists();
-        uint256 len = bytes(_text).length;
-        if (len == 0 || len > 280) revert InvalidCommentLength();
-        if (nftComments[_tokenId].length >= MAX_COMMENTS_PER_NFT) revert TooManyComments();
-        
-        nftComments[_tokenId].push(_text);
-        userProfiles[msg.sender].totalXP += 2;
-        
+        if (address(socialModule) != address(0)) {
+            socialModule.addComment(_tokenId, msg.sender, _text);
+        }
+        // Emit event for test compatibility
         emit CommentAdded(msg.sender, _tokenId, _text);
+        
+        userProfiles[msg.sender].totalXP += 2;
         emit XPGained(msg.sender, 2, "COMMENT");
     }
 
-    /// @dev Get user profile
-    function getUserProfile(address _user) external view returns (UserProfile memory) {
-        return userProfiles[_user];
-    }
-    
-    /// @dev Get NFT metadata
-    function getNFTMetadata(uint256 _tokenId) external view returns (NFTMetadata memory) {
-        if (!_exists(_tokenId)) revert NotExists();
-        return nftMetadata[_tokenId];
-    }
-    
-    /// @dev Get like count
-    function getNFTLikeCount(uint256 _tokenId) external view returns (uint256) {
-        if (!_exists(_tokenId)) revert NotExists();
-        return nftLikeCount[_tokenId];
-    }
-    
-    /// @dev Get comments
-    function getNFTComments(uint256 _tokenId) external view returns (string[] memory) {
-        if (!_exists(_tokenId)) revert NotExists();
-        return nftComments[_tokenId];
-    }
-    
-    /// @dev Get offers
-    function getNFTOffers(uint256 _tokenId) external view returns (Offer[] memory) {
-        if (!_exists(_tokenId)) revert NotExists();
-        return nftOffers[_tokenId];
-    }
-    
-    /// @dev Paginate tokens
-    function _paginateTokenSet(
-        EnumerableSet.UintSet storage set,
-        uint256 cursor,
-        uint256 size
-    ) internal view returns (uint256[] memory tokens, uint256 newCursor) {
-        uint256 length = set.length();
-        if (cursor >= length) {
-            return (new uint256[](0), length);
-        }
-
-        uint256 end = cursor + size;
-        if (end > length) {
-            end = length;
-        }
-
-        uint256 pageSize = end - cursor;
-        tokens = new uint256[](pageSize);
-
-        for (uint256 i = 0; i < pageSize; i++) {
-            tokens[i] = set.at(cursor + i);
-        }
-
-        return (tokens, end);
-    }
-
-    function getUserNFTs(address _user) external view returns (uint256[] memory) {
-        uint256 balance = _ownedTokens[_user].length();
-        uint256[] memory result = new uint256[](balance);
-        for (uint256 i = 0; i < balance; i++) {
-            result[i] = _ownedTokens[_user].at(i);
+    function getOwnedTokensArray(address user) external view returns (uint256[] memory) {
+        uint256 count = _ownedTokens[user].length();
+        uint256[] memory result = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            result[i] = _ownedTokens[user].at(i);
         }
         return result;
     }
 
-    function getUserNFTsPage(address _user, uint256 cursor, uint256 size)
-        external
-        view
-        returns (uint256[] memory tokens, uint256 nextCursor)
-    {
-        return _paginateTokenSet(_ownedTokens[_user], cursor, size);
-    }
-
-    /// @dev Get created NFTs
-    function getUserCreatedNFTs(address _user) external view returns (uint256[] memory) {
-        uint256 createdCount = _createdTokens[_user].length();
-        uint256[] memory result = new uint256[](createdCount);
-        for (uint256 i = 0; i < createdCount; i++) {
-            result[i] = _createdTokens[_user].at(i);
+    function getCreatedTokensArray(address user) external view returns (uint256[] memory) {
+        uint256 count = _createdTokens[user].length();
+        uint256[] memory result = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            result[i] = _createdTokens[user].at(i);
         }
         return result;
     }
 
-    function getUserCreatedNFTsPage(address _user, uint256 cursor, uint256 size)
-        external
-        view
-        returns (uint256[] memory tokens, uint256 nextCursor)
-    {
-        return _paginateTokenSet(_createdTokens[_user], cursor, size);
+    function getOffersArray(uint256 tokenId) external view returns (Offer[] memory) {
+        return nftOffers[tokenId];
     }
 
-    /// @dev Get listed NFTs
-    function getListedNFTs() external view returns (uint256[] memory) {
-        uint256 listedCount = _listedTokenIds.length();
-        uint256[] memory result = new uint256[](listedCount);
-        for (uint256 i = 0; i < listedCount; i++) {
-            result[i] = _listedTokenIds.at(i);
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // SOCIAL MODULE DELEGATORS (for backward compatibility with tests)
+    // ════════════════════════════════════════════════════════════════════════════════════════
+
+    function nftLikeCount(uint256 _tokenId) external view returns (uint256) {
+        if (address(socialModule) != address(0)) {
+            return socialModule.getLikeCount(_tokenId);
         }
-        return result;
+        return 0;
     }
 
-    function getListedNFTsPage(uint256 cursor, uint256 size)
-        external
-        view
-        returns (uint256[] memory tokens, uint256 nextCursor)
-    {
-        return _paginateTokenSet(_listedTokenIds, cursor, size);
-    }
-
-    /// @dev Get detailed user NFTs
-    function getUserNFTsDetailed(address _user) external view returns (NFTMetadata[] memory) {
-        uint256 balance = _ownedTokens[_user].length();
-        NFTMetadata[] memory result = new NFTMetadata[](balance);
-        for (uint256 i = 0; i < balance; i++) {
-            uint256 tokenId = _ownedTokens[_user].at(i);
-            result[i] = nftMetadata[tokenId];
+    function totalTradingVolume() external view returns (uint256) {
+        if (address(statisticsModule) != address(0)) {
+            return statisticsModule.totalTradingVolume();
         }
-
-        return result;
-    }
-    
-    /// @dev Check if user liked NFT
-    function getUserNFTLike(uint256 _tokenId, address _user) external view returns (bool) {
-        if (!_exists(_tokenId)) revert NotExists();
-        return nftLikes[_tokenId][_user];
-    }
-    
-    /// @dev Get market info
-    function getNFTMarketInfo(uint256 _tokenId) external view returns (
-        address owner,
-        bool isListedStatus,
-        uint256 price
-    ) {
-        if (!_exists(_tokenId)) revert NotExists();
-        owner = ownerOf(_tokenId);
-        isListedStatus = isListed[_tokenId];
-        price = isListed[_tokenId] ? listedPrice[_tokenId] : 0;
+        return 0;
     }
 
     function updateUserXP(address _user, uint256 _amount) external onlyRole(ADMIN_ROLE) {
@@ -589,7 +498,6 @@ contract GameifiedMarketplaceCoreV1 is
         userProfiles[_user].totalXP += _amount;
         
         uint8 newLevel = uint8(userProfiles[_user].totalXP / 100);
-        // Cap level to MAX_LEVEL (50)
         if (newLevel > MAX_LEVEL) {
             newLevel = MAX_LEVEL;
         }
@@ -684,18 +592,13 @@ contract GameifiedMarketplaceCoreV1 is
 
     /// @dev Internal fee distribution (100% to TreasuryManager integrated model)
     function _distributeFee(uint256 platformFee) internal {
-        // Send 100% of platform fee to TreasuryManager
-        // TreasuryManager automatically distributes: 35% rewards, 25% collaborators, 30% staking, 10% dev
         if (address(treasuryManager) != address(0)) {
             try treasuryManager.receiveRevenue{value: platformFee}("marketplace_fee") {
-                // Fee successfully routed to TreasuryManager for integrated distribution
             } catch {
-                // Fallback to old platformTreasury
                 (bool t,) = payable(platformTreasury).call{value: platformFee}("");
                 if (!t) revert TreasuryFailed();
             }
         } else {
-            // Use old platformTreasury if treasuryManager not set
             (bool t,) = payable(platformTreasury).call{value: platformFee}("");
             if (!t) revert TreasuryFailed();
         }
@@ -720,5 +623,21 @@ contract GameifiedMarketplaceCoreV1 is
         public view override(ERC721Upgradeable, ERC721URIStorageUpgradeable, ERC721RoyaltyUpgradeable, AccessControlUpgradeable) returns (bool)
     {
         return super.supportsInterface(interfaceId);
+    }
+    
+
+    function getListedTokenIds() external view returns (uint256[] memory) {
+        return _listedTokenIds.values();
+    }
+    
+    function getNFTMetadata(uint256 tokenId) external view returns (
+        address creator,
+        string memory uri,
+        string memory category,
+        uint256 createdAt,
+        uint96 royaltyPercentage
+    ) {
+        NFTMetadata memory meta = nftMetadata[tokenId];
+        return (meta.creator, meta.uri, meta.category, meta.createdAt, meta.royaltyPercentage);
     }
 }

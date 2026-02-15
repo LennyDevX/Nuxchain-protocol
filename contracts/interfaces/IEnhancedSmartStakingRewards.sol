@@ -26,6 +26,13 @@ interface IEnhancedSmartStakingRewards {
      * @param questId The ID of the quest to claim
      */
     function claimQuestReward(uint256 questId) external;
+    
+    /**
+     * @notice Update current TVL for dynamic APY calculation
+     * @param _currentTVL The current total value locked
+     * @dev Called by Core contract when deposits/withdrawals occur
+     */
+    function updateCurrentTVL(uint256 _currentTVL) external;
 
     // ============================================
     // VIEW FUNCTIONS

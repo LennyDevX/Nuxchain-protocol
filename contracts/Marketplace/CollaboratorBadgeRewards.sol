@@ -356,7 +356,24 @@ contract CollaboratorBadgeRewards is Initializable, OwnableUpgradeable, Reentran
     function claimRewards() external nonReentrant {
         uint256 grossAmount = pendingRewards[msg.sender];
         if (grossAmount == 0) revert NoPendingRewards();
-        if (address(this).balance < grossAmount) revert InsufficientBalance();
+        
+        // Check if we have sufficient balance
+        // If not, try to request emergency funds from TreasuryManager
+        if (address(this).balance < grossAmount) {
+            // Try to get emergency funds
+            bool gotEmergencyFunds = false;
+            try treasuryManager.requestEmergencyFunds(
+                ITreasuryManager.TreasuryType.COLLABORATORS,
+                grossAmount - address(this).balance
+            ) returns (bool emergencySuccess) {
+                gotEmergencyFunds = emergencySuccess;
+            } catch {
+                // Emergency funds not available
+            }
+            
+            // Final check after emergency attempt
+            if (address(this).balance < grossAmount) revert InsufficientBalance();
+        }
 
         // Calculate fee based on user's contribution tier
         uint256 feeRate = _calculateCommissionTier(msg.sender);

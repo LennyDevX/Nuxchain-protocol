@@ -344,4 +344,33 @@ contract ReferralSystem is AccessControl, Initializable, UUPSUpgradeable {
         conversionRate = 0;
         averageTimeToConvert = 0;
     }
+
+    /// @notice Get referral statistics for a user
+    /// @param user The address to query
+    /// @return totalReferrals Number of users referred
+    /// @return xpEarned Total XP earned from referrals
+    /// @return successfulCount Number of successful referrals
+    function getUserReferralStats(address user) external view returns (
+        uint256 totalReferrals,
+        uint256 xpEarned,
+        uint256 successfulCount
+    ) {
+        totalReferrals = referrals[user].length;
+        xpEarned = referralXPEarned[user];
+        successfulCount = successfulReferrals[user];
+    }
+
+    /// @notice Get the referrer of a user
+    /// @param user The address to query
+    /// @return The address of the referrer, or address(0) if none
+    function getUserReferrer(address user) external view returns (address) {
+        return referrer[user];
+    }
+
+    /// @notice Check if a user has a referrer
+    /// @param user The address to query
+    /// @return True if the user has a referrer
+    function userHasReferrer(address user) external view returns (bool) {
+        return hasReferrer[user];
+    }
 }

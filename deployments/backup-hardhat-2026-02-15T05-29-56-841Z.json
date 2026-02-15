@@ -1,0 +1,25 @@
+{
+  "network": "hardhat",
+  "timestamp": "2026-02-15T05:29:56.841Z",
+  "addresses": {
+    "staking": {
+      "core": "0xC67F0a0cB719e4f4358D980a5D966878Fd6f3946",
+      "rewards": "0xEB02b4cC589B7017e621a8b4A02295793d6cB32E",
+      "skills": "0x2c8E2A5902dACEd9705e5AB9A3eE2EdAAe0e7F38",
+      "gamification": "0x90216d0227EfbBae880EC2b8F03695cB82326598",
+      "view": "0x5E29fCd3B1250F6148D87b65343b876D92d161D6",
+      "dynamicAPY": "0xF07B192F42E0eB84ba08c6DB591d08B1c753aC68"
+    },
+    "marketplace": {
+      "proxy": "0xd502fB2Eb3d345EE9A5A0286A472B38c77Fda6d5",
+      "implementation": "0xd502fB2Eb3d345EE9A5A0286A472B38c77Fda6d5",
+      "leveling": "0x4A68884abF0B56481F6bDB0E6D4521f0074a1F44",
+      "referral": "0xD558B2786e9C984d68BFf05c35F69bd473Bc5617",
+      "skillsNFT": "0x355126Fbb7f8294aaB32Be884C49102075c5D6ce",
+      "individualSkills": "0xB23257758B385444dF5A78aC2F315bd653470df3",
+      "quests": "0x61D75d56559Cd4722870A797a17793ed9f840245"
+    },
+    "treasury": {},
+    "other": {}
+  }
+}

@@ -4,220 +4,203 @@
 
 ---
 
-## 📚 Documentation Quick Links
+## 🎯 Choose Your Path
 
-Choose your path based on what you need:
-
-| Need | Document | Time |
-|------|----------|------|
-| **Quick overview** | [EXECUTIVE_SUMMARY.md](./EXECUTIVE_SUMMARY.md) | 15 min |
-| **Social/sharing** | [VISUAL_QUICK_GUIDE.md](./VISUAL_QUICK_GUIDE.md) | 10 min |
-| **Complete details** | [NUXCHAIN_WHITEPAPER.md](./NUXCHAIN_WHITEPAPER.md) | 45 min |
-| **Technical specs** | [TECHNOLOGY_DEEP_DIVE.md](./TECHNOLOGY_DEEP_DIVE.md) | 60 min |
-| **Marketing/community** | [MARKETING_COMMUNITY_GUIDE.md](./MARKETING_COMMUNITY_GUIDE.md) | 40 min |
-| **Smart contracts** | [doc/SMART_CONTRACTS_REFERENCE.md](./doc/SMART_CONTRACTS_REFERENCE.md) | 30 min |
+| Who You Are | Start Here | Time |
+|---|---|---|
+| **User / Community** | [guides/INTRODUCTION.md](./guides/INTRODUCTION.md) | 15 min |
+| **Marketing / Social** | [guides/MARKETING.md](./guides/MARKETING.md) | 20 min |
+| **Designer / Visual** | [guides/QUICK_REFERENCE.md](./guides/QUICK_REFERENCE.md) | 10 min |
+| **Developer** | [doc/ARCHITECTURE.md](./doc/ARCHITECTURE.md) | 30 min |
+| **DevOps** | [doc/DEPLOYMENT.md](./doc/DEPLOYMENT.md) | 20 min |
+| **API Reference** | [doc/SMART_CONTRACTS_REFERENCE.md](./doc/SMART_CONTRACTS_REFERENCE.md) | 45 min |
 
 ---
 
-## 🎯 What is Nuxchain?
+## � What is Nuxchain?
 
-Nuxchain Protocol combines four core components:
+Four integrated components:
 
-- **💰 Smart Staking**: Generate 40-250% APY with skill-based enhancements
-- **🎮 Gameified Marketplace**: Trade NFTs with integrated progression system  
-- **🏅 Skill NFTs**: Collectible boosts affecting staking and marketplace performance
-- **🏦 Treasury Management**: Circular economy ensuring long-term sustainability
+- **💰 Smart Staking**: 43.8% - 250% APY with skill boosts
+- **🎮 Gameified Marketplace**: Trade NFTs + earn XP
+- **🏅 Skill NFTs**: 7 collectible skills with 5 rarity tiers
+- **🏦 Treasury**: Automated distribution for sustainability
 
 ---
 
-## 🌟 Key Stats
+## 📊 Key Metrics
 
 | Metric | Value |
-|--------|-------|
+|---|---|
 | Network | Polygon (Chain 137) |
 | Base APY | 43.8% |
 | Max APY | 250%+ |
 | Min Deposit | 10 POL |
 | Max Deposit | 10,000 POL |
-| Staking Commission | 6% |
-| Marketplace Fee | 5% |
+| Commission | 6% (staking), 5% (trades) |
 
 ---
 
-## 📖 Cómo Usar los Scripts
+## 📚 Documentation Structure
 
-### Requisitos Previos
+```
+guides/                              ← For End Users
+├── INTRODUCTION.md                  (Getting started)
+├── QUICK_REFERENCE.md               (Visual guide)
+├── TECHNOLOGY.md                    (Deep dive)
+└── MARKETING.md                     (Community messaging)
 
-1. **Configurar `.env` con tus claves:**
-```env
-PRIVATE_KEY=tu_private_key_aqui
-POLYGONSCAN_API_KEY=tu_api_key_polygonscan
-ETHERSCAN_API_KEY=tu_api_key_etherscan
+doc/                                 ← For Developers
+├── README.md                        (Tech doc navigation)
+├── ARCHITECTURE.md                  (Complete design)
+├── SMART_CONTRACTS_REFERENCE.md     (API reference)
+├── DEPLOYMENT.md                    (Setup & devops)
+├── IMPLEMENTATION_GUIDES/
+│   ├── DynamicAPYCalculator.md
+│   └── EmergencyFundSystem.md
+└── FEATURES/
+    └── CollaboratorBadgeRewards.md
+
+reports/                             ← Implementation Reports
+├── DynamicAPY_Implementation.md
+└── Marketplace_Features.md
+
+contracts/                           ← Smart Contract Source Code
 ```
 
-2. **Instalar dependencias:**
+---
+
+## 🚀 Quick Start (5 minutes)
+
+### Setup Wallet
+1. Get MetaMask or similar
+2. Add Polygon (ChainID: 137)
+3. Fund with 1-2 POL for gas
+4. Buy 10+ POL
+
+### Deposit & Earn
+1. Visit Nuxchain interface
+2. Connect wallet
+3. Deposit 10-10,000 POL
+4. Select lock-up (optional)
+5. Watch it compound 24/7
+
+### Maximize Returns
+1. Create NFTs on marketplace (+10 XP per NFT)
+2. Buy skill NFTs (+5-20% APY boost)
+3. Collect rarity tiers (up to 1.8x multiplier)
+4. Level up to unlock features
+
+**Full guide**: [guides/INTRODUCTION.md](./guides/INTRODUCTION.md)
+
+---
+
+## 🛠️ For Developers
+
+### Requirements
 ```bash
+node >= 16.0.0
+npm >= 8.0.0
+```
+
+### Setup Repository
+```bash
+git clone https://github.com/LennyDevX/Nuxchain-protocol.git
+cd Nuxchain-protocol
 npm install
+npm test
 ```
 
-3. **Verificar configuración de red en `hardhat.config.cjs`:**
-```javascript
-networks: {
-  polygon: {
-    url: "https://polygon-rpc.com",
-    accounts: [process.env.PRIVATE_KEY]
-  }
-}
-```
-
-### Ejecutar un Deploy
-
-#### Sintaxis Básica
-```powershell
-npx hardhat run scripts/<NombreScript>.cjs --network <nombre-red>
-```
-
-#### Ejemplos
-
-**Deploy AirdropFactory en Polygon:**
-```powershell
-npx hardhat run scripts/DeployAirdropFactory.cjs --network polygon
-```
-
-**Deploy SmartStaking en Polygon:**
-```powershell
-npx hardhat run scripts/DeploySmartStaking.cjs --network polygon
-```
-
-**Deploy MinerBot Empire (todos los contratos):**
-```powershell
-npx hardhat run scripts/DeployMinerBot.cjs --network polygon
-```
-
-**Deploy en localhost para testing:**
-```powershell
-# Terminal 1: Iniciar nodo local
-
----
-
-## 👥 For Different Audiences
-
-### 📊 Investors/Partners
-Start with: **EXECUTIVE_SUMMARY.md** → **NUXCHAIN_WHITEPAPER.md**
-
-### 👨‍💻 Developers/Auditors
-Start with: **TECHNOLOGY_DEEP_DIVE.md** → **doc/SMART_CONTRACTS_REFERENCE.md**
-
-### 📢 Marketing/Community
-Start with: **MARKETING_COMMUNITY_GUIDE.md** → **VISUAL_QUICK_GUIDE.md**
-
-### 🎓 Community Members
-Start with: **VISUAL_QUICK_GUIDE.md** → **EXECUTIVE_SUMMARY.md**
-
----
-
-## 🗂️ Project Structure
-
-```
-📁 Nuxchain-protocol
-├── 📄 README.md (this file)
-├── 📄 NUXCHAIN_WHITEPAPER.md (official spec)
-├── 📄 EXECUTIVE_SUMMARY.md (quick reference)
-├── 📄 VISUAL_QUICK_GUIDE.md (social/sharing)
-├── 📄 TECHNOLOGY_DEEP_DIVE.md (technical details)
-├── 📄 MARKETING_COMMUNITY_GUIDE.md (go-to-market)
-│
-├── 📁 contracts/ (smart contracts source)
-├── 📁 scripts/ (deployment & maintenance)
-├── 📁 test/ (test suite)
-├── 📁 artifacts/ (compiled contracts)
-│
-└── 📁 doc/ (technical documentation)
-    ├── 📄 SMART_CONTRACTS_REFERENCE.md
-    ├── 📄 SYSTEM_ARCHITECTURE.md
-    ├── 📄 CONTRACTS_SUMMARY.md
-    └── 📁 contracts/ (individual contract docs)
-```
-
----
-
-## 🚀 Getting Started (5 Minutes)
-
-### 1. Prepare Wallet
+### Deploy Contracts
 ```bash
-- Download MetaMask
-- Add Polygon network (ChainID: 137)
-- Get 1-2 POL for gas
+# Configure environment
+cp .env.example .env
+# Edit .env with your private key and RPC URL
+
+# Deploy to Polygon
+npx hardhat run scripts/DeploySmartV2.cjs --network polygon
 ```
 
-### 2. Acquire POL
-```bash
-- Buy on exchange (Uniswap, 1inch)
-- Bridge from Ethereum if needed
-- Transfer to your wallet
-```
-
-### 3. Deposit
-```bash
-- Go to staking interface
-- Connect wallet
-- Deposit 10-10,000 POL
-- Confirm transaction
-```
-
-### 4. Monitor
-```bash
-- Check dashboard for APY
-- See rewards update hourly
-- Compound or withdraw anytime
-```
+**Detailed guide**: [doc/DEPLOYMENT.md](./doc/DEPLOYMENT.md)
 
 ---
 
-## 🔗 Smart Contract Addresses (Polygon Mainnet)
+## 📖 Documentation by Use Case
 
-| Component | Address |
-|-----------|---------|
-| **Smart Staking Core** | `0xC67F0a0cB719e4f4358D980a5D966878Fd6f3946` |
-| **Staking Rewards (v5.1.0)** | `0xEB02b4cC589B7017e621a8b4A02295793d6cB32E` |
-| **Staking Skills (v5.1.0)** | `0x2c8E2A5902dACEd9705e5AB9A3eE2EdAAe0e7F38` |
-| **Dynamic APY Calculator** | `0xF07B192F42E0eB84ba08c6DB591d08B1c753aC68` |
-| **Gameified Marketplace** | `0xd502fA2F8F565B1b30a24c6c0F83dBf17CB0F8f0` |
-| **Marketplace Skills NFT** | `0x355126Fbb7f8294aaB32Be884C49102075c5D6ce` |
-| **Individual Skills** | `0xB23257758B385444dF5A78aC2F315bd653470df3` |
-| **Treasury Manager (v2)** | `0x8f3554Fca1Bd1b79bBf531706FA2C67fEcC5401F` |
-| **Collaborator Badge Rewards** | `0xd0F4c324ad5C34A9502A51e38807e1EdcfACDeAB` |
+### I'm a User
+Start with [guides/INTRODUCTION.md](./guides/INTRODUCTION.md) (15 min)
+- What is Nuxchain
+- How to get started
+- How rewards work
+- Security features
 
-See [doc/CONTRACTS_SUMMARY.md](./doc/CONTRACTS_SUMMARY.md) for full details.
+### I'm Creating Marketing Content
+Start with [guides/MARKETING.md](./guides/MARKETING.md) (20 min)
+- Brand messaging
+- Social media templates
+- Target audiences
+- Crisis management
+
+### I'm a Developer
+Start with [doc/ARCHITECTURE.md](./doc/ARCHITECTURE.md) (30 min)
+- System design
+- Smart contract stack
+- Data flows
+- Integration patterns
+
+Then check [doc/SMART_CONTRACTS_REFERENCE.md](./doc/SMART_CONTRACTS_REFERENCE.md) (45 min)
+- Function signatures
+- Event definitions
+- State variables
+
+### I'm Deploying
+Start with [doc/DEPLOYMENT.md](./doc/DEPLOYMENT.md) (20 min)
+- Requirements
+- Configuration
+- Deployment modes
+- Troubleshooting
+
+### I Want to Understand Everything
+Read in order:
+1. [guides/INTRODUCTION.md](./guides/INTRODUCTION.md) - Overview
+2. [doc/ARCHITECTURE.md](./doc/ARCHITECTURE.md) - Technical design
+3. [doc/SMART_CONTRACTS_REFERENCE.md](./doc/SMART_CONTRACTS_REFERENCE.md) - API
+4. [contracts/](./contracts/) - Source code
 
 ---
 
-## 📊 Latest Updates (Feb 13, 2026)
+## 🔗 Key Resources
 
-✅ **Deployed**:
-- TreasuryManager v2 with 10% reserve fund
-- DynamicAPYCalculator (sqrt-based TVL scaling)
-- EnhancedSmartStakingRewards v5.1.0 (25% APY reduction)
-- EnhancedSmartStakingSkills v5.1.0 (25% boost reduction)
-- CollaboratorBadgeRewards with tiered commissions
-
-✅ **Configured**:
-- Treasury allocations: 30/35/20/15% split
-- Reserve fund auto-accumulation enabled
-- All 4 treasury wallets connected to contracts
-
-🔄 **Pending**:
-- Frontend .env updates (6 variables)
-- ABI file copies
-- IndividualSkillsMarketplace treasury connection
+- **[Full Guides](./guides/)** - For end users & content creators
+- **[Technical Docs](./doc/)** - For developers & auditors
+- **[Smart Contracts](./contracts/)** - Source code
+- **[Tests](./test/)** - Test suite
 
 ---
 
-## 🛠️ Development
+## ✅ Status
 
-### Prerequisites
-```bash
-node >= 16.0
+- ✅ Smart Staking deployed
+- ✅ Gameified Marketplace live
+- ✅ Skill NFT system active
+- ✅ Treasury management operational
+- ✅ All contracts verified on PolygonScan
+- ✅ Documentation complete
+
+---
+
+## 📝 License
+
+Licensed under MIT License
+
+---
+
+**Last Updated**: February 14, 2026  
+**Version**: 5.0+ (Modular)  
+**Network**: Polygon (Production) ✅  
+**Status**: Fully Operational
+
+For questions or contributions, see [guides/MARKETING.md](./guides/MARKETING.md#-contact--resources)
 hardhat
 @openzeppelin/contracts-upgradeable
 ```

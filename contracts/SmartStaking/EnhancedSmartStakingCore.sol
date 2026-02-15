@@ -200,6 +200,9 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
         totalPoolBalance += depositAmount;
         user.totalDeposited += uint128(depositAmount);
         
+        // Sync TVL to rewards module for dynamic APY
+        _syncTVLToRewards();
+        
         uint64 currentTime = uint64(block.timestamp);
         uint64 lockupDurationSeconds = _lockupDuration * 1 days;
 
@@ -343,6 +346,9 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
         if (uniqueUsersCount > 0) {
             unchecked { --uniqueUsersCount; }
         }
+        
+        // Sync TVL to rewards module for dynamic APY
+        _syncTVLToRewards();
         
         _transferCommission(commission);
         payable(msg.sender).sendValue(netAmount);
@@ -819,6 +825,20 @@ contract EnhancedSmartStaking is Ownable, Pausable, ReentrancyGuard, IStakingInt
     function _initializeSkillFlags() internal {
         for (uint8 i = 1; i <= uint8(type(SkillType).max); i++) {
             _skillEnabled[SkillType(i)] = true;
+        }
+    }
+    
+    /**
+     * @notice Sync current TVL to rewards module for dynamic APY calculation
+     * @dev Called automatically after deposits/withdrawals
+     */
+    function _syncTVLToRewards() internal {
+        if (address(rewardsModule) != address(0)) {
+            try rewardsModule.updateCurrentTVL(totalPoolBalance) {
+                // TVL synced successfully
+            } catch {
+                // Fail silently - don't revert user operations
+            }
         }
     }
     

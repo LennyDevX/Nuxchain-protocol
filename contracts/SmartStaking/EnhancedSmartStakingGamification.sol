@@ -109,11 +109,38 @@ contract EnhancedSmartStakingGamification is Ownable, IEnhancedSmartStakingGamif
 
     /// @notice Maps user to their badges
     mapping(address => Badge[]) private _userBadges;
+    
+    // ============================================
+    // PROTOCOL HEALTH STATE
+    // ============================================
+    
+    /// @notice Current protocol health status
+    ITreasuryManager.ProtocolStatus private _protocolHealth;
+    
+    /// @notice Timestamp of last health check
+    uint256 private _lastHealthCheckTime;
+    
+    /// @notice Minimum reserve required to maintain HEALTHY status (5 POL)
+    uint256 private constant MIN_HEALTHY_RESERVE = 5 ether;
+    
+    /// @notice Deficit threshold for UNSTABLE status (10 pending rewards unpaid)
+    uint256 private constant UNSTABLE_THRESHOLD = 10 ether;
+    
+    /// @notice Total pending rewards (sum of all unpaid level-up rewards)
+    uint256 private _totalPendingRewards;
+    
+    /// @notice Track deferred rewards by user for analysis
+    mapping(address => uint256) private _deferredRewardAmount;
+    mapping(address => uint256) private _deferredRewardTime;
 
     event RewardPaid(address indexed user, uint256 amount);
     event RewardDeferred(address indexed user, uint16 level, uint256 amount, string reason);
     event BadgeEarned(address indexed user, uint256 badgeId, string name);
     event TreasuryManagerUpdated(address indexed oldAddress, address indexed newAddress);
+    event ProtocolHealthStatusChanged(ITreasuryManager.ProtocolStatus newStatus, uint256 timestamp, string reason);
+    event CriticalRewardDeficit(address indexed user, uint256 rewardAmount, uint256 totalPendingRewards, uint256 contractBalance);
+    event HealthCheckPerformed(uint256 contractBalance, uint256 totalPendingRewards, ITreasuryManager.ProtocolStatus status, bool emergencyFundsRequested);
+    event TreasuryNotificationSent(string alertType, uint256 deficit, uint256 timestamp);
     
     // ============================================
     // MODIFIERS
@@ -188,6 +215,194 @@ contract EnhancedSmartStakingGamification is Ownable, IEnhancedSmartStakingGamif
     }
     
     // ============================================
+    // PROTOCOL HEALTH CHECK FUNCTIONS
+    // ============================================
+    
+    /**
+     * @notice Get current protocol health status and metrics
+     * @return status Current protocol status (HEALTHY/UNSTABLE/CRITICAL/EMERGENCY)
+     * @return contractBalance Current balance in this contract
+     * @return totalPendingRewards Sum of all unpaid rewards
+     * @return deficit Negative difference if pending > balance
+     * @return canPayRewards True if contract can pay all pending rewards
+     * @return healthPercentage Percentage health (100% = fully funded)
+     */
+    function getProtocolHealth() external view override returns (
+        ITreasuryManager.ProtocolStatus status,
+        uint256 contractBalance,
+        uint256 totalPendingRewards,
+        int256 deficit,
+        bool canPayRewards,
+        uint256 healthPercentage
+    ) {
+        contractBalance = address(this).balance;
+        totalPendingRewards = _totalPendingRewards;
+        
+        if (contractBalance >= totalPendingRewards) {
+            canPayRewards = true;
+            deficit = 0;
+            status = _protocolHealth;
+            healthPercentage = 100;
+        } else {
+            canPayRewards = false;
+            deficit = int256(totalPendingRewards) - int256(contractBalance);
+            
+            // Determine severity based on deficit
+            if (deficit > int256(UNSTABLE_THRESHOLD)) {
+                status = ITreasuryManager.ProtocolStatus.CRITICAL;
+                healthPercentage = (contractBalance * 100) / totalPendingRewards;
+            } else {
+                status = ITreasuryManager.ProtocolStatus.UNSTABLE;
+                healthPercentage = (contractBalance * 100) / totalPendingRewards;
+            }
+        }
+    }
+    
+    /**
+     * @notice Perform health check and update protocol status
+     * @dev Called periodically to monitor and report financial stability
+     * @return newStatus The determined protocol status
+     */
+    function performHealthCheck() external override returns (ITreasuryManager.ProtocolStatus newStatus) {
+        uint256 contractBalance = address(this).balance;
+        uint256 totalPending = _totalPendingRewards;
+        
+        ITreasuryManager.ProtocolStatus previousStatus = _protocolHealth;
+        bool emergencyRequested = false;
+        
+        // Determine new status
+        if (contractBalance >= totalPending) {
+            newStatus = ITreasuryManager.ProtocolStatus.HEALTHY;
+        } else if (contractBalance >= (totalPending / 2)) {
+            newStatus = ITreasuryManager.ProtocolStatus.UNSTABLE;
+        } else {
+            newStatus = ITreasuryManager.ProtocolStatus.CRITICAL;
+            
+            // Try to request emergency funds
+            if (address(treasuryManager) != address(0)) {
+                uint256 deficitAmount = totalPending - contractBalance;
+                try treasuryManager.requestEmergencyFunds(
+                    ITreasuryManager.TreasuryType.REWARDS, 
+                    deficitAmount
+                ) returns (bool success) {
+                    emergencyRequested = true;
+                    if (success) {
+                        emit TreasuryNotificationSent("EMERGENCY_FUNDS_GRANTED", deficitAmount, block.timestamp);
+                    }
+                } catch {
+                    // Emergency funds request failed
+                    emit TreasuryNotificationSent("EMERGENCY_FUNDS_DENIED", deficitAmount, block.timestamp);
+                }
+            }
+        }
+        
+        // Update status if changed
+        if (newStatus != previousStatus) {
+            _protocolHealth = newStatus;
+            emit ProtocolHealthStatusChanged(newStatus, block.timestamp, _getStatusReason(newStatus));
+            
+            // Notify TreasuryManager of status change
+            if (address(treasuryManager) != address(0)) {
+                try treasuryManager.setProtocolStatus(
+                    ITreasuryManager.TreasuryType.REWARDS,
+                    newStatus
+                ) {
+                    // Status updated in Treasury
+                } catch {
+                    // Failed to notify Treasury
+                }
+            }
+        }
+        
+        _lastHealthCheckTime = block.timestamp;
+        
+        emit HealthCheckPerformed(contractBalance, totalPending, newStatus, emergencyRequested);
+        
+        return newStatus;
+    }
+    
+    /**
+     * @notice Quick health check without full transaction overhead
+     */
+    function _performQuickHealthCheck() internal {
+        ITreasuryManager.ProtocolStatus newStatus;
+        uint256 contractBalance = address(this).balance;
+        uint256 totalPending = _totalPendingRewards;
+        
+        if (contractBalance >= totalPending) {
+            newStatus = ITreasuryManager.ProtocolStatus.HEALTHY;
+        } else if (contractBalance >= (totalPending / 2)) {
+            newStatus = ITreasuryManager.ProtocolStatus.UNSTABLE;
+        } else {
+            newStatus = ITreasuryManager.ProtocolStatus.CRITICAL;
+        }
+        
+        if (newStatus != _protocolHealth) {
+            _protocolHealth = newStatus;
+            emit ProtocolHealthStatusChanged(newStatus, block.timestamp, _getStatusReason(newStatus));
+            
+            // Try to notify Treasury (non-blocking)
+            if (address(treasuryManager) != address(0)) {
+                try treasuryManager.setProtocolStatus(
+                    ITreasuryManager.TreasuryType.REWARDS,
+                    newStatus
+                ) {} catch {}
+            }
+        }
+        
+        _lastHealthCheckTime = block.timestamp;
+    }
+    
+    /**
+     * @notice Get human-readable status reason
+     * @param status The protocol status
+     * @return reason Status description
+     */
+    function _getStatusReason(ITreasuryManager.ProtocolStatus status) 
+        internal 
+        pure 
+        returns (string memory reason) 
+    {
+        if (status == ITreasuryManager.ProtocolStatus.HEALTHY) {
+            return "Protocol fully funded and stable";
+        } else if (status == ITreasuryManager.ProtocolStatus.UNSTABLE) {
+            return "Protocol has insufficient reserves";
+        } else if (status == ITreasuryManager.ProtocolStatus.CRITICAL) {
+            return "Protocol critically underfunded";
+        } else {
+            return "Protocol in emergency mode";
+        }
+    }
+    
+    /**
+     * @notice Report critical protocol status to TreasuryManager
+     * @param requiredAmount Amount needed to restore health
+     * @return notified True if TreasuryManager was successfully notified
+     */
+    function reportCriticalStatus(uint256 requiredAmount) 
+        external 
+        override 
+        onlyAuthorized 
+        returns (bool notified) 
+    {
+        require(address(treasuryManager) != address(0), "Treasury not configured");
+        require(_protocolHealth == ITreasuryManager.ProtocolStatus.CRITICAL, "Status is not critical");
+        
+        // Notify Treasury of critical status
+        try treasuryManager.declareEmergency(
+            string(abi.encodePacked(
+                "Gamification module requires funds for pending rewards"
+            ))
+        ) {
+            emit TreasuryNotificationSent("CRITICAL_STATUS_REPORTED", requiredAmount, block.timestamp);
+            return true;
+        } catch {
+            emit TreasuryNotificationSent("CRITICAL_STATUS_REPORT_FAILED", requiredAmount, block.timestamp);
+            return false;
+        }
+    }
+    
+    // ============================================
     // XP & LEVEL FUNCTIONS
     // ============================================
     
@@ -254,10 +469,14 @@ contract EnhancedSmartStakingGamification is Ownable, IEnhancedSmartStakingGamif
         // Calculate reward based on LevelingSystem formula (1-5 POL per level)
         uint256 rewardAmount = _calculateLevelUpReward(newLevel);
 
+        // Track pending reward
+        _totalPendingRewards += rewardAmount;
+
         // Try to pay from contract balance first
         if (address(this).balance >= rewardAmount) {
             (bool success, ) = payable(user).call{value: rewardAmount}("");
             if (success) {
+                _totalPendingRewards -= rewardAmount;
                 emit RewardPaid(user, rewardAmount);
                 return;
             }
@@ -269,6 +488,7 @@ contract EnhancedSmartStakingGamification is Ownable, IEnhancedSmartStakingGamif
                 if (funded && address(this).balance >= rewardAmount) {
                     (bool success, ) = payable(user).call{value: rewardAmount}("");
                     if (success) {
+                        _totalPendingRewards -= rewardAmount;
                         emit RewardPaid(user, rewardAmount);
                         return;
                     }
@@ -279,7 +499,19 @@ contract EnhancedSmartStakingGamification is Ownable, IEnhancedSmartStakingGamif
         }
         
         // Reward deferred - insufficient funds
+        // Track deferred reward for this user
+        _deferredRewardAmount[user] += rewardAmount;
+        _deferredRewardTime[user] = block.timestamp;
+        
+        // Emit critical deficit event
+        emit CriticalRewardDeficit(user, rewardAmount, _totalPendingRewards, address(this).balance);
+        
         emit RewardDeferred(user, newLevel, rewardAmount, "Insufficient funds in contract and treasury");
+        
+        // Attempt health check and emergency notification
+        if (block.timestamp >= _lastHealthCheckTime + 1 hours) {
+            _performQuickHealthCheck();
+        }
     }
     
     /**

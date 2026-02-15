@@ -7,6 +7,7 @@ import "../interfaces/IEnhancedSmartStakingRewards.sol";
 import "../interfaces/IEnhancedSmartStakingSkills.sol";
 import "../interfaces/IEnhancedSmartStakingGamification.sol";
 import "../interfaces/ITreasuryManager.sol";
+import "../interfaces/IAPYCalculator.sol";
 
 /**
  * @title EnhancedSmartStakingRewards
@@ -31,10 +32,14 @@ contract EnhancedSmartStakingRewards is Ownable, ReentrancyGuard, IEnhancedSmart
     IEnhancedSmartStakingSkills public skillsModule;
     IEnhancedSmartStakingGamification public gamificationModule;
     ITreasuryManager public treasuryManager;
+    IAPYCalculator public apyCalculator;
     
     // Staking Yield Configuration
     uint256[] private lockupPeriods;
     uint256[] private baseAPYs;
+    
+    /// @notice Current total value locked in the staking system (updated externally)
+    uint256 public currentTVL;
     
     // ============================================
     // CONSTRUCTOR
@@ -77,6 +82,23 @@ contract EnhancedSmartStakingRewards is Ownable, ReentrancyGuard, IEnhancedSmart
     function setTreasuryManager(address _treasuryManager) external onlyOwner {
         require(_treasuryManager != address(0), "Invalid address");
         treasuryManager = ITreasuryManager(_treasuryManager);
+    }
+    
+    /**
+     * @notice Set the APY calculator contract address
+     * @param _apyCalculator The APY calculator contract address
+     */
+    function setAPYCalculator(address _apyCalculator) external onlyOwner {
+        require(_apyCalculator != address(0), "Invalid address");
+        apyCalculator = IAPYCalculator(_apyCalculator);
+    }
+    
+    /**
+     * @notice Update current TVL (called by Core contract)
+     * @param _currentTVL The current total value locked
+     */
+    function updateCurrentTVL(uint256 _currentTVL) external onlyOwner {
+        currentTVL = _currentTVL;
     }
 
     /**
@@ -135,8 +157,27 @@ contract EnhancedSmartStakingRewards is Ownable, ReentrancyGuard, IEnhancedSmart
             userReward = finalReward;
         }
         
-        // 6. Transfer reward to user
-        require(address(this).balance >= userReward, "Insufficient reward funds");
+        // 6. Transfer reward to user with emergency fallback
+        // If insufficient balance, try to request emergency funds from TreasuryManager
+        if (address(this).balance < userReward) {
+            // Calculate deficit
+            uint256 deficit = userReward - address(this).balance;
+            
+            // Try to request emergency funds
+            bool emergencySuccess = false;
+            try treasuryManager.requestEmergencyFunds(
+                ITreasuryManager.TreasuryType.REWARDS,
+                deficit
+            ) returns (bool success) {
+                emergencySuccess = success;
+            } catch {
+                // Emergency funds not available
+            }
+            
+            // Final check after emergency attempt
+            require(address(this).balance >= userReward, "Insufficient reward funds");
+        }
+        
         payable(msg.sender).transfer(userReward);
         
         emit QuestRewardClaimed(msg.sender, questId, userReward, userReward - reward.amount);
@@ -190,11 +231,16 @@ contract EnhancedSmartStakingRewards is Ownable, ReentrancyGuard, IEnhancedSmart
         uint256 timeElapsed = block.timestamp - lastClaimTime;
         if (timeElapsed == 0) return 0;
         
-        // Base APY for this lockup period
+        // Get base APY for this lockup period
         uint256 apy = baseAPYs[lockupPeriodIndex];
         
+        // Apply dynamic APY if calculator is set and TVL is available
+        if (address(apyCalculator) != address(0) && currentTVL > 0) {
+            apy = apyCalculator.calculateDynamicAPY(apy, currentTVL);
+        }
+        
         // Add Skill Boost (e.g., +500 bps = +5%)
-        // Total APY = Base APY + Skill Boost
+        // Total APY = Dynamic APY + Skill Boost
         uint256 totalAPY = apy + stakingBoostTotal;
         
         // Calculate Reward: Amount * TotalAPY * Time / (365 days * 10000)
