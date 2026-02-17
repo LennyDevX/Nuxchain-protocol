@@ -1,0 +1,92 @@
+{
+  "network": "polygon",
+  "chainId": 137,
+  "version": "6.0.0",
+  "date": "2026-02-15",
+  "deployer": "0xed639e84179FCEcE1d7BEe91ab1C6888fbBdD0cf",
+  "treasury": "0xad14c117b51735c072d42571e30bf2c729cd9593",
+  "contracts": {
+    "treasury": {
+      "TreasuryManager": "0x16c69b35D59A3FD749Ce357F1728E06F25E1Fa38"
+    },
+    "staking": {
+      "core": "0xAA334176a6f94Dfdb361a8c9812E8019558E9E1c",
+      "rewards": "0x6844540B3DFb79D33FBbd458D5Ea3A62c2bB5CBA",
+      "skills": "0xe2eed56a88a756A3E1339b0a80b001fEBEA907d5",
+      "gamification": "0xc47929beab8EFc09690aDF9e0d0266ae7380Ec97",
+      "viewCore": "0x86FF715E4804ae223F62A7A6D29915c90d4A15DF",
+      "viewStats": "0x76181aFd00eE2B4c47E9221Db6B4A5959FdAfACA",
+      "viewSkills": "0xFeC8965F73899013A70ff93c3981a3DA92753443",
+      "dynamicAPY": "0x3AB1Cae41aB3E096e349B2de2b52702FAEC9F03D"
+    },
+    "marketplace": {
+      "proxy": "0xe99f85503aa287a1C06D7c3487DD1c4cE1DfbEe1",
+      "leveling": "0x38a148DCa4268744DdA547301493E85C129720D2",
+      "referral": "0xd873BbE8b6432131b93934fD5C26D9821fe41B66",
+      "skillsNFT": "0xA60777d09291d6D401D7962f3E0DC1C9f0215A55",
+      "individualSkills": "0x462b22c7Ac1Bf9C035258D6510E5404Fd97010F1",
+      "quests": "0x1ae4244d1678776b068A29dDE3417CF5710D04A0",
+      "collaboratorBadges": "0x6fEfBEf0146D0eE6ACd04741000842292065b143",
+      "view": "0x23FCFF3F5d4b5de3371A5Abea3A00633439A6168",
+      "statistics": "0xcfa59B5244b180A1DA95aE38A2af7F1bF44E4FAe",
+      "social": "0x708b537D4517DC530a3829F06c112e6D37F5fc4c"
+    }
+  },
+  "summary": {
+    "totalContracts": 19,
+    "uupsProxies": 5,
+    "standaloneModules": 10,
+    "viewContracts": 3,
+    "utilities": 1,
+    "status": "✅ DEPLOYED",
+    "synchronization": "⏳ PENDING"
+  },
+  "polygonscanLinks": {
+    "treasury": {
+      "TreasuryManager": "https://polygonscan.com/address/0x16c69b35D59A3FD749Ce357F1728E06F25E1Fa38"
+    },
+    "staking": {
+      "core": "https://polygonscan.com/address/0xAA334176a6f94Dfdb361a8c9812E8019558E9E1c",
+      "rewards": "https://polygonscan.com/address/0x6844540B3DFb79D33FBbd458D5Ea3A62c2bB5CBA",
+      "skills": "https://polygonscan.com/address/0xe2eed56a88a756A3E1339b0a80b001fEBEA907d5",
+      "gamification": "https://polygonscan.com/address/0xc47929beab8EFc09690aDF9e0d0266ae7380Ec97",
+      "viewCore": "https://polygonscan.com/address/0x86FF715E4804ae223F62A7A6D29915c90d4A15DF",
+      "viewStats": "https://polygonscan.com/address/0x76181aFd00eE2B4c47E9221Db6B4A5959FdAfACA",
+      "viewSkills": "https://polygonscan.com/address/0xFeC8965F73899013A70ff93c3981a3DA92753443",
+      "dynamicAPY": "https://polygonscan.com/address/0x3AB1Cae41aB3E096e349B2de2b52702FAEC9F03D"
+    },
+    "marketplace": {
+      "proxy": "https://polygonscan.com/address/0xe99f85503aa287a1C06D7c3487DD1c4cE1DfbEe1",
+      "leveling": "https://polygonscan.com/address/0x38a148DCa4268744DdA547301493E85C129720D2",
+      "referral": "https://polygonscan.com/address/0xd873BbE8b6432131b93934fD5C26D9821fe41B66",
+      "skillsNFT": "https://polygonscan.com/address/0xA60777d09291d6D401D7962f3E0DC1C9f0215A55",
+      "individualSkills": "https://polygonscan.com/address/0x462b22c7Ac1Bf9C035258D6510E5404Fd97010F1",
+      "quests": "https://polygonscan.com/address/0x1ae4244d1678776b068A29dDE3417CF5710D04A0",
+      "collaboratorBadges": "https://polygonscan.com/address/0x6fEfBEf0146D0eE6ACd04741000842292065b143",
+      "view": "https://polygonscan.com/address/0x23FCFF3F5d4b5de3371A5Abea3A00633439A6168",
+      "statistics": "https://polygonscan.com/address/0xcfa59B5244b180A1DA95aE38A2af7F1bF44E4FAe",
+      "social": "https://polygonscan.com/address/0x708b537D4517DC530a3829F06c112e6D37F5fc4c"
+    }
+  },
+  "environmentVariables": {
+    "VITE_TREASURY_ADDRESS": "0xad14c117b51735c072d42571e30bf2c729cd9593",
+    "VITE_ENHANCED_SMARTSTAKING_ADDRESS": "0xAA334176a6f94Dfdb361a8c9812E8019558E9E1c",
+    "VITE_STAKING_REWARDS_ADDRESS": "0x6844540B3DFb79D33FBbd458D5Ea3A62c2bB5CBA",
+    "VITE_STAKING_SKILLS_ADDRESS": "0xe2eed56a88a756A3E1339b0a80b001fEBEA907d5",
+    "VITE_STAKING_GAMIFICATION_ADDRESS": "0xc47929beab8EFc09690aDF9e0d0266ae7380Ec97",
+    "VITE_STAKING_VIEW_CORE_ADDRESS": "0x86FF715E4804ae223F62A7A6D29915c90d4A15DF",
+    "VITE_STAKING_VIEW_STATS_ADDRESS": "0x76181aFd00eE2B4c47E9221Db6B4A5959FdAfACA",
+    "VITE_STAKING_VIEW_SKILLS_ADDRESS": "0xFeC8965F73899013A70ff93c3981a3DA92753443",
+    "VITE_DYNAMIC_APY_ADDRESS": "0x3AB1Cae41aB3E096e349B2de2b52702FAEC9F03D",
+    "VITE_MARKETPLACE_CORE_ADDRESS": "0xe99f85503aa287a1C06D7c3487DD1c4cE1DfbEe1",
+    "VITE_LEVELING_SYSTEM_ADDRESS": "0x38a148DCa4268744DdA547301493E85C129720D2",
+    "VITE_REFERRAL_SYSTEM_ADDRESS": "0xd873BbE8b6432131b93934fD5C26D9821fe41B66",
+    "VITE_MARKETPLACE_SKILLS_NFT_ADDRESS": "0xA60777d09291d6D401D7962f3E0DC1C9f0215A55",
+    "VITE_INDIVIDUAL_SKILLS_MARKETPLACE_ADDRESS": "0x462b22c7Ac1Bf9C035258D6510E5404Fd97010F1",
+    "VITE_MARKETPLACE_QUESTS_ADDRESS": "0x1ae4244d1678776b068A29dDE3417CF5710D04A0",
+    "VITE_COLLABORATOR_BADGES_ADDRESS": "0x6fEfBEf0146D0eE6ACd04741000842292065b143",
+    "VITE_MARKETPLACE_VIEW_ADDRESS": "0x23FCFF3F5d4b5de3371A5Abea3A00633439A6168",
+    "VITE_MARKETPLACE_STATISTICS_ADDRESS": "0xcfa59B5244b180A1DA95aE38A2af7F1bF44E4FAe",
+    "VITE_MARKETPLACE_SOCIAL_ADDRESS": "0x708b537D4517DC530a3829F06c112e6D37F5fc4c"
+  }
+}

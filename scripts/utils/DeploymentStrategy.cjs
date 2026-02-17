@@ -355,7 +355,7 @@ class DeploymentStrategy {
 
         // Mapeo de nombres de contratos a keys
         const keyMap = {
-            'EnhancedSmartStakingCore': 'core',
+            'EnhancedSmartStakingCoreV2': 'core',
             'EnhancedSmartStakingRewards': 'rewards',
             'EnhancedSmartStakingSkills': 'skills',
             'EnhancedSmartStakingGamification': 'gamification',

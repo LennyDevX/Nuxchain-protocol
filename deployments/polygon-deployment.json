@@ -352,9 +352,5 @@
       "explorerUrl": "https://polygonscan.com",
       "status": "Pending verification (automatic)"
     }
-  },
-  "deployment": {
-    "timestamp": "2026-02-16T14:20:36.994Z",
-    "network": "polygon"
   }
 }

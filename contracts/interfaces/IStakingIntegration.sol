@@ -234,6 +234,11 @@ interface IStakingIntegration {
      */
     function performAutoCompound(bytes calldata performData) external;
     
+    /**
+     * @dev Allows user to withdraw their staked capital even when paused, forfeiting rewards
+     */
+    function emergencyWithdrawStake() external;
+
     // ════════════════════════════════════════════════════════════════════════════════════════
     // ADMIN FUNCTIONS
     // ════════════════════════════════════════════════════════════════════════════════════════

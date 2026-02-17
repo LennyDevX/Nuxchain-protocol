@@ -87,6 +87,72 @@ module.exports = {
           viaIR: true, // Necesario para evitar stack too deep
           evmVersion: "shanghai"
         }
+      },
+      "contracts/SmartStaking/EnhancedSmartStakingView.sol": {
+        version: "0.8.28",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 10, // Balance entre tamaño y stack depth
+            details: {
+              yul: true,
+              yulDetails: {
+                stackAllocation: true,
+                optimizerSteps: "dhfoDgvulfnTUtnIf"
+              }
+            }
+          },
+          viaIR: true, // Necesario para evitar stack too deep
+          evmVersion: "shanghai"
+        }
+      },
+      "contracts/SmartStaking/EnhancedSmartStakingCore.sol": {
+        version: "0.8.28",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 50, // Optimizado para balance tamaño/gas
+            details: {
+              yul: true
+            }
+          },
+          viaIR: true,
+          evmVersion: "shanghai"
+        }
+      },
+      "contracts/Marketplace/IndividualSkillsMarketplace.sol": {
+        version: "0.8.28",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1, // Máxima optimización de tamaño
+            details: {
+              yul: true,
+              yulDetails: {
+                stackAllocation: true
+              }
+            }
+          },
+          viaIR: true,
+          evmVersion: "shanghai"
+        }
+      },
+      "contracts/Marketplace/IndividualSkillsMarketplaceImpl.sol": {
+        version: "0.8.28",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1, // Máxima optimización de tamaño
+            details: {
+              yul: true,
+              yulDetails: {
+                stackAllocation: true
+              }
+            }
+          },
+          viaIR: true,
+          evmVersion: "shanghai"
+        }
       }
     }
   },

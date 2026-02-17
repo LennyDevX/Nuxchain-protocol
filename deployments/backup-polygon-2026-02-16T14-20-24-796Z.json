@@ -1,0 +1,32 @@
+{
+  "network": "polygon",
+  "timestamp": "2026-02-16T14:20:24.796Z",
+  "addresses": {
+    "staking": {
+      "core": "0x5F084a3E35eca396B5216d67D31CB0c8dcC22703",
+      "rewards": "0xC72C9BdfEDbAA68C75D1De98e0992E1aA2a0C4be",
+      "skills": "0x6ADD8eAdE8B2A4d8B8DE032Cf5CaB4b04481351c",
+      "gamification": "0xcA4E14cd5788C5bA705051f991e65a34fbC79B52",
+      "view": "0x753faAD8088ef6B5fC2859bf84C097f1d8207c3c",
+      "viewStats": "0xb1F6fae50d34cb273392937955aF4Efc938CB46a",
+      "viewSkills": "0xce97Cdff37a04c7E18B74fdC01E2C25c39cb8c05"
+    },
+    "marketplace": {
+      "proxy": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
+      "implementation": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
+      "leveling": "0x700FD6c0ca996C5D62B29F0F57528c9B63De90Fb",
+      "referral": "0xbb6DE66b0F38a4781F9fA9d4e9E66F9C4661C12C",
+      "skillsNFT": "0x304763fF9C345DA1Fe32d80A47f0F4aeb31E05cd",
+      "individualSkills": "0xAD586A4Fe790975f80382De018788951D33f10f8",
+      "quests": "0x00ABC70504b1d8B75Bb07257e240BAc38d204B73",
+      "collaboratorBadges": "0x579DDf1afF17ef176de1fB8A6b8CbCA628792d98",
+      "view": "0x80fa89CB50Bf9501D2E25C7Aa191822119B76439",
+      "statistics": "0x83b75f1AC33a9257072f6f070266A3D89Cdf4CA3",
+      "social": "0xe39C0C008624b8649270C4e99AeD0892C7b6fD8d"
+    },
+    "treasury": {
+      "manager": "0x92BA711B203CF40bb6c5f7f509E0f48aa19e2cD9"
+    },
+    "other": {}
+  }
+}

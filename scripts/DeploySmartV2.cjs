@@ -362,7 +362,7 @@ class SmartDeployment {
         // Lista de contratos disponibles para deployment
         const contracts = [
             // Staking
-            { name: 'EnhancedSmartStakingCore', category: 'staking', path: 'contracts/SmartStaking/EnhancedSmartStakingCore.sol' },
+            { name: 'EnhancedSmartStakingCoreV2', category: 'staking', path: 'contracts/SmartStaking/EnhancedSmartStakingCoreV2.sol' },
             { name: 'EnhancedSmartStakingRewards', category: 'staking', path: 'contracts/SmartStaking/EnhancedSmartStakingRewards.sol' },
             { name: 'EnhancedSmartStakingSkills', category: 'staking', path: 'contracts/SmartStaking/EnhancedSmartStakingSkills.sol' },
             { name: 'EnhancedSmartStakingGamification', category: 'staking', path: 'contracts/SmartStaking/EnhancedSmartStakingGamification.sol' },

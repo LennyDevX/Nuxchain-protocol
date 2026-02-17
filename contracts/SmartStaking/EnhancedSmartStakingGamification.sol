@@ -32,6 +32,9 @@ contract EnhancedSmartStakingGamification is Ownable, IEnhancedSmartStakingGamif
     /// @notice Minimum compound amount (0.01 ether)
     uint256 private constant MIN_COMPOUND_AMOUNT = 0.01 ether;
 
+    /// @notice Maximum users per batch operation (prevent OOG)
+    uint256 private constant BATCH_LIMIT = 100;
+
     // ============================================
     // XP REWARDS - REDUCED FOR PLATFORM STABILITY
     // ============================================
@@ -814,9 +817,13 @@ contract EnhancedSmartStakingGamification is Ownable, IEnhancedSmartStakingGamif
     
     /**
      * @notice Batch perform auto-compound for multiple users
-     * @param users Array of user addresses
+     * @param users Array of user addresses (max BATCH_LIMIT = 100)
+     * @dev Prevents Out-of-Gas by limiting batch size
      */
     function batchAutoCompound(address[] calldata users) external override onlyCore {
+        require(users.length > 0, "Empty user array");
+        require(users.length <= BATCH_LIMIT, "Batch exceeds limit (max 100)");
+        
         for (uint256 i = 0; i < users.length; i++) {
             if (_autoCompoundConfigs[users[i]].enabled) {
                 _autoCompoundConfigs[users[i]].lastCompoundTime = block.timestamp;

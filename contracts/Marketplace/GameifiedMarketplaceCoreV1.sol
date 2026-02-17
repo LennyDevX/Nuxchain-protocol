@@ -3,7 +3,6 @@ pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721RoyaltyUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
@@ -20,7 +19,6 @@ contract GameifiedMarketplaceCoreV1 is
     Initializable,
     ERC721Upgradeable,
     ERC721URIStorageUpgradeable,
-    ERC721RoyaltyUpgradeable,
     AccessControlUpgradeable,
     ReentrancyGuardUpgradeable,
     PausableUpgradeable,
@@ -109,6 +107,8 @@ contract GameifiedMarketplaceCoreV1 is
     event SkillsContractUpdated(address indexed oldAddress, address indexed newAddress);
     event QuestsContractUpdated(address indexed oldAddress, address indexed newAddress);
     event StakingContractUpdated(address indexed oldAddress, address indexed newAddress);
+    event LevelingSystemUpdated(address indexed oldAddress, address indexed newAddress);
+    event ReferralSystemUpdated(address indexed oldAddress, address indexed newAddress);
     event PlatformFeeTransferred(address indexed from, uint256 amount, address indexed to, string operation);
     event TreasuryManagerUpdated(address indexed newManager);
     event ModuleUpdated(string indexed moduleName, address indexed oldModule, address indexed newModule);
@@ -141,7 +141,6 @@ contract GameifiedMarketplaceCoreV1 is
     function initialize(address _platformTreasury) public initializer {
         __ERC721_init("GameifiedNFT", "GNFT");
         __ERC721URIStorage_init();
-        __ERC721Royalty_init();
         __AccessControl_init();
         __ReentrancyGuard_init();
         __Pausable_init();
@@ -154,22 +153,24 @@ contract GameifiedMarketplaceCoreV1 is
         platformTreasury = _platformTreasury != address(0) ? _platformTreasury : msg.sender;
     }
     
-    function setStatisticsModule(address _statistics) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setStatisticsModule(address _statistics) external onlyRole(ADMIN_ROLE) {
         if (_statistics == address(0)) revert InvalidAddress();
         address oldModule = address(statisticsModule);
         statisticsModule = IMarketplaceStatistics(_statistics);
         emit ModuleUpdated("Statistics", oldModule, _statistics);
     }
     
-    function setViewModule(address _view) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setViewModule(address _view) external onlyRole(ADMIN_ROLE) {
         if (_view == address(0)) revert InvalidAddress();
+        require(_view.code.length > 0, "Address is not a contract");
         address oldModule = address(viewModule);
         viewModule = IMarketplaceView(_view);
         emit ModuleUpdated("View", oldModule, _view);
     }
     
-    function setSocialModule(address _social) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setSocialModule(address _social) external onlyRole(ADMIN_ROLE) {
         if (_social == address(0)) revert InvalidAddress();
+        require(_social.code.length > 0, "Address is not a contract");
         address oldModule = address(socialModule);
         socialModule = IMarketplaceSocial(_social);
         emit ModuleUpdated("Social", oldModule, _social);
@@ -195,10 +196,6 @@ contract GameifiedMarketplaceCoreV1 is
             createdAt: block.timestamp,
             royaltyPercentage: _royaltyPercentage
         });
-        
-        if (_royaltyPercentage > 0) {
-            _setTokenRoyalty(tokenId, msg.sender, _royaltyPercentage);
-        }
         
         userProfiles[msg.sender].nftsCreated++;
         userProfiles[msg.sender].totalXP += 10;
@@ -257,10 +254,6 @@ contract GameifiedMarketplaceCoreV1 is
                 createdAt: block.timestamp,
                 royaltyPercentage: _royaltyPercentage
             });
-            
-            if (_royaltyPercentage > 0) {
-                _setTokenRoyalty(tokenId, msg.sender, _royaltyPercentage);
-            }
             
             _createdTokens[msg.sender].add(tokenId);
 
@@ -542,6 +535,20 @@ contract GameifiedMarketplaceCoreV1 is
         emit TreasuryManagerUpdated(_treasuryManager);
     }
 
+    function setLevelingSystem(address _levelingAddress) external onlyRole(ADMIN_ROLE) {
+        if (_levelingAddress == address(0)) revert InvalidAddress();
+        address oldAddress = levelingSystemAddress;
+        levelingSystemAddress = _levelingAddress;
+        emit LevelingSystemUpdated(oldAddress, _levelingAddress);
+    }
+
+    function setReferralSystem(address _referralAddress) external onlyRole(ADMIN_ROLE) {
+        if (_referralAddress == address(0)) revert InvalidAddress();
+        address oldAddress = referralSystemAddress;
+        referralSystemAddress = _referralAddress;
+        emit ReferralSystemUpdated(oldAddress, _referralAddress);
+    }
+
     /// @dev Burn badge
     function burnBadge(uint256 _tokenId) external {
         if (ownerOf(_tokenId) != msg.sender) revert NotTokenOwner();
@@ -609,7 +616,7 @@ contract GameifiedMarketplaceCoreV1 is
         super._transfer(from, to, tokenId);
     }
 
-    function _burn(uint256 tokenId) internal override(ERC721Upgradeable, ERC721URIStorageUpgradeable, ERC721RoyaltyUpgradeable) {
+    function _burn(uint256 tokenId) internal override(ERC721Upgradeable, ERC721URIStorageUpgradeable) {
         super._burn(tokenId);
     }
 
@@ -620,7 +627,7 @@ contract GameifiedMarketplaceCoreV1 is
     }
 
     function supportsInterface(bytes4 interfaceId)
-        public view override(ERC721Upgradeable, ERC721URIStorageUpgradeable, ERC721RoyaltyUpgradeable, AccessControlUpgradeable) returns (bool)
+        public view override(ERC721Upgradeable, ERC721URIStorageUpgradeable, AccessControlUpgradeable) returns (bool)
     {
         return super.supportsInterface(interfaceId);
     }

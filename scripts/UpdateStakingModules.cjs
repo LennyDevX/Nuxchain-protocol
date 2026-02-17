@@ -28,7 +28,7 @@ async function main() {
     console.log(`   Gamification (NUEVO):  ${newGamificationAddress}\n`);
 
     // Conectar con el contrato
-    const core = await ethers.getContractAt("EnhancedSmartStaking", stakingCoreAddress, deployer);
+    const core = await ethers.getContractAt("EnhancedSmartStakingCoreV2", stakingCoreAddress, deployer);
 
     console.log("📝 ACTUALIZANDO MÓDULOS...\n");
 

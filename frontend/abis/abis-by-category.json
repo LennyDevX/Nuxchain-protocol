@@ -4572,6 +4572,13 @@
           "type": "function"
         },
         {
+          "inputs": [],
+          "name": "emergencyWithdrawStake",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
           "inputs": [
             {
               "internalType": "address",
@@ -7018,6 +7025,25 @@
             {
               "indexed": true,
               "internalType": "address",
+              "name": "oldAddress",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "newAddress",
+              "type": "address"
+            }
+          ],
+          "name": "LevelingSystemUpdated",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
               "name": "user",
               "type": "address"
             },
@@ -7217,6 +7243,25 @@
             }
           ],
           "name": "QuestsContractUpdated",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "oldAddress",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "newAddress",
+              "type": "address"
+            }
+          ],
+          "name": "ReferralSystemUpdated",
           "type": "event"
         },
         {
@@ -8379,35 +8424,6 @@
         {
           "inputs": [
             {
-              "internalType": "uint256",
-              "name": "tokenId",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "salePrice",
-              "type": "uint256"
-            }
-          ],
-          "name": "royaltyInfo",
-          "outputs": [
-            {
-              "internalType": "address",
-              "name": "",
-              "type": "address"
-            },
-            {
-              "internalType": "uint256",
-              "name": "",
-              "type": "uint256"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
               "internalType": "address",
               "name": "from",
               "type": "address"
@@ -8491,11 +8507,37 @@
           "inputs": [
             {
               "internalType": "address",
+              "name": "_levelingAddress",
+              "type": "address"
+            }
+          ],
+          "name": "setLevelingSystem",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
               "name": "_questsAddress",
               "type": "address"
             }
           ],
           "name": "setQuestsContract",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_referralAddress",
+              "type": "address"
+            }
+          ],
+          "name": "setReferralSystem",
           "outputs": [],
           "stateMutability": "nonpayable",
           "type": "function"
@@ -21994,18 +22036,12 @@
         }
       ]
     },
-    "EnhancedSmartStaking": {
-      "name": "EnhancedSmartStaking",
-      "source": "contracts/SmartStaking/EnhancedSmartStakingCore.sol",
+    "EnhancedSmartStakingCoreV2": {
+      "name": "EnhancedSmartStakingCoreV2",
+      "source": "contracts/SmartStaking/EnhancedSmartStakingCoreV2.sol",
       "abi": [
         {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "_treasury",
-              "type": "address"
-            }
-          ],
+          "inputs": [],
           "stateMutability": "nonpayable",
           "type": "constructor"
         },
@@ -22150,6 +22186,25 @@
           "anonymous": false,
           "inputs": [
             {
+              "indexed": false,
+              "internalType": "address",
+              "name": "previousAdmin",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "address",
+              "name": "newAdmin",
+              "type": "address"
+            }
+          ],
+          "name": "AdminChanged",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
               "indexed": true,
               "internalType": "address",
               "name": "user",
@@ -22163,6 +22218,19 @@
             }
           ],
           "name": "AutoCompoundTriggered",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "beacon",
+              "type": "address"
+            }
+          ],
+          "name": "BeaconUpgraded",
           "type": "event"
         },
         {
@@ -22257,6 +22325,19 @@
           "anonymous": false,
           "inputs": [
             {
+              "indexed": false,
+              "internalType": "uint8",
+              "name": "version",
+              "type": "uint8"
+            }
+          ],
+          "name": "Initialized",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
               "indexed": true,
               "internalType": "address",
               "name": "marketplace",
@@ -22301,25 +22382,6 @@
           "anonymous": false,
           "inputs": [
             {
-              "indexed": true,
-              "internalType": "address",
-              "name": "previousOwner",
-              "type": "address"
-            },
-            {
-              "indexed": true,
-              "internalType": "address",
-              "name": "newOwner",
-              "type": "address"
-            }
-          ],
-          "name": "OwnershipTransferred",
-          "type": "event"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            {
               "indexed": false,
               "internalType": "address",
               "name": "account",
@@ -22327,6 +22389,81 @@
             }
           ],
           "name": "Paused",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "role",
+              "type": "bytes32"
+            },
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "previousAdminRole",
+              "type": "bytes32"
+            },
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "newAdminRole",
+              "type": "bytes32"
+            }
+          ],
+          "name": "RoleAdminChanged",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "role",
+              "type": "bytes32"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "sender",
+              "type": "address"
+            }
+          ],
+          "name": "RoleGranted",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "role",
+              "type": "bytes32"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "sender",
+              "type": "address"
+            }
+          ],
+          "name": "RoleRevoked",
           "type": "event"
         },
         {
@@ -22467,6 +22604,19 @@
             {
               "indexed": true,
               "internalType": "address",
+              "name": "implementation",
+              "type": "address"
+            }
+          ],
+          "name": "Upgraded",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
               "name": "user",
               "type": "address"
             },
@@ -22498,6 +22648,45 @@
           ],
           "name": "Withdrawn",
           "type": "event"
+        },
+        {
+          "inputs": [],
+          "name": "ADMIN_ROLE",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "DEFAULT_ADMIN_ROLE",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "UPGRADER_ROLE",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
         },
         {
           "inputs": [
@@ -22719,6 +22908,13 @@
         },
         {
           "inputs": [],
+          "name": "emergencyWithdrawStake",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
           "name": "gamificationModule",
           "outputs": [
             {
@@ -22802,6 +22998,25 @@
               "internalType": "uint256",
               "name": "",
               "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "role",
+              "type": "bytes32"
+            }
+          ],
+          "name": "getRoleAdmin",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
             }
           ],
           "stateMutability": "view",
@@ -22987,6 +23202,24 @@
         {
           "inputs": [
             {
+              "internalType": "bytes32",
+              "name": "role",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "grantRole",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
               "internalType": "address",
               "name": "user",
               "type": "address"
@@ -23001,6 +23234,43 @@
             }
           ],
           "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "role",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "hasRole",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_treasury",
+              "type": "address"
+            }
+          ],
+          "name": "initialize",
+          "outputs": [],
+          "stateMutability": "nonpayable",
           "type": "function"
         },
         {
@@ -23142,19 +23412,6 @@
         },
         {
           "inputs": [],
-          "name": "owner",
-          "outputs": [
-            {
-              "internalType": "address",
-              "name": "",
-              "type": "address"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [],
           "name": "pause",
           "outputs": [],
           "stateMutability": "nonpayable",
@@ -23188,7 +23445,49 @@
         },
         {
           "inputs": [],
-          "name": "renounceOwnership",
+          "name": "proxiableUUID",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "role",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "renounceRole",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "role",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "revokeRole",
           "outputs": [],
           "stateMutability": "nonpayable",
           "type": "function"
@@ -23372,6 +23671,25 @@
           "type": "function"
         },
         {
+          "inputs": [
+            {
+              "internalType": "bytes4",
+              "name": "interfaceId",
+              "type": "bytes4"
+            }
+          ],
+          "name": "supportsInterface",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
           "inputs": [],
           "name": "totalPoolBalance",
           "outputs": [
@@ -23401,19 +23719,6 @@
             }
           ],
           "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "newOwner",
-              "type": "address"
-            }
-          ],
-          "name": "transferOwnership",
-          "outputs": [],
-          "stateMutability": "nonpayable",
           "type": "function"
         },
         {
@@ -23496,6 +23801,37 @@
           "name": "updateUserXP",
           "outputs": [],
           "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "newImplementation",
+              "type": "address"
+            }
+          ],
+          "name": "upgradeTo",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "newImplementation",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "name": "upgradeToAndCall",
+          "outputs": [],
+          "stateMutability": "payable",
           "type": "function"
         },
         {
@@ -28189,6 +28525,1476 @@
             }
           ],
           "stateMutability": "view",
+          "type": "function"
+        }
+      ]
+    },
+    "EnhancedSmartStakingViewCore": {
+      "name": "EnhancedSmartStakingViewCore",
+      "source": "contracts/SmartStaking/EnhancedSmartStakingViewCore.sol",
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_stakingContract",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "previousOwner",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "newOwner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnershipTransferred",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "newAddress",
+              "type": "address"
+            }
+          ],
+          "name": "StakingContractUpdated",
+          "type": "event"
+        },
+        {
+          "inputs": [],
+          "name": "getContractBalance",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "contractBalance",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "totalPoolBalance_",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "availableForRewards",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_user",
+              "type": "address"
+            }
+          ],
+          "name": "getDashboardUserSummary",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "userStaked",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "userPendingRewards",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "userDepositCount",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "userFlexibleBalance",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "userLockedBalance",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "userUnlockedBalance",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_user",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "_depositIndex",
+              "type": "uint256"
+            }
+          ],
+          "name": "getDepositDetails",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "uint256",
+                  "name": "depositIndex",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "amount",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "currentRewards",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "timestamp",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "lastClaimTime",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "lockupDuration",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "unlockTime",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "string",
+                  "name": "lockupType",
+                  "type": "string"
+                },
+                {
+                  "internalType": "bool",
+                  "name": "isLocked",
+                  "type": "bool"
+                },
+                {
+                  "internalType": "bool",
+                  "name": "isWithdrawable",
+                  "type": "bool"
+                }
+              ],
+              "internalType": "struct EnhancedSmartStakingViewCore.DepositDetails",
+              "name": "",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_user",
+              "type": "address"
+            }
+          ],
+          "name": "getDepositSummaryByType",
+          "outputs": [
+            {
+              "internalType": "uint256[]",
+              "name": "summaries",
+              "type": "uint256[]"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_user",
+              "type": "address"
+            }
+          ],
+          "name": "getLockedDepositInfo",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "hasLocked",
+              "type": "bool"
+            },
+            {
+              "internalType": "uint256",
+              "name": "lockedAmount",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_user",
+              "type": "address"
+            }
+          ],
+          "name": "getNextUnlockTime",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "secondsUntilUnlock",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "nextUnlockTime",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            }
+          ],
+          "name": "getTotalDeposit",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            }
+          ],
+          "name": "getUserDeposits",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "uint256",
+                  "name": "totalDeposited",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "totalRewards",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "depositCount",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "lastWithdrawTime",
+                  "type": "uint256"
+                }
+              ],
+              "internalType": "struct EnhancedSmartStakingViewCore.UserDepositInfo",
+              "name": "",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_user",
+              "type": "address"
+            }
+          ],
+          "name": "getWithdrawableDeposits",
+          "outputs": [
+            {
+              "internalType": "uint256[]",
+              "name": "withdrawableIndices",
+              "type": "uint256[]"
+            },
+            {
+              "internalType": "uint256",
+              "name": "withdrawableAmount",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "owner",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_stakingContract",
+              "type": "address"
+            }
+          ],
+          "name": "setStakingContract",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "stakingContract",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "newOwner",
+              "type": "address"
+            }
+          ],
+          "name": "transferOwnership",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        }
+      ]
+    },
+    "EnhancedSmartStakingViewSkills": {
+      "name": "EnhancedSmartStakingViewSkills",
+      "source": "contracts/SmartStaking/EnhancedSmartStakingViewSkills.sol",
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_stakingContract",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "previousOwner",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "newOwner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnershipTransferred",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "newAddress",
+              "type": "address"
+            }
+          ],
+          "name": "StakingContractUpdated",
+          "type": "event"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            }
+          ],
+          "name": "getActiveSkillsWithDetails",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "enum IStakingIntegration.SkillType",
+                  "name": "skillType",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "uint16",
+                  "name": "effectValue",
+                  "type": "uint16"
+                },
+                {
+                  "internalType": "enum IStakingIntegration.Rarity",
+                  "name": "rarity",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "uint64",
+                  "name": "activatedAt",
+                  "type": "uint64"
+                },
+                {
+                  "internalType": "uint64",
+                  "name": "cooldownEnds",
+                  "type": "uint64"
+                },
+                {
+                  "internalType": "bool",
+                  "name": "isActive",
+                  "type": "bool"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "rarityBoost",
+                  "type": "uint256"
+                }
+              ],
+              "internalType": "struct EnhancedSmartStakingViewSkills.SkillDetails[]",
+              "name": "",
+              "type": "tuple[]"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "getAvailableSkillsConfiguration",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "enum IStakingIntegration.SkillType",
+                  "name": "skillType",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "bool",
+                  "name": "enabled",
+                  "type": "bool"
+                },
+                {
+                  "internalType": "uint16",
+                  "name": "effectValue",
+                  "type": "uint16"
+                },
+                {
+                  "internalType": "string",
+                  "name": "description",
+                  "type": "string"
+                }
+              ],
+              "internalType": "struct EnhancedSmartStakingViewSkills.SkillConfig[]",
+              "name": "",
+              "type": "tuple[]"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "getMarketStats",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "uint256",
+                  "name": "autoCompoundUsersCount",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "timestamp",
+                  "type": "uint256"
+                }
+              ],
+              "internalType": "struct EnhancedSmartStakingViewSkills.MarketStats",
+              "name": "",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            }
+          ],
+          "name": "getSkillEffectiveness",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "enum IStakingIntegration.SkillType",
+                  "name": "skillType",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "uint16",
+                  "name": "effectValue",
+                  "type": "uint16"
+                },
+                {
+                  "internalType": "enum IStakingIntegration.Rarity",
+                  "name": "rarity",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "bool",
+                  "name": "isActive",
+                  "type": "bool"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "impactValue",
+                  "type": "uint256"
+                }
+              ],
+              "internalType": "struct EnhancedSmartStakingViewSkills.SkillEffectiveness[]",
+              "name": "",
+              "type": "tuple[]"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "nftId",
+              "type": "uint256"
+            }
+          ],
+          "name": "getSkillRarity",
+          "outputs": [
+            {
+              "internalType": "enum IStakingIntegration.Rarity",
+              "name": "rarity",
+              "type": "uint8"
+            },
+            {
+              "internalType": "uint16",
+              "name": "rarityId",
+              "type": "uint16"
+            },
+            {
+              "internalType": "uint8",
+              "name": "stars",
+              "type": "uint8"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            }
+          ],
+          "name": "getUserDetailedStats",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "uint256",
+                  "name": "totalDeposited",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "totalRewards",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "boostedRewards",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "boostedRewardsWithRarity",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "depositCount",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "lastWithdrawTime",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint16",
+                  "name": "userLevel",
+                  "type": "uint16"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "userXP",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint8",
+                  "name": "maxActiveSkills",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "uint16",
+                  "name": "stakingBoostTotal",
+                  "type": "uint16"
+                },
+                {
+                  "internalType": "uint16",
+                  "name": "feeDiscountTotal",
+                  "type": "uint16"
+                },
+                {
+                  "internalType": "bool",
+                  "name": "hasAutoCompound",
+                  "type": "bool"
+                }
+              ],
+              "internalType": "struct EnhancedSmartStakingViewSkills.UserStats",
+              "name": "",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            }
+          ],
+          "name": "getUserInfoWithSkills",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "uint256",
+                  "name": "totalDeposited",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "totalRewards",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "depositCount",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "lastWithdrawTime",
+                  "type": "uint256"
+                },
+                {
+                  "components": [
+                    {
+                      "internalType": "uint256[]",
+                      "name": "activeNFTIds",
+                      "type": "uint256[]"
+                    },
+                    {
+                      "internalType": "uint256",
+                      "name": "totalXP",
+                      "type": "uint256"
+                    },
+                    {
+                      "internalType": "uint16",
+                      "name": "level",
+                      "type": "uint16"
+                    },
+                    {
+                      "internalType": "uint8",
+                      "name": "maxActiveSkills",
+                      "type": "uint8"
+                    },
+                    {
+                      "internalType": "uint16",
+                      "name": "stakingBoostTotal",
+                      "type": "uint16"
+                    },
+                    {
+                      "internalType": "uint16",
+                      "name": "feeDiscountTotal",
+                      "type": "uint16"
+                    },
+                    {
+                      "internalType": "bool",
+                      "name": "hasAutoCompound",
+                      "type": "bool"
+                    }
+                  ],
+                  "internalType": "struct IStakingIntegration.UserSkillProfile",
+                  "name": "skillProfile",
+                  "type": "tuple"
+                },
+                {
+                  "components": [
+                    {
+                      "internalType": "enum IStakingIntegration.SkillType",
+                      "name": "skillType",
+                      "type": "uint8"
+                    },
+                    {
+                      "internalType": "uint16",
+                      "name": "effectValue",
+                      "type": "uint16"
+                    },
+                    {
+                      "internalType": "enum IStakingIntegration.Rarity",
+                      "name": "rarity",
+                      "type": "uint8"
+                    },
+                    {
+                      "internalType": "uint64",
+                      "name": "activatedAt",
+                      "type": "uint64"
+                    },
+                    {
+                      "internalType": "uint64",
+                      "name": "cooldownEnds",
+                      "type": "uint64"
+                    },
+                    {
+                      "internalType": "bool",
+                      "name": "isActive",
+                      "type": "bool"
+                    }
+                  ],
+                  "internalType": "struct IStakingIntegration.NFTSkill[]",
+                  "name": "activeSkills",
+                  "type": "tuple[]"
+                }
+              ],
+              "internalType": "struct EnhancedSmartStakingViewSkills.UserInfoWithSkills",
+              "name": "",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            }
+          ],
+          "name": "getUserMetrics",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "uint256",
+                  "name": "totalDeposited",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "totalRewards",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "deposits",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint8",
+                  "name": "activeSkills",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "uint16",
+                  "name": "level",
+                  "type": "uint16"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "xp",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint16",
+                  "name": "boosts",
+                  "type": "uint16"
+                }
+              ],
+              "internalType": "struct EnhancedSmartStakingViewSkills.UserMetrics",
+              "name": "",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "owner",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_stakingContract",
+              "type": "address"
+            }
+          ],
+          "name": "setStakingContract",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "stakingContract",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "newOwner",
+              "type": "address"
+            }
+          ],
+          "name": "transferOwnership",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        }
+      ]
+    },
+    "EnhancedSmartStakingViewStats": {
+      "name": "EnhancedSmartStakingViewStats",
+      "source": "contracts/SmartStaking/EnhancedSmartStakingViewStats.sol",
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_stakingContract",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "previousOwner",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "newOwner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnershipTransferred",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "newAddress",
+              "type": "address"
+            }
+          ],
+          "name": "StakingContractUpdated",
+          "type": "event"
+        },
+        {
+          "inputs": [],
+          "name": "getAPYRates",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "flexibleAPY",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "locked30APY",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "locked90APY",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "locked180APY",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "locked365APY",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "pure",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_user",
+              "type": "address"
+            }
+          ],
+          "name": "getDashboardData",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "poolTotalValue",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "poolActiveUsers",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "poolContractBalance",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint8",
+              "name": "poolHealthStatus",
+              "type": "uint8"
+            },
+            {
+              "internalType": "uint256",
+              "name": "userStaked",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "userRewards",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "userDeposits",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "userFlexible",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "userLocked",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_user",
+              "type": "address"
+            }
+          ],
+          "name": "getEarningsBreakdown",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "dailyEarnings",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "monthlyEarnings",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "annualEarnings",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "getGlobalStats",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "uint256",
+                  "name": "totalValueLocked",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "totalUniqueUsers",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "contractBalance",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "availableRewards",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint8",
+                  "name": "healthStatus",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "timestamp",
+                  "type": "uint256"
+                }
+              ],
+              "internalType": "struct EnhancedSmartStakingViewStats.GlobalStakingStats",
+              "name": "stats",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "getHourlyROIRates",
+          "outputs": [
+            {
+              "internalType": "uint256[5]",
+              "name": "rates",
+              "type": "uint256[5]"
+            }
+          ],
+          "stateMutability": "pure",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "getPoolHealth",
+          "outputs": [
+            {
+              "internalType": "uint8",
+              "name": "healthStatus",
+              "type": "uint8"
+            },
+            {
+              "internalType": "string",
+              "name": "statusMessage",
+              "type": "string"
+            },
+            {
+              "internalType": "uint256",
+              "name": "reserveRatio",
+              "type": "uint256"
+            },
+            {
+              "internalType": "string",
+              "name": "description",
+              "type": "string"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "getPoolStats",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "totalPoolValue",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "totalRewards",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "activeUsersCount",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "totalDeposits",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "contractBalanceValue",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "getStakeDistribution",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "flexibleTotal",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "locked30Total",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "locked90Total",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "locked180Total",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "locked365Total",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "totalLockedValue",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "totalFlexibleValue",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "pure",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "getStakingRatesInfo",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "uint256[5]",
+                  "name": "lockupPeriods",
+                  "type": "uint256[5]"
+                },
+                {
+                  "internalType": "uint256[5]",
+                  "name": "hourlyROI",
+                  "type": "uint256[5]"
+                },
+                {
+                  "internalType": "uint256[5]",
+                  "name": "annualAPY",
+                  "type": "uint256[5]"
+                },
+                {
+                  "internalType": "string[5]",
+                  "name": "periodNames",
+                  "type": "string[5]"
+                }
+              ],
+              "internalType": "struct EnhancedSmartStakingViewStats.StakingRatesInfo",
+              "name": "info",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "pure",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_user",
+              "type": "address"
+            }
+          ],
+          "name": "getUserLockupAnalysis",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "uint256",
+                  "name": "totalFlexible",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "totalLocked30",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "totalLocked90",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "totalLocked180",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "totalLocked365",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "nextUnlockAmount",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "nextUnlockTime",
+                  "type": "uint256"
+                }
+              ],
+              "internalType": "struct EnhancedSmartStakingViewStats.LockupAnalysis",
+              "name": "analysis",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_user",
+              "type": "address"
+            }
+          ],
+          "name": "getUserRewardsProjection",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "uint256",
+                  "name": "hourlyRewards",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "dailyRewards",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "weeklyRewards",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "monthlyRewards",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "yearlyRewards",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "currentPendingRewards",
+                  "type": "uint256"
+                }
+              ],
+              "internalType": "struct EnhancedSmartStakingViewStats.UserRewardsProjection",
+              "name": "projection",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "owner",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_stakingContract",
+              "type": "address"
+            }
+          ],
+          "name": "setStakingContract",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "stakingContract",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "newOwner",
+              "type": "address"
+            }
+          ],
+          "name": "transferOwnership",
+          "outputs": [],
+          "stateMutability": "nonpayable",
           "type": "function"
         }
       ]

@@ -1,0 +1,17 @@
+{
+  "address": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
+  "abi": [],
+  "transactionHash": null,
+  "receipt": null,
+  "args": [
+    "0xad14c117b51735c072d42571e30bf2c729cd9593"
+  ],
+  "numDeployments": 1,
+  "implementation": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
+  "bytecode": "0x",
+  "deploymentBytecode": "0x",
+  "solcInputHash": "",
+  "metadata": "{\"version\":\"6.0.0\",\"deploymentDate\":\"2026-02-16T04:55:41.172Z\",\"network\":\"polygon\",\"chainId\":\"137\",\"blockNumber\":\"83048858\",\"environment\":\"production\"}",
+  "linkedLibraries": {},
+  "saved": true
+}
