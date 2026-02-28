@@ -237,9 +237,27 @@ async function main() {
             throw error;
         }
 
+        // 1.3.5 Deploy SkillViewLib (external library for CoreV2 skill view functions)
+        console.log("📦 1.3.5 Deploying SkillViewLib (External Library for v6.2.0 size optimization)...");
+        let skillViewLibAddress;
+        try {
+            const SkillViewLibFactory = await ethers.getContractFactory("SkillViewLib");
+            const skillViewLib = await SkillViewLibFactory.deploy(gasOptions);
+            await skillViewLib.waitForDeployment();
+            skillViewLibAddress = await skillViewLib.getAddress();
+            console.log(`✅ SkillViewLib: ${skillViewLibAddress}\n`);
+            deploymentData.staking.skillViewLib = skillViewLibAddress;
+            await waitForContractCode(skillViewLibAddress, { retries: 15, delay: 3000, name: "SkillViewLib" });
+        } catch (error) {
+            console.error(`❌ Error deploying SkillViewLib: ${error.message}`);
+            throw error;
+        }
+
         // 1.4 Deploy Core Staking (UUPS Proxy)
         console.log("📦 1.4 Deploying EnhancedSmartStakingCoreV2 (Core - Orchestrator - UUPS)...");
-        const CoreFactory = await ethers.getContractFactory("EnhancedSmartStakingCoreV2");
+        const CoreFactory = await ethers.getContractFactory("EnhancedSmartStakingCoreV2", {
+            libraries: { SkillViewLib: skillViewLibAddress }
+        });
         let stakingCore;
         let coreTx;
         try {
@@ -247,6 +265,7 @@ async function main() {
             stakingCore = await upgrades.deployProxy(CoreFactory, [TREASURY_ADDRESS], {
                 initializer: 'initialize',
                 kind: 'uups',
+                unsafeAllow: ['external-library-linking'],
                 ...gasOptions
             });
             await stakingCore.waitForDeployment();

@@ -93,16 +93,23 @@ module.exports = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 10, // Balance entre tamaño y stack depth
+            runs: 1, // Máxima optimización de tamaño — v6.2.0
             details: {
               yul: true,
+              peephole: true,
+              inliner: true,
+              jumpdestRemover: true,
+              orderLiterals: true,
+              deduplicate: true,
+              cse: true,
+              constantOptimizer: true,
               yulDetails: {
                 stackAllocation: true,
                 optimizerSteps: "dhfoDgvulfnTUtnIf"
               }
             }
           },
-          viaIR: true, // Necesario para evitar stack too deep
+          viaIR: true,
           evmVersion: "shanghai"
         }
       },
@@ -114,6 +121,48 @@ module.exports = {
             runs: 50, // Optimizado para balance tamaño/gas
             details: {
               yul: true
+            }
+          },
+          viaIR: true,
+          evmVersion: "shanghai"
+        }
+      },
+      "contracts/SmartStaking/EnhancedSmartStakingCoreV2.sol": {
+        version: "0.8.28",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1, // Máxima optimización de tamaño — contrato grande
+            details: {
+              yul: true,
+              peephole: true,
+              inliner: true,
+              jumpdestRemover: true,
+              orderLiterals: true,
+              deduplicate: true,
+              cse: true,
+              constantOptimizer: true,
+              yulDetails: {
+                stackAllocation: true,
+                optimizerSteps: "dhfoDgvulfnTUtnIf"
+              }
+            }
+          },
+          viaIR: true,
+          evmVersion: "shanghai"
+        }
+      },
+      "contracts/SmartStaking/SkillViewLib.sol": {
+        version: "0.8.28",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+            details: {
+              yul: true,
+              yulDetails: {
+                stackAllocation: true
+              }
             }
           },
           viaIR: true,
@@ -189,7 +238,7 @@ module.exports = {
     }
   },
   etherscan: {
-    // Usar un solo API key para todas las redes (Etherscan API v2)
+    // Etherscan API v2 — single key works for all chains via chainId parameter
     apiKey: process.env.POLYGONSCAN_API_KEY
   },
   sourcify: {

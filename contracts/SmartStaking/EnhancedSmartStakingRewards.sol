@@ -49,15 +49,15 @@ contract EnhancedSmartStakingRewards is Ownable, ReentrancyGuard, IEnhancedSmart
         // Initialize lockup periods: 0, 30, 90, 180, 365 days
         lockupPeriods = [0, 30 days, 90 days, 180 days, 365 days];
         
-        // Initialize base APYs - REDUCED 25% FOR SUSTAINABILITY (v5.1.0)
-        // Formula: Hourly ROI × 24 hours × 365 days = Annual APY
-        // Previous rates reduced by 25% to ensure long-term protocol viability
+        // Initialize base APYs - v6.2.0 SUSTAINABILITY REDUCTION
+        // Flexible/30d: -25% | 90d/180d: -30% | 365d: -40% (over v6.1.0)
+        // Cumulative reductions from original: ~63% flex, ~61% 30d, ~71% 90d, ~71% 180d, ~80% 365d
         baseAPYs = [
-            197,    // 19.7% APY (No Lock)     - 0.0022% per hour (was 26.3%)
-            328,    // 32.8% APY (30 Days)     - 0.0037% per hour (was 43.8%)
-            591,    // 59.1% APY (90 Days)     - 0.0067% per hour (was 78.8%)
-            788,    // 78.8% APY (180 Days)    - 0.0090% per hour (was 105.12%)
-            1183    // 118.3% APY (365 Days)   - 0.0135% per hour (was 157.68%)
+             96,    //  9.60% APY (No Lock)    - was 12.80% (-25%) | v6.1.0 12.80% | orig 26.3%
+            172,    // 17.20% APY (30 Days)    - was 23.00% (-25%) | v6.1.0 23.00% | orig 43.8%
+            227,    // 22.70% APY (90 Days)    - was 32.50% (-30%) | v6.1.0 32.50% | orig 78.8%
+            303,    // 30.30% APY (180 Days)   - was 43.30% (-30%) | v6.1.0 43.30% | orig 105.1%
+            319     // 31.90% APY (365 Days)   - was 53.20% (-40%) | v6.1.0 53.20% | orig 157.7%
         ];
     }
     
@@ -263,6 +263,40 @@ contract EnhancedSmartStakingRewards is Ownable, ReentrancyGuard, IEnhancedSmart
     function getBaseAPY(uint8 index) external view returns (uint256) {
         if (index >= baseAPYs.length) return 0;
         return baseAPYs[index];
+    }
+
+    /**
+     * @notice Simulate effective APY for a user including skills and dynamic APY
+     * @param depositAmount The amount to simulate (in wei)
+     * @param lockupPeriodIndex The lockup period index (0=flexible, 1=30d, 2=90d, 3=180d, 4=365d)
+     * @param user The user address (used to fetch skill boosts)
+     * @return effectiveAPY The total APY in basis points (base + dynamic + skills)
+     * @return annualRewards Estimated annual rewards in wei for the given deposit amount
+     */
+    function simulateAPY(
+        uint256 depositAmount,
+        uint8 lockupPeriodIndex,
+        address user
+    ) external view returns (uint256 effectiveAPY, uint256 annualRewards) {
+        if (lockupPeriodIndex >= baseAPYs.length) return (0, 0);
+
+        // 1. Start with base APY for this period
+        uint256 apy = baseAPYs[lockupPeriodIndex];
+
+        // 2. Apply dynamic APY if calculator is set and TVL is available
+        if (address(apyCalculator) != address(0) && currentTVL > 0) {
+            apy = apyCalculator.calculateDynamicAPY(apy, currentTVL);
+        }
+
+        // 3. Add skill boosts for this user
+        if (address(skillsModule) != address(0) && user != address(0)) {
+            (uint16 stakingBoost,,) = skillsModule.getUserBoosts(user);
+            apy += stakingBoost;
+        }
+
+        effectiveAPY = apy;
+        // Annual rewards = depositAmount * effectiveAPY / BASIS_POINTS
+        annualRewards = (depositAmount * effectiveAPY) / BASIS_POINTS;
     }
 
     function getLockupPeriodsConfig() external view returns (uint256[] memory periods, uint256[] memory apys) {

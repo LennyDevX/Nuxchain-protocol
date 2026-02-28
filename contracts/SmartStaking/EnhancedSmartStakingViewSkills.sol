@@ -221,19 +221,14 @@ contract EnhancedSmartStakingViewSkills {
         stats.depositCount = dCount;
         stats.lastWithdrawTime = lastWith;
         
-        // Get boosted rewards
+        // Get rewards (boosted by skills via CoreV2.calculateRewards which applies referral + skill boosts)
         (bool successBoosted, bytes memory dataBoosted) = stakingContract.staticcall(
-            abi.encodeWithSignature("calculateBoostedRewards(address)", user)
+            abi.encodeWithSignature("calculateRewards(address)", user)
         );
-        require(successBoosted, "View: calculateBoostedRewards call failed");
-        stats.boostedRewards = abi.decode(dataBoosted, (uint256));
-        
-        // Get boosted rewards with rarity
-        (bool successRarity, bytes memory dataRarity) = stakingContract.staticcall(
-            abi.encodeWithSignature("calculateBoostedRewardsWithRarityMultiplier(address)", user)
-        );
-        require(successRarity, "View: calculateBoostedRewardsWithRarityMultiplier call failed");
-        stats.boostedRewardsWithRarity = abi.decode(dataRarity, (uint256));
+        if (successBoosted) {
+            stats.boostedRewards = abi.decode(dataBoosted, (uint256));
+        }
+        stats.boostedRewardsWithRarity = stats.boostedRewards; // same source — rarity multiplier removed in v6.2
         
         // Get skill profile
         (bool successProfile, bytes memory dataProfile) = stakingContract.staticcall(

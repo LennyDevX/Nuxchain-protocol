@@ -28,13 +28,17 @@ interface IStakingViewData {
     function skillEnabled(IStakingIntegration.SkillType skillType) external view returns (bool);
     function skillDefaultEffects(IStakingIntegration.SkillType skillType) external view returns (uint16);
     function getAutoCompoundUsers() external view returns (address[] memory);
+    // v6.2.0 — skill calculation wrappers exposed to View
+    function calculateBoostedAPY(address user, uint256 baseAPY) external view returns (uint256);
+    function calculateReducedLockTime(address user, uint256 baseLockTime) external view returns (uint256);
+    function calculateFeeDiscount(address user, uint256 baseFee) external view returns (uint256);
 }
 
 /// @title EnhancedSmartStakingView
 /// @notice View functions module for querying staking contract data
 /// @dev Separate contract to keep main staking contract under size limit
 /// @custom:security-contact security@nuvo.com
-/// @custom:version 1.0.0
+/// @custom:version 6.2.0 - Skill wrappers + v6.2 APY
 contract EnhancedSmartStakingView {
     
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -282,6 +286,58 @@ contract EnhancedSmartStakingView {
     function hasActiveStake(address user) external view returns (bool) {
         (uint256 totalDeposited, , , ) = stakingContract.getUserInfo(user);
         return totalDeposited > 0;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // v6.2.0 — SKILL CALCULATION WRAPPERS
+    // ════════════════════════════════════════════════════════════════════════════════════════
+
+    /// @notice Calculate effective APY for a user after applying their skill boosts
+    /// @param user The staker address
+    /// @param baseAPY Base APY in basis points (e.g. 96 for 9.6%)
+    /// @return Boosted APY in basis points
+    function calculateBoostedAPY(address user, uint256 baseAPY) external view returns (uint256) {
+        return stakingContract.calculateBoostedAPY(user, baseAPY);
+    }
+
+    /// @notice Calculate effective lock time after applying LOCK_REDUCER skill
+    /// @param user The staker address
+    /// @param baseLockTime Original lock time in seconds
+    /// @return Reduced lock time in seconds
+    function calculateReducedLockTime(address user, uint256 baseLockTime) external view returns (uint256) {
+        return stakingContract.calculateReducedLockTime(user, baseLockTime);
+    }
+
+    /// @notice Calculate effective fee after applying FEE_REDUCER skill(s)
+    /// @param user The staker address
+    /// @param baseFee Base fee in wei
+    /// @return Discounted fee in wei
+    function calculateFeeDiscount(address user, uint256 baseFee) external view returns (uint256) {
+        return stakingContract.calculateFeeDiscount(user, baseFee);
+    }
+
+    /// @notice Get a full skill summary for a user: boosted APY per period + fee discount + reduced lock times
+    /// @param user The staker address
+    /// @return boostedAPYs Array of effective APY per lockup period [flex,30d,90d,180d,365d] in bps
+    /// @return effectiveFeeDiscount The user's effective fee discount in bps (already applied to 6% base)
+    /// @return reducedLockTimes Effective lock durations in seconds [0,30d,90d,180d,365d] after reductions
+    function getUserSkillSummary(address user) external view returns (
+        uint256[5] memory boostedAPYs,
+        uint256 effectiveFeeDiscount,
+        uint256[5] memory reducedLockTimes
+    ) {
+        uint256[5] memory basePeriods = [uint256(0), 30 days, 90 days, 180 days, 365 days];
+        uint256[5] memory baseAPYList = [uint256(96), 172, 227, 303, 319]; // v6.2.0
+
+        for (uint256 i = 0; i < 5; i++) {
+            boostedAPYs[i]      = stakingContract.calculateBoostedAPY(user, baseAPYList[i]);
+            reducedLockTimes[i] = stakingContract.calculateReducedLockTime(user, basePeriods[i]);
+        }
+
+        // Fee discount: what fraction of the 6% commission is reduced?
+        // Pass 600 (6% in bps) and get back discounted fee bps
+        uint256 discountedFee = stakingContract.calculateFeeDiscount(user, 600);
+        effectiveFeeDiscount  = discountedFee < 600 ? 600 - discountedFee : 0;
     }
 
     /// @notice Get estimated rewards after X time

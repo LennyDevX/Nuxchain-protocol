@@ -119,7 +119,9 @@ contract EnhancedSmartStakingViewStats {
         return (0, 0, 0, 0, 0, 0, 0);
     }
     
-    /// @notice Get recommended APY rates for different lockup periods
+    /// @notice Get APY rates for different lockup periods
+    /// @dev v6.2.0 — synced with baseAPYs[] in EnhancedSmartStakingRewards
+    ///      Flexible/30d:-25% | 90d/180d:-30% | 365d:-40% over v6.1.0
     function getAPYRates() external pure returns (
         uint256 flexibleAPY,
         uint256 locked30APY,
@@ -127,33 +129,34 @@ contract EnhancedSmartStakingViewStats {
         uint256 locked180APY,
         uint256 locked365APY
     ) {
-        // APY in basis points (100 = 1%)
+        // APY in basis points (100 = 1%) — must match baseAPYs[] in Rewards contract
         return (
-            263,   // 2.63% flexible
-            438,   // 4.38% 30-day
-            788,   // 7.88% 90-day
-            1051,  // 10.51% 180-day
-            1577   // 15.77% 365-day
+             96,   //  9.60% flexible  (was 12.80% in v6.1.0)
+            172,   // 17.20% 30-day    (was 23.00% in v6.1.0)
+            227,   // 22.70% 90-day    (was 32.50% in v6.1.0)
+            303,   // 30.30% 180-day   (was 43.30% in v6.1.0)
+            319    // 31.90% 365-day   (was 53.20% in v6.1.0)
         );
     }
     
-    /// @notice Get hourly ROI rates for different lockup periods
+    /// @notice Get hourly ROI rates for different lockup periods (v6.2.0)
+    /// @dev Derived from APY bps: APY / 8760 = hourly bps (rounded)
     function getHourlyROIRates() external pure returns (uint256[5] memory rates) {
-        // Hourly rates derived from APY (APY / 365 / 24)
-        rates[0] = 3;     // Flexible: ~2.63% APY
-        rates[1] = 5;     // 30-day: ~4.38% APY
-        rates[2] = 9;     // 90-day: ~7.88% APY
-        rates[3] = 12;    // 180-day: ~10.51% APY
-        rates[4] = 18;    // 365-day: ~15.77% APY
+        rates[0] = 1;     // Flexible:  ~9.60% APY  ( 96 / 8760 ≈ 0.011% ≈ 1 bps)
+        rates[1] = 2;     // 30-day:   ~17.20% APY  (172 / 8760 ≈ 0.020% ≈ 2 bps)
+        rates[2] = 3;     // 90-day:   ~22.70% APY  (227 / 8760 ≈ 0.026% ≈ 3 bps)
+        rates[3] = 3;     // 180-day:  ~30.30% APY  (303 / 8760 ≈ 0.035% ≈ 3 bps)
+        rates[4] = 4;     // 365-day:  ~31.90% APY  (319 / 8760 ≈ 0.036% ≈ 4 bps)
         return rates;
     }
     
-    /// @notice Get comprehensive staking rates info for frontend display
+    /// @notice Get comprehensive staking rates info for frontend display (v6.2.0)
+    /// @dev All values synced with EnhancedSmartStakingRewards.baseAPYs[]
     function getStakingRatesInfo() external pure returns (StakingRatesInfo memory info) {
         info.lockupPeriods = [uint256(0), 30, 90, 180, 365];
-        info.hourlyROI = [uint256(3), 5, 9, 12, 18];
-        info.annualAPY = [uint256(263), 438, 788, 1051, 1577];
-        info.periodNames = ["Flexible", "30 Days", "90 Days", "180 Days", "365 Days"];
+        info.hourlyROI     = [uint256(1), 2, 3, 3, 4];
+        info.annualAPY     = [uint256(96), 172, 227, 303, 319];
+        info.periodNames   = ["Flexible", "30 Days", "90 Days", "180 Days", "365 Days"];
         return info;
     }
     
@@ -358,6 +361,104 @@ contract EnhancedSmartStakingViewStats {
         return (dailyEarnings, monthlyEarnings, annualEarnings);
     }
     
+    // ════════════════════════════════════════════════════════════════════════════════════════
+    // v6.2.0 — EXPIRY ALERTS & REFERRAL VIEW (delegated from CoreV2)
+    // ════════════════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * @notice Returns deposits expiring within `window` seconds for a user
+     * @dev Read-only delegation of CoreV2.getExpiringDeposits
+     * @param user The staker address
+     * @param window Seconds window (e.g. 259200 = 3 days)
+     * @return indices Deposit indices expiring in the window
+     * @return unlockTimes Corresponding unlock timestamps
+     * @return amounts Corresponding deposit amounts in wei
+     */
+    function getExpiringDeposits(
+        address user,
+        uint256 window
+    ) external view returns (
+        uint256[] memory indices,
+        uint256[] memory unlockTimes,
+        uint256[] memory amounts
+    ) {
+        (,,uint256 depCount,) = _getUserInfo(user);
+        if (depCount == 0) {
+            return (new uint256[](0), new uint256[](0), new uint256[](0));
+        }
+
+        uint256 deadline = block.timestamp + window;
+        uint256 count = 0;
+
+        // First pass: count matching deposits
+        for (uint256 i = 0; i < depCount; i++) {
+            (, uint64 ts,, uint64 dur) = _getUserDeposit(user, i);
+            if (dur == 0) continue;
+            uint256 unlockTime = uint256(ts) + uint256(dur);
+            if (unlockTime > block.timestamp && unlockTime <= deadline) count++;
+        }
+
+        indices    = new uint256[](count);
+        unlockTimes = new uint256[](count);
+        amounts    = new uint256[](count);
+
+        // Second pass: fill
+        uint256 j = 0;
+        for (uint256 i = 0; i < depCount; i++) {
+            (uint128 amt, uint64 ts,, uint64 dur) = _getUserDeposit(user, i);
+            if (dur == 0) continue;
+            uint256 unlockTime = uint256(ts) + uint256(dur);
+            if (unlockTime > block.timestamp && unlockTime <= deadline) {
+                indices[j]     = i;
+                unlockTimes[j] = unlockTime;
+                amounts[j]     = uint256(amt);
+                j++;
+            }
+        }
+    }
+
+    /**
+     * @notice Returns referral status for a user
+     * @dev Reads public state from CoreV2 via staticcall
+     * @param user The address to query
+     * @return referrer The address that referred this user (address(0) if none)
+     * @return totalReferralsMade How many users this user has referred
+     * @return boostEndTime Timestamp when referral APY boost expires
+     * @return boostActive True if boost is currently active
+     * @return currentBoostBps Active referral boost in basis points (0 if inactive)
+     */
+    function getReferralInfo(address user) external view returns (
+        address referrer,
+        uint256 totalReferralsMade,
+        uint256 boostEndTime,
+        bool    boostActive,
+        uint256 currentBoostBps
+    ) {
+        (bool ok1, bytes memory d1) = stakingContract.staticcall(
+            abi.encodeWithSignature("referrers(address)", user)
+        );
+        if (ok1 && d1.length >= 32) referrer = abi.decode(d1, (address));
+
+        (bool ok2, bytes memory d2) = stakingContract.staticcall(
+            abi.encodeWithSignature("referralCount(address)", user)
+        );
+        if (ok2 && d2.length >= 32) totalReferralsMade = abi.decode(d2, (uint256));
+
+        (bool ok3, bytes memory d3) = stakingContract.staticcall(
+            abi.encodeWithSignature("referralBoostEndTime(address)", user)
+        );
+        if (ok3 && d3.length >= 32) boostEndTime = abi.decode(d3, (uint256));
+
+        (bool ok4, bytes memory d4) = stakingContract.staticcall(
+            abi.encodeWithSignature("referralBoostBps()")
+        );
+        uint256 bps = 0;
+        if (ok4 && d4.length >= 32) bps = abi.decode(d4, (uint256));
+
+        boostActive     = boostEndTime > block.timestamp;
+        currentBoostBps = boostActive ? bps : 0;
+    }
+
     // ════════════════════════════════════════════════════════════════════════════════════════
     // INTERNAL DELEGATION FUNCTIONS
     // ════════════════════════════════════════════════════════════════════════════════════════

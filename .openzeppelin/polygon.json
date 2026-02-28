@@ -250,6 +250,41 @@
       "address": "0x579DDf1afF17ef176de1fB8A6b8CbCA628792d98",
       "txHash": "0x0d2ea775f4d43e885ac64c469b704ec07e6efecf7eca268cb098dad5c3b66ee6",
       "kind": "uups"
+    },
+    {
+      "address": "0x26cDcB7269df69B90f2B6ef78891760cd733cEa7",
+      "txHash": "0x99fd0b394da1c5ca04bd768b24f5c15d433257f390f3fe2b5599cfa5e9e55051",
+      "kind": "uups"
+    },
+    {
+      "address": "0x2F21Fa982C507e30c6a27E0fBce0a1A4dd05aB8b",
+      "txHash": "0x335a427db606770bec85ba8e6691cc377be2517f5acf04caecaf93f6bcb15a48",
+      "kind": "uups"
+    },
+    {
+      "address": "0x642E60a50d8b61Cf44A671F20ac03301bE55104B",
+      "txHash": "0x807776a3d1c61741299d3ee204a71534987ca0e418a1f731284b1160b29c68b7",
+      "kind": "uups"
+    },
+    {
+      "address": "0xd077F3D85a7cfE93518567cCc9045F748c10E0ce",
+      "txHash": "0x30f7fb8c8f1fe74f2b7ee18a9dc616124531804639d1a1570415c704740cb382",
+      "kind": "uups"
+    },
+    {
+      "address": "0x27c629be5AA56593D4B6dF723BF28EA0aFF6B7F2",
+      "txHash": "0x419b7ca309e194c10d79898e43cda96f9192d8971d51d66b6a547b94ac732a6e",
+      "kind": "uups"
+    },
+    {
+      "address": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f",
+      "txHash": "0x7c3dfe8e186386971d54de564d075bc8ab0f1c11f4f013b9301f8d3c49e8311e",
+      "kind": "uups"
+    },
+    {
+      "address": "0x31864c4594127631456758854a6f2d0b404EcAf4",
+      "txHash": "0xffa2328f438f5a87d5d2fd542e8d9b2c82d9ef1c2c5b9be193031bc17367a8a2",
+      "kind": "uups"
     }
   ],
   "impls": {
@@ -9064,6 +9099,880 @@
               {
                 "label": "deposits",
                 "type": "t_array(t_struct(Deposit)13284_storage)dyn_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "totalDeposited",
+                "type": "t_uint128",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "lastWithdrawTime",
+                "type": "t_uint64",
+                "offset": 16,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_uint128": {
+            "label": "uint128",
+            "numberOfBytes": "16"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        },
+        "namespaces": {}
+      }
+    },
+    "699f5624c617838dca2ac6fddd45dab2261f0226287df89bce5755cee350b40e": {
+      "address": "0x655f8e6829E0008Ed53E9323B4d3b650bb1590c1",
+      "txHash": "0x744ab828d6393887b3b987751600df099f6d2016c86a7b8b68633ac2628d663e",
+      "layout": {
+        "solcVersion": "0.8.28",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:63",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:68"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol:40"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:94"
+          },
+          {
+            "label": "_paused",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_bool",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\PausableUpgradeable.sol:29"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\PausableUpgradeable.sol:116"
+          },
+          {
+            "label": "_status",
+            "offset": 0,
+            "slot": "151",
+            "type": "t_uint256",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\ReentrancyGuardUpgradeable.sol:38"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "152",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\ReentrancyGuardUpgradeable.sol:88"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "201",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC1967UpgradeUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\ERC1967\\ERC1967UpgradeUpgradeable.sol:169"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "251",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "UUPSUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\UUPSUpgradeable.sol:111"
+          },
+          {
+            "label": "treasury",
+            "offset": 0,
+            "slot": "301",
+            "type": "t_address",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:109"
+          },
+          {
+            "label": "treasuryManager",
+            "offset": 0,
+            "slot": "302",
+            "type": "t_contract(ITreasuryManager)6957",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:109"
+          },
+          {
+            "label": "totalPoolBalance",
+            "offset": 0,
+            "slot": "303",
+            "type": "t_uint256",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:110"
+          },
+          {
+            "label": "uniqueUsersCount",
+            "offset": 0,
+            "slot": "304",
+            "type": "t_uint256",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:111"
+          },
+          {
+            "label": "migrated",
+            "offset": 0,
+            "slot": "305",
+            "type": "t_bool",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:113"
+          },
+          {
+            "label": "newContractAddress",
+            "offset": 1,
+            "slot": "305",
+            "type": "t_address",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:113"
+          },
+          {
+            "label": "users",
+            "offset": 0,
+            "slot": "306",
+            "type": "t_mapping(t_address,t_struct(User)1932_storage)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:114"
+          },
+          {
+            "label": "_dailyWithdrawalAmount",
+            "offset": 0,
+            "slot": "307",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:115"
+          },
+          {
+            "label": "_lastWithdrawalDay",
+            "offset": 0,
+            "slot": "308",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:116"
+          },
+          {
+            "label": "totalRewardsClaimed",
+            "offset": 0,
+            "slot": "309",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:117"
+          },
+          {
+            "label": "authorizedMarketplaces",
+            "offset": 0,
+            "slot": "310",
+            "type": "t_mapping(t_address,t_bool)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:128"
+          },
+          {
+            "label": "rewardsModule",
+            "offset": 0,
+            "slot": "311",
+            "type": "t_contract(IEnhancedSmartStakingRewards)6336",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:128"
+          },
+          {
+            "label": "skillsModule",
+            "offset": 0,
+            "slot": "312",
+            "type": "t_contract(IEnhancedSmartStakingSkills)6541",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:130"
+          },
+          {
+            "label": "gamificationModule",
+            "offset": 0,
+            "slot": "313",
+            "type": "t_contract(IEnhancedSmartStakingGamification)6266",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:130"
+          },
+          {
+            "label": "_skillEnabled",
+            "offset": 0,
+            "slot": "314",
+            "type": "t_mapping(t_enum(SkillType)6566,t_bool)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:132"
+          },
+          {
+            "label": "circuitBreakerReserveRatio",
+            "offset": 0,
+            "slot": "315",
+            "type": "t_uint256",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:145"
+          },
+          {
+            "label": "circuitBreakerEnabled",
+            "offset": 0,
+            "slot": "316",
+            "type": "t_bool",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:146"
+          },
+          {
+            "label": "referrers",
+            "offset": 0,
+            "slot": "317",
+            "type": "t_mapping(t_address,t_address)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:147"
+          },
+          {
+            "label": "referralCount",
+            "offset": 0,
+            "slot": "318",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:148"
+          },
+          {
+            "label": "referralBoostBps",
+            "offset": 0,
+            "slot": "319",
+            "type": "t_uint256",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:150"
+          },
+          {
+            "label": "referralBoostDuration",
+            "offset": 0,
+            "slot": "320",
+            "type": "t_uint256",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:152"
+          },
+          {
+            "label": "referralBoostEndTime",
+            "offset": 0,
+            "slot": "321",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:154"
+          },
+          {
+            "label": "reinvestmentPercentage",
+            "offset": 0,
+            "slot": "322",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:157"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_struct(Deposit)1923_storage)dyn_storage": {
+            "label": "struct EnhancedSmartStakingCoreV2.Deposit[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_contract(IEnhancedSmartStakingGamification)6266": {
+            "label": "contract IEnhancedSmartStakingGamification",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IEnhancedSmartStakingRewards)6336": {
+            "label": "contract IEnhancedSmartStakingRewards",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IEnhancedSmartStakingSkills)6541": {
+            "label": "contract IEnhancedSmartStakingSkills",
+            "numberOfBytes": "20"
+          },
+          "t_contract(ITreasuryManager)6957": {
+            "label": "contract ITreasuryManager",
+            "numberOfBytes": "20"
+          },
+          "t_enum(SkillType)6566": {
+            "label": "enum IStakingIntegration.SkillType",
+            "members": [
+              "NONE",
+              "STAKE_BOOST_I",
+              "STAKE_BOOST_II",
+              "STAKE_BOOST_III",
+              "AUTO_COMPOUND",
+              "LOCK_REDUCER",
+              "FEE_REDUCER_I",
+              "FEE_REDUCER_II",
+              "PRIORITY_LISTING",
+              "BATCH_MINTER",
+              "VERIFIED_CREATOR",
+              "INFLUENCER",
+              "CURATOR",
+              "AMBASSADOR",
+              "VIP_ACCESS",
+              "EARLY_ACCESS",
+              "PRIVATE_AUCTIONS",
+              "MODERATOR",
+              "BETA_TESTER",
+              "VIP_PARTNER"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_address)": {
+            "label": "mapping(address => address)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_struct(User)1932_storage)": {
+            "label": "mapping(address => struct EnhancedSmartStakingCoreV2.User)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_enum(SkillType)6566,t_bool)": {
+            "label": "mapping(enum IStakingIntegration.SkillType => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(Deposit)1923_storage": {
+            "label": "struct EnhancedSmartStakingCoreV2.Deposit",
+            "members": [
+              {
+                "label": "amount",
+                "type": "t_uint128",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "timestamp",
+                "type": "t_uint64",
+                "offset": 16,
+                "slot": "0"
+              },
+              {
+                "label": "lastClaimTime",
+                "type": "t_uint64",
+                "offset": 24,
+                "slot": "0"
+              },
+              {
+                "label": "lockupDuration",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(User)1932_storage": {
+            "label": "struct EnhancedSmartStakingCoreV2.User",
+            "members": [
+              {
+                "label": "deposits",
+                "type": "t_array(t_struct(Deposit)1923_storage)dyn_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "totalDeposited",
+                "type": "t_uint128",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "lastWithdrawTime",
+                "type": "t_uint64",
+                "offset": 16,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_uint128": {
+            "label": "uint128",
+            "numberOfBytes": "16"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        },
+        "namespaces": {}
+      }
+    },
+    "b3bb46d0b7bb12c6521aa4f3f88d8a2a783cd628248635b747806496aba028aa": {
+      "address": "0x203885E7E90A77755037488d81c53d84ae621bE4",
+      "txHash": "0x514e951ecfce4a438a2a637f90bc81212a2e783ae4568b6052bafcc75932aa56",
+      "layout": {
+        "solcVersion": "0.8.28",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:63",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:68"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol:40"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:94"
+          },
+          {
+            "label": "_paused",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_bool",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\PausableUpgradeable.sol:29"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\PausableUpgradeable.sol:116"
+          },
+          {
+            "label": "_status",
+            "offset": 0,
+            "slot": "151",
+            "type": "t_uint256",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\ReentrancyGuardUpgradeable.sol:38"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "152",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\security\\ReentrancyGuardUpgradeable.sol:88"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "201",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC1967UpgradeUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\ERC1967\\ERC1967UpgradeUpgradeable.sol:169"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "251",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "UUPSUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\UUPSUpgradeable.sol:111"
+          },
+          {
+            "label": "treasury",
+            "offset": 0,
+            "slot": "301",
+            "type": "t_address",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:109"
+          },
+          {
+            "label": "treasuryManager",
+            "offset": 0,
+            "slot": "302",
+            "type": "t_contract(ITreasuryManager)6957",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:109"
+          },
+          {
+            "label": "totalPoolBalance",
+            "offset": 0,
+            "slot": "303",
+            "type": "t_uint256",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:110"
+          },
+          {
+            "label": "uniqueUsersCount",
+            "offset": 0,
+            "slot": "304",
+            "type": "t_uint256",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:111"
+          },
+          {
+            "label": "migrated",
+            "offset": 0,
+            "slot": "305",
+            "type": "t_bool",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:113"
+          },
+          {
+            "label": "newContractAddress",
+            "offset": 1,
+            "slot": "305",
+            "type": "t_address",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:113"
+          },
+          {
+            "label": "users",
+            "offset": 0,
+            "slot": "306",
+            "type": "t_mapping(t_address,t_struct(User)1932_storage)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:114"
+          },
+          {
+            "label": "_dailyWithdrawalAmount",
+            "offset": 0,
+            "slot": "307",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:115"
+          },
+          {
+            "label": "_lastWithdrawalDay",
+            "offset": 0,
+            "slot": "308",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:116"
+          },
+          {
+            "label": "totalRewardsClaimed",
+            "offset": 0,
+            "slot": "309",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:117"
+          },
+          {
+            "label": "authorizedMarketplaces",
+            "offset": 0,
+            "slot": "310",
+            "type": "t_mapping(t_address,t_bool)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:128"
+          },
+          {
+            "label": "rewardsModule",
+            "offset": 0,
+            "slot": "311",
+            "type": "t_contract(IEnhancedSmartStakingRewards)6336",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:128"
+          },
+          {
+            "label": "skillsModule",
+            "offset": 0,
+            "slot": "312",
+            "type": "t_contract(IEnhancedSmartStakingSkills)6541",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:130"
+          },
+          {
+            "label": "gamificationModule",
+            "offset": 0,
+            "slot": "313",
+            "type": "t_contract(IEnhancedSmartStakingGamification)6266",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:130"
+          },
+          {
+            "label": "_skillEnabled",
+            "offset": 0,
+            "slot": "314",
+            "type": "t_mapping(t_enum(SkillType)6566,t_bool)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:132"
+          },
+          {
+            "label": "circuitBreakerReserveRatio",
+            "offset": 0,
+            "slot": "315",
+            "type": "t_uint256",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:145"
+          },
+          {
+            "label": "circuitBreakerEnabled",
+            "offset": 0,
+            "slot": "316",
+            "type": "t_bool",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:146"
+          },
+          {
+            "label": "referrers",
+            "offset": 0,
+            "slot": "317",
+            "type": "t_mapping(t_address,t_address)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:147"
+          },
+          {
+            "label": "referralCount",
+            "offset": 0,
+            "slot": "318",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:148"
+          },
+          {
+            "label": "referralBoostBps",
+            "offset": 0,
+            "slot": "319",
+            "type": "t_uint256",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:150"
+          },
+          {
+            "label": "referralBoostDuration",
+            "offset": 0,
+            "slot": "320",
+            "type": "t_uint256",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:152"
+          },
+          {
+            "label": "referralBoostEndTime",
+            "offset": 0,
+            "slot": "321",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:154"
+          },
+          {
+            "label": "reinvestmentPercentage",
+            "offset": 0,
+            "slot": "322",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "EnhancedSmartStakingCoreV2",
+            "src": "contracts\\SmartStaking\\EnhancedSmartStakingCoreV2.sol:157"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_struct(Deposit)1923_storage)dyn_storage": {
+            "label": "struct EnhancedSmartStakingCoreV2.Deposit[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_contract(IEnhancedSmartStakingGamification)6266": {
+            "label": "contract IEnhancedSmartStakingGamification",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IEnhancedSmartStakingRewards)6336": {
+            "label": "contract IEnhancedSmartStakingRewards",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IEnhancedSmartStakingSkills)6541": {
+            "label": "contract IEnhancedSmartStakingSkills",
+            "numberOfBytes": "20"
+          },
+          "t_contract(ITreasuryManager)6957": {
+            "label": "contract ITreasuryManager",
+            "numberOfBytes": "20"
+          },
+          "t_enum(SkillType)6566": {
+            "label": "enum IStakingIntegration.SkillType",
+            "members": [
+              "NONE",
+              "STAKE_BOOST_I",
+              "STAKE_BOOST_II",
+              "STAKE_BOOST_III",
+              "AUTO_COMPOUND",
+              "LOCK_REDUCER",
+              "FEE_REDUCER_I",
+              "FEE_REDUCER_II",
+              "PRIORITY_LISTING",
+              "BATCH_MINTER",
+              "VERIFIED_CREATOR",
+              "INFLUENCER",
+              "CURATOR",
+              "AMBASSADOR",
+              "VIP_ACCESS",
+              "EARLY_ACCESS",
+              "PRIVATE_AUCTIONS",
+              "MODERATOR",
+              "BETA_TESTER",
+              "VIP_PARTNER"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_address)": {
+            "label": "mapping(address => address)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_struct(User)1932_storage)": {
+            "label": "mapping(address => struct EnhancedSmartStakingCoreV2.User)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_enum(SkillType)6566,t_bool)": {
+            "label": "mapping(enum IStakingIntegration.SkillType => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(Deposit)1923_storage": {
+            "label": "struct EnhancedSmartStakingCoreV2.Deposit",
+            "members": [
+              {
+                "label": "amount",
+                "type": "t_uint128",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "timestamp",
+                "type": "t_uint64",
+                "offset": 16,
+                "slot": "0"
+              },
+              {
+                "label": "lastClaimTime",
+                "type": "t_uint64",
+                "offset": 24,
+                "slot": "0"
+              },
+              {
+                "label": "lockupDuration",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(User)1932_storage": {
+            "label": "struct EnhancedSmartStakingCoreV2.User",
+            "members": [
+              {
+                "label": "deposits",
+                "type": "t_array(t_struct(Deposit)1923_storage)dyn_storage",
                 "offset": 0,
                 "slot": "0"
               },

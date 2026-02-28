@@ -1,104 +1,104 @@
 {
   "metadata": {
     "version": "6.0.0",
-    "deploymentDate": "2026-02-16T04:55:41.172Z",
+    "deploymentDate": "2026-02-27T17:15:24.279Z",
     "network": "polygon",
     "chainId": "137",
-    "blockNumber": "83048858",
+    "blockNumber": "83546246",
     "environment": "production"
   },
   "deployer": {
-    "address": "0xed639e84179FCEcE1d7BEe91ab1C6888fbBdD0cf",
-    "scanUrl": "https://polygonscan.com/address/0xed639e84179FCEcE1d7BEe91ab1C6888fbBdD0cf",
-    "initialBalance": "68.498813908885659854",
-    "finalBalance": "51.579690919303213474",
-    "gasCostWei": "16919122989582446380",
-    "gasCostPOL": "16.91912298958244638"
+    "address": "0x604a3cD727E72216375dbbFB76b3fc9C75C4D767",
+    "scanUrl": "https://polygonscan.com/address/0x604a3cD727E72216375dbbFB76b3fc9C75C4D767",
+    "initialBalance": "295.041593771280550696",
+    "finalBalance": "285.522001782818117675",
+    "gasCostWei": "9519591988462433021",
+    "gasCostPOL": "9.519591988462433021"
   },
   "treasury": {
     "manager": {
-      "address": "0x92BA711B203CF40bb6c5f7f509E0f48aa19e2cD9",
-      "scanUrl": "https://polygonscan.com/address/0x92BA711B203CF40bb6c5f7f509E0f48aa19e2cD9",
+      "address": "0x0cfad488352beA84621a4CA4D7764041Da34C079",
+      "scanUrl": "https://polygonscan.com/address/0x0cfad488352beA84621a4CA4D7764041Da34C079",
       "name": "TreasuryManager",
       "contract": "TreasuryManager",
       "type": "Standalone",
       "description": "Centralized revenue distribution and management",
       "linkedTo": {
-        "staking": "0x5F084a3E35eca396B5216d67D31CB0c8dcC22703",
-        "marketplace": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
-        "collaboratorBadges": "0x579DDf1afF17ef176de1fB8A6b8CbCA628792d98"
+        "staking": "0x642E60a50d8b61Cf44A671F20ac03301bE55104B",
+        "marketplace": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f",
+        "collaboratorBadges": "0x31864c4594127631456758854a6f2d0b404EcAf4"
       }
     }
   },
   "gasMetrics": {
-    "totalGasWei": "16919122989582446380",
-    "totalGasPOL": "16.91912298958244638",
+    "totalGasWei": "9519591988462433021",
+    "totalGasPOL": "9.519591988462433021",
     "estimatedCost_USD": "Use current POL price to calculate"
   },
   "staking": {
     "core": {
-      "address": "0x5F084a3E35eca396B5216d67D31CB0c8dcC22703",
-      "scanUrl": "https://polygonscan.com/address/0x5F084a3E35eca396B5216d67D31CB0c8dcC22703",
+      "address": "0x642E60a50d8b61Cf44A671F20ac03301bE55104B",
+      "scanUrl": "https://polygonscan.com/address/0x642E60a50d8b61Cf44A671F20ac03301bE55104B",
       "name": "EnhancedSmartStakingCoreV2",
       "contract": "EnhancedSmartStakingCoreV2",
       "type": "UUPS Proxy",
       "description": "Core staking contract - Orchestrator (Upgradeable)",
       "roles": {
-        "DEFAULT_ADMIN_ROLE": "0xed639e84179FCEcE1d7BEe91ab1C6888fbBdD0cf",
-        "ADMIN_ROLE": "0xed639e84179FCEcE1d7BEe91ab1C6888fbBdD0cf",
-        "UPGRADER_ROLE": "0xed639e84179FCEcE1d7BEe91ab1C6888fbBdD0cf"
+        "DEFAULT_ADMIN_ROLE": "0x604a3cD727E72216375dbbFB76b3fc9C75C4D767",
+        "ADMIN_ROLE": "0x604a3cD727E72216375dbbFB76b3fc9C75C4D767",
+        "UPGRADER_ROLE": "0x604a3cD727E72216375dbbFB76b3fc9C75C4D767"
       },
       "initialized": true,
       "initParams": {
-        "treasury": "0xad14c117b51735c072d42571e30bf2c729cd9593"
+        "treasury": "0x9a7fac014e2056835878d1866651d673b0ba9407"
       }
     },
     "rewards": {
-      "address": "0xC72C9BdfEDbAA68C75D1De98e0992E1aA2a0C4be",
-      "scanUrl": "https://polygonscan.com/address/0xC72C9BdfEDbAA68C75D1De98e0992E1aA2a0C4be",
+      "address": "0x91B08eC5d101Bfcd86ac96E70b434cd31E233fA3",
+      "scanUrl": "https://polygonscan.com/address/0x91B08eC5d101Bfcd86ac96E70b434cd31E233fA3",
       "name": "EnhancedSmartStakingRewards",
       "contract": "EnhancedSmartStakingRewards",
       "type": "Standalone Module",
       "description": "Rewards & APY calculation module",
-      "linkedTo": "0x5F084a3E35eca396B5216d67D31CB0c8dcC22703"
+      "linkedTo": "0x642E60a50d8b61Cf44A671F20ac03301bE55104B"
     },
     "skills": {
-      "address": "0x6ADD8eAdE8B2A4d8B8DE032Cf5CaB4b04481351c",
-      "scanUrl": "https://polygonscan.com/address/0x6ADD8eAdE8B2A4d8B8DE032Cf5CaB4b04481351c",
+      "address": "0x95aB1642AA371F583ed3959F04bEe55675708Ad5",
+      "scanUrl": "https://polygonscan.com/address/0x95aB1642AA371F583ed3959F04bEe55675708Ad5",
       "name": "EnhancedSmartStakingSkills",
       "contract": "EnhancedSmartStakingSkills",
       "type": "Standalone Module",
       "description": "Skill activation & management module",
-      "linkedTo": "0x5F084a3E35eca396B5216d67D31CB0c8dcC22703"
+      "linkedTo": "0x642E60a50d8b61Cf44A671F20ac03301bE55104B"
     },
     "gamification": {
-      "address": "0xcA4E14cd5788C5bA705051f991e65a34fbC79B52",
-      "scanUrl": "https://polygonscan.com/address/0xcA4E14cd5788C5bA705051f991e65a34fbC79B52",
+      "address": "0xcCaca85B84dFF2e8195570F5a71FE146F7C1E758",
+      "scanUrl": "https://polygonscan.com/address/0xcCaca85B84dFF2e8195570F5a71FE146F7C1E758",
       "name": "EnhancedSmartStakingGamification",
       "contract": "EnhancedSmartStakingGamification",
       "type": "Standalone Module",
       "description": "XP, levels & gamification module",
-      "linkedTo": "0x5F084a3E35eca396B5216d67D31CB0c8dcC22703"
+      "linkedTo": "0x642E60a50d8b61Cf44A671F20ac03301bE55104B"
     },
     "view": {
-      "address": "0x753faAD8088ef6B5fC2859bf84C097f1d8207c3c",
-      "scanUrl": "https://polygonscan.com/address/0x753faAD8088ef6B5fC2859bf84C097f1d8207c3c",
+      "address": "0x5c756A9a3034312E540AB47C674A37ABB7c302Fd",
+      "scanUrl": "https://polygonscan.com/address/0x5c756A9a3034312E540AB47C674A37ABB7c302Fd",
       "name": "EnhancedSmartStakingViewCore (Primary)",
       "contract": "EnhancedSmartStakingViewCore",
       "type": "View Module (Read-Only) - Part 1/3",
       "description": "Deposits, balances, and portfolio queries"
     },
     "viewStats": {
-      "address": "0xb1F6fae50d34cb273392937955aF4Efc938CB46a",
-      "scanUrl": "https://polygonscan.com/address/0xb1F6fae50d34cb273392937955aF4Efc938CB46a",
+      "address": "0x38266Acc1d334013b611Bb088eF0D82AC564B78D",
+      "scanUrl": "https://polygonscan.com/address/0x38266Acc1d334013b611Bb088eF0D82AC564B78D",
       "name": "EnhancedSmartStakingViewStats",
       "contract": "EnhancedSmartStakingViewStats",
       "type": "View Module (Read-Only) - Part 2/3",
       "description": "Pool statistics, APY rates, dashboard, projections"
     },
     "viewSkills": {
-      "address": "0xce97Cdff37a04c7E18B74fdC01E2C25c39cb8c05",
-      "scanUrl": "https://polygonscan.com/address/0xce97Cdff37a04c7E18B74fdC01E2C25c39cb8c05",
+      "address": "0x92Eb2717CF4973fAA397f5F915277477E15f3b76",
+      "scanUrl": "https://polygonscan.com/address/0x92Eb2717CF4973fAA397f5F915277477E15f3b76",
       "name": "EnhancedSmartStakingViewSkills",
       "contract": "EnhancedSmartStakingViewSkills",
       "type": "View Module (Read-Only) - Part 3/3",
@@ -106,9 +106,9 @@
     },
     "synchronization": {
       "core_to_modules": {
-        "rewards": "0xC72C9BdfEDbAA68C75D1De98e0992E1aA2a0C4be",
-        "skills": "0x6ADD8eAdE8B2A4d8B8DE032Cf5CaB4b04481351c",
-        "gamification": "0xcA4E14cd5788C5bA705051f991e65a34fbC79B52"
+        "rewards": "0x91B08eC5d101Bfcd86ac96E70b434cd31E233fA3",
+        "skills": "0x95aB1642AA371F583ed3959F04bEe55675708Ad5",
+        "gamification": "0xcCaca85B84dFF2e8195570F5a71FE146F7C1E758"
       },
       "modules_to_core": {
         "rewards_reference": "Initialized in Core",
@@ -120,171 +120,171 @@
   },
   "marketplace": {
     "proxy": {
-      "address": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
-      "scanUrl": "https://polygonscan.com/address/0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
+      "address": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f",
+      "scanUrl": "https://polygonscan.com/address/0x65BD8E08c02c1121cE44210C249E0760f18eB64f",
       "name": "GameifiedMarketplaceProxy",
       "type": "UUPS Proxy",
       "description": "Primary marketplace proxy - Use this address for all interactions",
       "isPrimary": true,
       "roles": {
-        "DEFAULT_ADMIN_ROLE": "0xed639e84179FCEcE1d7BEe91ab1C6888fbBdD0cf",
-        "ADMIN_ROLE": "0xed639e84179FCEcE1d7BEe91ab1C6888fbBdD0cf",
-        "UPGRADER_ROLE": "0xed639e84179FCEcE1d7BEe91ab1C6888fbBdD0cf"
+        "DEFAULT_ADMIN_ROLE": "0x604a3cD727E72216375dbbFB76b3fc9C75C4D767",
+        "ADMIN_ROLE": "0x604a3cD727E72216375dbbFB76b3fc9C75C4D767",
+        "UPGRADER_ROLE": "0x604a3cD727E72216375dbbFB76b3fc9C75C4D767"
       },
       "initialized": true,
       "initParams": {
-        "treasury": "0xad14c117b51735c072d42571e30bf2c729cd9593"
+        "treasury": "0x9a7fac014e2056835878d1866651d673b0ba9407"
       }
     },
     "implementation": {
-      "address": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
-      "scanUrl": "https://polygonscan.com/address/0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
+      "address": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f",
+      "scanUrl": "https://polygonscan.com/address/0x65BD8E08c02c1121cE44210C249E0760f18eB64f",
       "name": "GameifiedMarketplaceCoreV1 Implementation",
       "contract": "GameifiedMarketplaceCoreV1",
       "type": "Implementation (Logic Contract)",
       "description": "UUPS implementation - do not call directly",
-      "linkedTo": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b"
+      "linkedTo": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f"
     },
     "leveling": {
-      "address": "0x700FD6c0ca996C5D62B29F0F57528c9B63De90Fb",
-      "scanUrl": "https://polygonscan.com/address/0x700FD6c0ca996C5D62B29F0F57528c9B63De90Fb",
+      "address": "0xd077F3D85a7cfE93518567cCc9045F748c10E0ce",
+      "scanUrl": "https://polygonscan.com/address/0xd077F3D85a7cfE93518567cCc9045F748c10E0ce",
       "name": "LevelingSystem",
       "contract": "LevelingSystem",
       "type": "UUPS Proxy",
       "description": "Leveling system for player progression",
-      "linkedTo": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
+      "linkedTo": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f",
       "roles": {
-        "MARKETPLACE_ROLE": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b"
+        "MARKETPLACE_ROLE": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f"
       }
     },
     "referral": {
-      "address": "0xbb6DE66b0F38a4781F9fA9d4e9E66F9C4661C12C",
-      "scanUrl": "https://polygonscan.com/address/0xbb6DE66b0F38a4781F9fA9d4e9E66F9C4661C12C",
+      "address": "0x27c629be5AA56593D4B6dF723BF28EA0aFF6B7F2",
+      "scanUrl": "https://polygonscan.com/address/0x27c629be5AA56593D4B6dF723BF28EA0aFF6B7F2",
       "name": "ReferralSystem",
       "contract": "ReferralSystem",
       "type": "UUPS Proxy",
       "description": "Referral tracking and rewards system",
-      "linkedTo": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
+      "linkedTo": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f",
       "roles": {
-        "MARKETPLACE_ROLE": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b"
+        "MARKETPLACE_ROLE": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f"
       }
     },
     "skillsNFT": {
-      "address": "0x304763fF9C345DA1Fe32d80A47f0F4aeb31E05cd",
-      "scanUrl": "https://polygonscan.com/address/0x304763fF9C345DA1Fe32d80A47f0F4aeb31E05cd",
+      "address": "0x6c0D178E75eA924f8AC0Af8B6F740C48f54D2084",
+      "scanUrl": "https://polygonscan.com/address/0x6c0D178E75eA924f8AC0Af8B6F740C48f54D2084",
       "name": "GameifiedMarketplaceSkillsNft",
       "contract": "GameifiedMarketplaceSkillsNft",
       "type": "Standalone Module",
       "description": "NFT-embedded skills marketplace",
       "linkedTo": {
-        "marketplace": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
-        "staking": "0x5F084a3E35eca396B5216d67D31CB0c8dcC22703"
+        "marketplace": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f",
+        "staking": "0x642E60a50d8b61Cf44A671F20ac03301bE55104B"
       }
     },
     "individualSkills": {
-      "address": "0xAD586A4Fe790975f80382De018788951D33f10f8",
-      "scanUrl": "https://polygonscan.com/address/0xAD586A4Fe790975f80382De018788951D33f10f8",
+      "address": "0x21dC162354576fd359535D584B3c72C3cc251939",
+      "scanUrl": "https://polygonscan.com/address/0x21dC162354576fd359535D584B3c72C3cc251939",
       "name": "IndividualSkillsMarketplace",
       "contract": "IndividualSkillsMarketplace",
       "type": "Standalone Module",
       "description": "Direct skill purchase without NFT minting",
       "linkedTo": {
-        "marketplace": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
-        "staking": "0x5F084a3E35eca396B5216d67D31CB0c8dcC22703"
+        "marketplace": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f",
+        "staking": "0x642E60a50d8b61Cf44A671F20ac03301bE55104B"
       }
     },
     "quests": {
-      "address": "0x00ABC70504b1d8B75Bb07257e240BAc38d204B73",
-      "scanUrl": "https://polygonscan.com/address/0x00ABC70504b1d8B75Bb07257e240BAc38d204B73",
+      "address": "0x92770D64E621cB82e32FD459a5259D51e94aDdCE",
+      "scanUrl": "https://polygonscan.com/address/0x92770D64E621cB82e32FD459a5259D51e94aDdCE",
       "name": "GameifiedMarketplaceQuests",
       "contract": "GameifiedMarketplaceQuests",
       "type": "Standalone Module",
       "description": "Quest creation, completion & rewards",
       "linkedTo": {
-        "marketplace": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
-        "staking": "0x5F084a3E35eca396B5216d67D31CB0c8dcC22703",
-        "leveling": "0x700FD6c0ca996C5D62B29F0F57528c9B63De90Fb"
+        "marketplace": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f",
+        "staking": "0x642E60a50d8b61Cf44A671F20ac03301bE55104B",
+        "leveling": "0xd077F3D85a7cfE93518567cCc9045F748c10E0ce"
       }
     },
     "collaboratorBadges": {
-      "address": "0x579DDf1afF17ef176de1fB8A6b8CbCA628792d98",
-      "scanUrl": "https://polygonscan.com/address/0x579DDf1afF17ef176de1fB8A6b8CbCA628792d98",
+      "address": "0x31864c4594127631456758854a6f2d0b404EcAf4",
+      "scanUrl": "https://polygonscan.com/address/0x31864c4594127631456758854a6f2d0b404EcAf4",
       "name": "CollaboratorBadgeRewards",
       "contract": "CollaboratorBadgeRewards",
       "type": "UUPS Proxy",
       "description": "Badge rewards and commission system",
-      "linkedTo": "0x92BA711B203CF40bb6c5f7f509E0f48aa19e2cD9"
+      "linkedTo": "0x0cfad488352beA84621a4CA4D7764041Da34C079"
     },
     "view": {
-      "address": "0x80fa89CB50Bf9501D2E25C7Aa191822119B76439",
-      "scanUrl": "https://polygonscan.com/address/0x80fa89CB50Bf9501D2E25C7Aa191822119B76439",
+      "address": "0x3c1e8e6192e128b903F5E308f7d82A6ebdc6175e",
+      "scanUrl": "https://polygonscan.com/address/0x3c1e8e6192e128b903F5E308f7d82A6ebdc6175e",
       "name": "MarketplaceView",
       "contract": "MarketplaceView",
       "type": "View Contract",
       "description": "Read-only marketplace queries and filtering",
-      "linkedTo": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b"
+      "linkedTo": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f"
     },
     "statistics": {
-      "address": "0x83b75f1AC33a9257072f6f070266A3D89Cdf4CA3",
-      "scanUrl": "https://polygonscan.com/address/0x83b75f1AC33a9257072f6f070266A3D89Cdf4CA3",
+      "address": "0xeA37D26a4d2cA03dA4e9FADdd59cA14e6aBe8070",
+      "scanUrl": "https://polygonscan.com/address/0xeA37D26a4d2cA03dA4e9FADdd59cA14e6aBe8070",
       "name": "MarketplaceStatistics",
       "contract": "MarketplaceStatistics",
       "type": "Statistics Contract",
       "description": "Marketplace statistics and analytics",
-      "linkedTo": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b"
+      "linkedTo": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f"
     },
     "social": {
-      "address": "0xe39C0C008624b8649270C4e99AeD0892C7b6fD8d",
-      "scanUrl": "https://polygonscan.com/address/0xe39C0C008624b8649270C4e99AeD0892C7b6fD8d",
+      "address": "0xd2162715503B016F073C5fF48818FAdE6A33d8ef",
+      "scanUrl": "https://polygonscan.com/address/0xd2162715503B016F073C5fF48818FAdE6A33d8ef",
       "name": "MarketplaceSocial",
       "contract": "MarketplaceSocial",
       "type": "Social Module",
       "description": "Social integration and interactions",
-      "linkedTo": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b"
+      "linkedTo": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f"
     }
   },
   "synchronization": {
     "status": "✅ VERIFIED",
     "bidirectional_sync": {
       "staking_to_marketplace": {
-        "core_address": "0x5F084a3E35eca396B5216d67D31CB0c8dcC22703",
-        "marketplace_proxy": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
+        "core_address": "0x642E60a50d8b61Cf44A671F20ac03301bE55104B",
+        "marketplace_proxy": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f",
         "authorized": true,
         "configuration": "setMarketplaceAuthorization()"
       },
       "marketplace_to_staking": {
-        "marketplace_proxy": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
-        "staking_core": "0x5F084a3E35eca396B5216d67D31CB0c8dcC22703",
-        "levelingSystem": "0x700FD6c0ca996C5D62B29F0F57528c9B63De90Fb",
-        "referralSystem": "0xbb6DE66b0F38a4781F9fA9d4e9E66F9C4661C12C",
+        "marketplace_proxy": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f",
+        "staking_core": "0x642E60a50d8b61Cf44A671F20ac03301bE55104B",
+        "levelingSystem": "0xd077F3D85a7cfE93518567cCc9045F748c10E0ce",
+        "referralSystem": "0x27c629be5AA56593D4B6dF723BF28EA0aFF6B7F2",
         "configuration": "setLevelingSystem() + setReferralSystem()"
       }
     },
     "core_module_sync": {
-      "core": "0x5F084a3E35eca396B5216d67D31CB0c8dcC22703",
-      "rewardsModule": "0xC72C9BdfEDbAA68C75D1De98e0992E1aA2a0C4be",
-      "skillsModule": "0x6ADD8eAdE8B2A4d8B8DE032Cf5CaB4b04481351c",
-      "gamificationModule": "0xcA4E14cd5788C5bA705051f991e65a34fbC79B52",
-      "viewCore": "0x753faAD8088ef6B5fC2859bf84C097f1d8207c3c",
-      "viewStats": "0xb1F6fae50d34cb273392937955aF4Efc938CB46a",
-      "viewSkills": "0xce97Cdff37a04c7E18B74fdC01E2C25c39cb8c05",
-      "dynamicAPY": "0xbC83dB057224973209E3F2D6A41471ab5204f4c0",
+      "core": "0x642E60a50d8b61Cf44A671F20ac03301bE55104B",
+      "rewardsModule": "0x91B08eC5d101Bfcd86ac96E70b434cd31E233fA3",
+      "skillsModule": "0x95aB1642AA371F583ed3959F04bEe55675708Ad5",
+      "gamificationModule": "0xcCaca85B84dFF2e8195570F5a71FE146F7C1E758",
+      "viewCore": "0x5c756A9a3034312E540AB47C674A37ABB7c302Fd",
+      "viewStats": "0x38266Acc1d334013b611Bb088eF0D82AC564B78D",
+      "viewSkills": "0x92Eb2717CF4973fAA397f5F915277477E15f3b76",
+      "dynamicAPY": "0xef5380c18cb7D4f66618329E492FaaD4a84F47C3",
       "status": "✅ Initialized & Linked"
     },
     "notification_channels": {
       "skillsNFT_notifies_staking": {
-        "from": "0x304763fF9C345DA1Fe32d80A47f0F4aeb31E05cd",
-        "to": "0x5F084a3E35eca396B5216d67D31CB0c8dcC22703",
+        "from": "0x6c0D178E75eA924f8AC0Af8B6F740C48f54D2084",
+        "to": "0x642E60a50d8b61Cf44A671F20ac03301bE55104B",
         "method": "notifySkillActivation()"
       },
       "individualSkills_notifies_staking": {
-        "from": "0xAD586A4Fe790975f80382De018788951D33f10f8",
-        "to": "0x5F084a3E35eca396B5216d67D31CB0c8dcC22703",
+        "from": "0x21dC162354576fd359535D584B3c72C3cc251939",
+        "to": "0x642E60a50d8b61Cf44A671F20ac03301bE55104B",
         "method": "notifySkillActivation()"
       },
       "quests_notifies_staking": {
-        "from": "0x00ABC70504b1d8B75Bb07257e240BAc38d204B73",
-        "to": "0x5F084a3E35eca396B5216d67D31CB0c8dcC22703",
+        "from": "0x92770D64E621cB82e32FD459a5259D51e94aDdCE",
+        "to": "0x642E60a50d8b61Cf44A671F20ac03301bE55104B",
         "method": "notifyQuestCompletion()"
       }
     }
@@ -307,8 +307,8 @@
   },
   "usage_instructions": {
     "staking": {
-      "primary_address": "0x5F084a3E35eca396B5216d67D31CB0c8dcC22703",
-      "scanUrl": "https://polygonscan.com/address/0x5F084a3E35eca396B5216d67D31CB0c8dcC22703",
+      "primary_address": "0x642E60a50d8b61Cf44A671F20ac03301bE55104B",
+      "scanUrl": "https://polygonscan.com/address/0x642E60a50d8b61Cf44A671F20ac03301bE55104B",
       "methods": [
         "deposit()",
         "withdraw()",
@@ -317,13 +317,13 @@
       ]
     },
     "marketplace": {
-      "primary_address": "0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
-      "scanUrl": "https://polygonscan.com/address/0x170972A6Fc2ABcC05CBd86bDC3AD05A310876C3b",
+      "primary_address": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f",
+      "scanUrl": "https://polygonscan.com/address/0x65BD8E08c02c1121cE44210C249E0760f18eB64f",
       "note": "Always use proxy address, never interact with implementation"
     },
     "queries": {
       "viewCore": {
-        "address": "0x753faAD8088ef6B5fC2859bf84C097f1d8207c3c",
+        "address": "0x5c756A9a3034312E540AB47C674A37ABB7c302Fd",
         "methods": [
           "getUserPortfolio()",
           "getUserDeposits()",
@@ -331,14 +331,14 @@
         ]
       },
       "viewStats": {
-        "address": "0xb1F6fae50d34cb273392937955aF4Efc938CB46a",
+        "address": "0x38266Acc1d334013b611Bb088eF0D82AC564B78D",
         "methods": [
           "getPoolStats()",
           "getAPYRates()"
         ]
       },
       "viewSkills": {
-        "address": "0xce97Cdff37a04c7E18B74fdC01E2C25c39cb8c05",
+        "address": "0x92Eb2717CF4973fAA397f5F915277477E15f3b76",
         "methods": [
           "getUserSkills()",
           "getSkillEffects()"
@@ -352,9 +352,5 @@
       "explorerUrl": "https://polygonscan.com",
       "status": "Pending verification (automatic)"
     }
-  },
-  "deployment": {
-    "timestamp": "2026-02-16T14:20:36.994Z",
-    "network": "polygon"
   }
 }

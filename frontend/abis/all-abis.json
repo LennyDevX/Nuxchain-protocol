@@ -21472,6 +21472,37 @@
         "type": "constructor"
       },
       {
+        "inputs": [],
+        "name": "AlreadyHasReferrer",
+        "type": "error"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "sent",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "required",
+            "type": "uint256"
+          }
+        ],
+        "name": "BatchAmountMismatch",
+        "type": "error"
+      },
+      {
+        "inputs": [],
+        "name": "BatchLengthMismatch",
+        "type": "error"
+      },
+      {
+        "inputs": [],
+        "name": "CircuitBreakerActive",
+        "type": "error"
+      },
+      {
         "inputs": [
           {
             "internalType": "address",
@@ -21556,6 +21587,11 @@
         "type": "error"
       },
       {
+        "inputs": [],
+        "name": "InvalidReinvestmentPercentage",
+        "type": "error"
+      },
+      {
         "inputs": [
           {
             "internalType": "address",
@@ -21595,6 +21631,11 @@
       {
         "inputs": [],
         "name": "OnlyMarketplace",
+        "type": "error"
+      },
+      {
+        "inputs": [],
+        "name": "ReferralBoostTooHigh",
         "type": "error"
       },
       {
@@ -21652,11 +21693,49 @@
           {
             "indexed": true,
             "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "feeAmount",
+            "type": "uint256"
+          }
+        ],
+        "name": "AutocompoundFeePaid",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
             "name": "beacon",
             "type": "address"
           }
         ],
         "name": "BeaconUpgraded",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": false,
+            "internalType": "bool",
+            "name": "enabled",
+            "type": "bool"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "reserveRatio",
+            "type": "uint256"
+          }
+        ],
+        "name": "CircuitBreakerUpdated",
         "type": "event"
       },
       {
@@ -21740,6 +21819,25 @@
           {
             "indexed": false,
             "internalType": "uint256",
+            "name": "feeAmount",
+            "type": "uint256"
+          }
+        ],
+        "name": "EarlyExitFeePaid",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
             "name": "amount",
             "type": "uint256"
           }
@@ -21758,6 +21856,37 @@
           }
         ],
         "name": "Initialized",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "depositIndex",
+            "type": "uint256"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "unlockTime",
+            "type": "uint256"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "name": "LockupExpiringSoon",
         "type": "event"
       },
       {
@@ -21808,6 +21937,25 @@
         "anonymous": false,
         "inputs": [
           {
+            "indexed": true,
+            "internalType": "address",
+            "name": "previousOwner",
+            "type": "address"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "newOwner",
+            "type": "address"
+          }
+        ],
+        "name": "OwnershipTransferred",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
             "indexed": false,
             "internalType": "address",
             "name": "account",
@@ -21822,24 +21970,18 @@
         "inputs": [
           {
             "indexed": true,
-            "internalType": "bytes32",
-            "name": "role",
-            "type": "bytes32"
+            "internalType": "address",
+            "name": "referrer",
+            "type": "address"
           },
           {
             "indexed": true,
-            "internalType": "bytes32",
-            "name": "previousAdminRole",
-            "type": "bytes32"
-          },
-          {
-            "indexed": true,
-            "internalType": "bytes32",
-            "name": "newAdminRole",
-            "type": "bytes32"
+            "internalType": "address",
+            "name": "referee",
+            "type": "address"
           }
         ],
-        "name": "RoleAdminChanged",
+        "name": "ReferralRegistered",
         "type": "event"
       },
       {
@@ -21847,49 +21989,18 @@
         "inputs": [
           {
             "indexed": true,
-            "internalType": "bytes32",
-            "name": "role",
-            "type": "bytes32"
-          },
-          {
-            "indexed": true,
             "internalType": "address",
-            "name": "account",
+            "name": "user",
             "type": "address"
           },
           {
-            "indexed": true,
-            "internalType": "address",
-            "name": "sender",
-            "type": "address"
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "percentage",
+            "type": "uint256"
           }
         ],
-        "name": "RoleGranted",
-        "type": "event"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "bytes32",
-            "name": "role",
-            "type": "bytes32"
-          },
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "account",
-            "type": "address"
-          },
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "sender",
-            "type": "address"
-          }
-        ],
-        "name": "RoleRevoked",
+        "name": "ReinvestmentPercentageSet",
         "type": "event"
       },
       {
@@ -22090,19 +22201,6 @@
       },
       {
         "inputs": [],
-        "name": "DEFAULT_ADMIN_ROLE",
-        "outputs": [
-          {
-            "internalType": "bytes32",
-            "name": "",
-            "type": "bytes32"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [],
         "name": "UPGRADER_ROLE",
         "outputs": [
           {
@@ -22147,44 +22245,6 @@
           }
         ],
         "name": "calculateBoostedAPY",
-        "outputs": [
-          {
-            "internalType": "uint256",
-            "name": "",
-            "type": "uint256"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "userAddress",
-            "type": "address"
-          }
-        ],
-        "name": "calculateBoostedRewards",
-        "outputs": [
-          {
-            "internalType": "uint256",
-            "name": "totalRewards",
-            "type": "uint256"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "userAddress",
-            "type": "address"
-          }
-        ],
-        "name": "calculateBoostedRewardsWithRarityMultiplier",
         "outputs": [
           {
             "internalType": "uint256",
@@ -22301,6 +22361,32 @@
       },
       {
         "inputs": [],
+        "name": "circuitBreakerEnabled",
+        "outputs": [
+          {
+            "internalType": "bool",
+            "name": "",
+            "type": "bool"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "circuitBreakerReserveRatio",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
         "name": "compound",
         "outputs": [],
         "stateMutability": "nonpayable",
@@ -22315,6 +22401,24 @@
           }
         ],
         "name": "deposit",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint64[]",
+            "name": "lockupDurations",
+            "type": "uint64[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "amounts",
+            "type": "uint256[]"
+          }
+        ],
+        "name": "depositBatch",
         "outputs": [],
         "stateMutability": "payable",
         "type": "function"
@@ -22409,7 +22513,7 @@
         "outputs": [
           {
             "internalType": "address[]",
-            "name": "autoUsers",
+            "name": "",
             "type": "address[]"
           }
         ],
@@ -22424,25 +22528,6 @@
             "internalType": "uint256",
             "name": "",
             "type": "uint256"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "bytes32",
-            "name": "role",
-            "type": "bytes32"
-          }
-        ],
-        "name": "getRoleAdmin",
-        "outputs": [
-          {
-            "internalType": "bytes32",
-            "name": "",
-            "type": "bytes32"
           }
         ],
         "stateMutability": "view",
@@ -22618,29 +22703,11 @@
               }
             ],
             "internalType": "struct IStakingIntegration.UserSkillProfile",
-            "name": "profile",
+            "name": "",
             "type": "tuple"
           }
         ],
         "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "bytes32",
-            "name": "role",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "address",
-            "name": "account",
-            "type": "address"
-          }
-        ],
-        "name": "grantRole",
-        "outputs": [],
-        "stateMutability": "nonpayable",
         "type": "function"
       },
       {
@@ -22652,30 +22719,6 @@
           }
         ],
         "name": "hasAutoCompound",
-        "outputs": [
-          {
-            "internalType": "bool",
-            "name": "",
-            "type": "bool"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "bytes32",
-            "name": "role",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "address",
-            "name": "account",
-            "type": "address"
-          }
-        ],
-        "name": "hasRole",
         "outputs": [
           {
             "internalType": "bool",
@@ -22838,6 +22881,19 @@
       },
       {
         "inputs": [],
+        "name": "owner",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
         "name": "pause",
         "outputs": [],
         "stateMutability": "nonpayable",
@@ -22883,19 +22939,97 @@
         "type": "function"
       },
       {
+        "inputs": [],
+        "name": "referralBoostBps",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "referralBoostDuration",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
         "inputs": [
           {
-            "internalType": "bytes32",
-            "name": "role",
-            "type": "bytes32"
-          },
-          {
             "internalType": "address",
-            "name": "account",
+            "name": "",
             "type": "address"
           }
         ],
-        "name": "renounceRole",
+        "name": "referralBoostEndTime",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "name": "referralCount",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "name": "referrers",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "referrer",
+            "type": "address"
+          }
+        ],
+        "name": "registerReferrer",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -22903,17 +23037,25 @@
       {
         "inputs": [
           {
-            "internalType": "bytes32",
-            "name": "role",
-            "type": "bytes32"
-          },
-          {
             "internalType": "address",
-            "name": "account",
+            "name": "",
             "type": "address"
           }
         ],
-        "name": "revokeRole",
+        "name": "reinvestmentPercentage",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "renounceOwnership",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -22929,6 +23071,24 @@
           }
         ],
         "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "bool",
+            "name": "enabled",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "reserveRatio",
+            "type": "uint256"
+          }
+        ],
+        "name": "setCircuitBreaker",
+        "outputs": [],
+        "stateMutability": "nonpayable",
         "type": "function"
       },
       {
@@ -22971,6 +23131,37 @@
           }
         ],
         "name": "setMarketplaceAuthorization",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "boostBps",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "boostDuration",
+            "type": "uint256"
+          }
+        ],
+        "name": "setReferralConfig",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "percentage",
+            "type": "uint256"
+          }
+        ],
+        "name": "setReinvestmentPercentage",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -23097,25 +23288,6 @@
         "type": "function"
       },
       {
-        "inputs": [
-          {
-            "internalType": "bytes4",
-            "name": "interfaceId",
-            "type": "bytes4"
-          }
-        ],
-        "name": "supportsInterface",
-        "outputs": [
-          {
-            "internalType": "bool",
-            "name": "",
-            "type": "bool"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
         "inputs": [],
         "name": "totalPoolBalance",
         "outputs": [
@@ -23145,6 +23317,19 @@
           }
         ],
         "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "newOwner",
+            "type": "address"
+          }
+        ],
+        "name": "transferOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
         "type": "function"
       },
       {
@@ -24942,6 +25127,40 @@
         "type": "function"
       },
       {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "depositAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint8",
+            "name": "lockupPeriodIndex",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "simulateAPY",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "effectiveAPY",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "annualRewards",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
         "inputs": [],
         "name": "skillsModule",
         "outputs": [
@@ -25674,6 +25893,54 @@
       {
         "inputs": [
           {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "baseAPY",
+            "type": "uint256"
+          }
+        ],
+        "name": "calculateBoostedAPY",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "baseFee",
+            "type": "uint256"
+          }
+        ],
+        "name": "calculateFeeDiscount",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
             "internalType": "uint256",
             "name": "amount",
             "type": "uint256"
@@ -25703,6 +25970,30 @@
           }
         ],
         "stateMutability": "pure",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "baseLockTime",
+            "type": "uint256"
+          }
+        ],
+        "name": "calculateReducedLockTime",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
         "type": "function"
       },
       {
@@ -27451,6 +27742,35 @@
         "inputs": [
           {
             "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "getUserSkillSummary",
+        "outputs": [
+          {
+            "internalType": "uint256[5]",
+            "name": "boostedAPYs",
+            "type": "uint256[5]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "effectiveFeeDiscount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256[5]",
+            "name": "reducedLockTimes",
+            "type": "uint256[5]"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
             "name": "_user",
             "type": "address"
           }
@@ -27589,6 +27909,30 @@
             "internalType": "address",
             "name": "user",
             "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "baseAPY",
+            "type": "uint256"
+          }
+        ],
+        "name": "calculateBoostedAPY",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
           }
         ],
         "name": "calculateBoostedRewards",
@@ -27611,6 +27955,54 @@
           }
         ],
         "name": "calculateBoostedRewardsWithRarityMultiplier",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "baseFee",
+            "type": "uint256"
+          }
+        ],
+        "name": "calculateFeeDiscount",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "baseLockTime",
+            "type": "uint256"
+          }
+        ],
+        "name": "calculateReducedLockTime",
         "outputs": [
           {
             "internalType": "uint256",
@@ -29076,6 +29468,40 @@
         "type": "function"
       },
       {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "window",
+            "type": "uint256"
+          }
+        ],
+        "name": "getExpiringDeposits",
+        "outputs": [
+          {
+            "internalType": "uint256[]",
+            "name": "indices",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "unlockTimes",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "amounts",
+            "type": "uint256[]"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
         "inputs": [],
         "name": "getGlobalStats",
         "outputs": [
@@ -29188,6 +29614,45 @@
           {
             "internalType": "uint256",
             "name": "contractBalanceValue",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "getReferralInfo",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "referrer",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalReferralsMade",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "boostEndTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "boostActive",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "currentBoostBps",
             "type": "uint256"
           }
         ],
@@ -29429,6 +29894,323 @@
         "name": "transferOwnership",
         "outputs": [],
         "stateMutability": "nonpayable",
+        "type": "function"
+      }
+    ]
+  },
+  "SkillViewLib": {
+    "name": "SkillViewLib",
+    "category": "SmartStaking",
+    "source": "contracts/SmartStaking/SkillViewLib.sol",
+    "abi": [
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "skillsMod",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "baseAPY",
+            "type": "uint256"
+          }
+        ],
+        "name": "calculateBoostedAPY",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "skillsMod",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "baseFee",
+            "type": "uint256"
+          }
+        ],
+        "name": "calculateFeeDiscount",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "skillsMod",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "baseLockTime",
+            "type": "uint256"
+          }
+        ],
+        "name": "calculateReducedLockTime",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "gamMod",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "checkAutoCompound",
+        "outputs": [
+          {
+            "internalType": "bool",
+            "name": "upkeepNeeded",
+            "type": "bool"
+          },
+          {
+            "internalType": "bytes",
+            "name": "performData",
+            "type": "bytes"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "skillsMod",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "getActiveSkills",
+        "outputs": [
+          {
+            "components": [
+              {
+                "internalType": "enum IStakingIntegration.SkillType",
+                "name": "skillType",
+                "type": "IStakingIntegration.SkillType"
+              },
+              {
+                "internalType": "uint16",
+                "name": "effectValue",
+                "type": "uint16"
+              },
+              {
+                "internalType": "enum IStakingIntegration.Rarity",
+                "name": "rarity",
+                "type": "IStakingIntegration.Rarity"
+              },
+              {
+                "internalType": "uint64",
+                "name": "activatedAt",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "cooldownEnds",
+                "type": "uint64"
+              },
+              {
+                "internalType": "bool",
+                "name": "isActive",
+                "type": "bool"
+              }
+            ],
+            "internalType": "struct IStakingIntegration.NFTSkill[]",
+            "name": "skills",
+            "type": "tuple[]"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "gamMod",
+            "type": "address"
+          }
+        ],
+        "name": "getAutoCompoundUsers",
+        "outputs": [
+          {
+            "internalType": "address[]",
+            "name": "autoUsers",
+            "type": "address[]"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "skillsMod",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "gamMod",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "getUserSkillProfile",
+        "outputs": [
+          {
+            "components": [
+              {
+                "internalType": "uint256[]",
+                "name": "activeNFTIds",
+                "type": "uint256[]"
+              },
+              {
+                "internalType": "uint256",
+                "name": "totalXP",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint16",
+                "name": "level",
+                "type": "uint16"
+              },
+              {
+                "internalType": "uint8",
+                "name": "maxActiveSkills",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint16",
+                "name": "stakingBoostTotal",
+                "type": "uint16"
+              },
+              {
+                "internalType": "uint16",
+                "name": "feeDiscountTotal",
+                "type": "uint16"
+              },
+              {
+                "internalType": "bool",
+                "name": "hasAutoCompound",
+                "type": "bool"
+              }
+            ],
+            "internalType": "struct IStakingIntegration.UserSkillProfile",
+            "name": "profile",
+            "type": "tuple"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "skillsMod",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "gamMod",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "hasAutoCompound",
+        "outputs": [
+          {
+            "internalType": "bool",
+            "name": "",
+            "type": "bool"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "skillsMod",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nftId",
+            "type": "uint256"
+          }
+        ],
+        "name": "nftRarity",
+        "outputs": [
+          {
+            "internalType": "enum IStakingIntegration.Rarity",
+            "name": "",
+            "type": "IStakingIntegration.Rarity"
+          }
+        ],
+        "stateMutability": "view",
         "type": "function"
       }
     ]
