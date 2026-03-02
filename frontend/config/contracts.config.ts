@@ -1,8 +1,8 @@
 ﻿/**
  * Contract Configuration — Nuxchain Protocol Frontend
  * Polygon Mainnet (ChainID 137)
- * Deployment block: 83546246 | Date: 2026-02-27
- * Version: v6.2.0
+ * Deployment block: 83626688 | Date: 2026-03-01
+ * Version: v6.3.0
  */
 
 // ============================================
@@ -34,39 +34,39 @@ export interface ContractAddresses {
 }
 
 // ============================================
-// Deployed Addresses — Polygon Mainnet v6.2.0
+// Deployed Addresses — Polygon Mainnet v6.3.0
 // ============================================
 export const CONTRACT_ADDRESSES: ContractAddresses = {
   // Smart Staking
-  StakingCore:           '0x642E60a50d8b61Cf44A671F20ac03301bE55104B',
-  StakingRewards:        '0x91B08eC5d101Bfcd86ac96E70b434cd31E233fA3',
-  StakingSkills:         '0x95aB1642AA371F583ed3959F04bEe55675708Ad5',
-  StakingGamification:   '0xcCaca85B84dFF2e8195570F5a71FE146F7C1E758',
-  StakingViewCore:       '0x5c756A9a3034312E540AB47C674A37ABB7c302Fd',
-  StakingViewStats:      '0x38266Acc1d334013b611Bb088eF0D82AC564B78D',
-  StakingViewSkills:     '0x92Eb2717CF4973fAA397f5F915277477E15f3b76',
-  DynamicAPYCalculator:  '0xef5380c18cb7D4f66618329E492FaaD4a84F47C3',
+  StakingCore:           '0x2cda88046543be25a3EC4eA2d86dBe975Fda0028',
+  StakingRewards:        '0xEa481FB987d95F8a58730bBd89a91ef733f8C128',
+  StakingSkills:         '0x4cF5F1eDfACC19E2FABC1Ec2955A0de4b222025d',
+  StakingGamification:   '0x58b38720BE35eDD36e3D252ea41e8B0a9629EA1F',
+  StakingViewCore:       '0xDd21d682f3625eF90c446C8DE622A51e4084DA56',
+  StakingViewStats:      '0x994BC04688577066CD4c6E55B459788dfe408007',
+  StakingViewSkills:     '0xc5a07f94b5Ecaaf8E65d9F3adb7AB590550a9bE9',
+  DynamicAPYCalculator:  '0xb3900912495c02191C96631141e5A169669E2ced',
   // Marketplace
-  MarketplaceProxy:      '0x65BD8E08c02c1121cE44210C249E0760f18eB64f',
-  MarketplaceLeveling:   '0xd077F3D85a7cfE93518567cCc9045F748c10E0ce',
-  MarketplaceReferral:   '0x27c629be5AA56593D4B6dF723BF28EA0aFF6B7F2',
-  MarketplaceSkillsNFT:  '0x6c0D178E75eA924f8AC0Af8B6F740C48f54D2084',
-  IndividualSkills:      '0x21dC162354576fd359535D584B3c72C3cc251939',
-  MarketplaceQuests:     '0x92770D64E621cB82e32FD459a5259D51e94aDdCE',
-  CollaboratorBadges:    '0x31864c4594127631456758854a6f2d0b404EcAf4',
-  MarketplaceView:       '0x3c1e8e6192e128b903F5E308f7d82A6ebdc6175e',
-  MarketplaceStatistics: '0xeA37D26a4d2cA03dA4e9FADdd59cA14e6aBe8070',
-  MarketplaceSocial:     '0xd2162715503B016F073C5fF48818FAdE6A33d8ef',
+  MarketplaceProxy:      '0xc8Af452F3842805Bc79bfFBBbDB9b130f222d9BC',
+  MarketplaceLeveling:   '0xC1f6f5b27F58bbB7a61C177D1D8782B117e28A91',
+  MarketplaceReferral:   '0xBCEFd299776237e6D7cf0d08E030582cE3214C90',
+  MarketplaceSkillsNFT:  '0xe09e85E7AEd3A35fa77DCaC44D110664C42A4DCd',
+  IndividualSkills:      '0x2248e909EC9E122D1D7206E86D2061681EfCC49B',
+  MarketplaceQuests:     '0x090774e87CFF7478910fbF8f035fA85414a8625a',
+  CollaboratorBadges:    '0xc9B1bf1ae921280f2f048fd3d893AF6D18E99C51',
+  MarketplaceView:       '0x579d34872d25a56235D61138dBdE1c81a6f20f4d',
+  MarketplaceStatistics: '0x7C4c72d3D1b9a54178254c79Ca4F788111A9c99D',
+  MarketplaceSocial:     '0x4FE695192c20E2D9b4bDB0A18F168e198F7e9557',
   // Treasury
-  TreasuryManager:       '0x0cfad488352beA84621a4CA4D7764041Da34C079'
+  TreasuryManager:       '0x312a3c5072c9DE2aB5cbDd799b3a65fb053DF043'
 };
 
 // ============================================
 // Wallet addresses
 // ============================================
 export const WALLET_ADDRESSES = {
-  deployer: '0x604a3cD727E72216375dbbFB76b3fc9C75C4D767',
-  treasury: '0x9a7fac014e2056835878d1866651d673b0ba9407'
+  deployer: '0x581A41c663223bAE563134C67151CdC2C274f06A',
+  treasury: '0xe67cbb6c94353903ddbb15fd376e0967bdef13b1'
 };
 
 // ============================================

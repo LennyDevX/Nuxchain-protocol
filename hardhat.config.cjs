@@ -220,8 +220,8 @@ module.exports = {
       chainId: 137,
       gas: "auto", // Estimación automática de gas
       gasPrice: "auto", // Precio dinámico de gas
-      timeout: 120000, // 2 minutos (no tan largo para detectar problemas rápido)
-      confirmations: 3, // 3 confirmaciones para mayor seguridad
+      timeout: 600000, // 10 minutos - suficiente para deployments en Polygon
+      confirmations: 1, // 1 confirmación - Polygon es rápido y seguro con 1
       // Configuración EIP-1559 para Polygon
       maxPriorityFeePerGas: null, // Se calcula dinámicamente
       maxFeePerGas: null // Se calcula dinámicamente

@@ -1,17 +1,17 @@
 {
-  "address": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f",
+  "address": "0xc8Af452F3842805Bc79bfFBBbDB9b130f222d9BC",
   "abi": [],
   "transactionHash": null,
   "receipt": null,
   "args": [
-    "0x9a7fac014e2056835878d1866651d673b0ba9407"
+    "0xe67cbb6c94353903ddbb15fd376e0967bdef13b1"
   ],
   "numDeployments": 1,
-  "implementation": "0x65BD8E08c02c1121cE44210C249E0760f18eB64f",
+  "implementation": "0xc8Af452F3842805Bc79bfFBBbDB9b130f222d9BC",
   "bytecode": "0x",
   "deploymentBytecode": "0x",
   "solcInputHash": "",
-  "metadata": "{\"version\":\"6.0.0\",\"deploymentDate\":\"2026-02-27T17:15:24.279Z\",\"network\":\"polygon\",\"chainId\":\"137\",\"blockNumber\":\"83546246\",\"environment\":\"production\"}",
+  "metadata": "{\"version\":\"6.0.0\",\"deploymentDate\":\"2026-03-01T13:56:43.520Z\",\"network\":\"polygon\",\"chainId\":\"137\",\"blockNumber\":\"83626688\",\"environment\":\"production\"}",
   "linkedLibraries": {},
   "saved": true
 }

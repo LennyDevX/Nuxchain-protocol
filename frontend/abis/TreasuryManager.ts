@@ -267,4 +267,4 @@ export const PROTOCOL_STATUS_LABELS: Record<ProtocolStatus, string> = {
   [ProtocolStatus.EMERGENCY]: "Emergency",
 };
 
-export const TREASURY_MANAGER_ADDRESS = "0x0cfad488352beA84621a4CA4D7764041Da34C079";
+export const TREASURY_MANAGER_ADDRESS = "0x312a3c5072c9DE2aB5cbDd799b3a65fb053DF043";
