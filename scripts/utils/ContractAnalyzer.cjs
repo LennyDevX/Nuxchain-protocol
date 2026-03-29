@@ -230,7 +230,7 @@ class ContractAnalyzer {
 
         // Analizar contratos de staking
         stakingContracts.forEach(contract => {
-            if (contract.name.includes('Core') || contract.name === 'EnhancedSmartStaking') {
+            if (contract.name.includes('Core') || contract.name === 'SmartStaking') {
                 strategy.contracts.push({
                     ...contract,
                     action: 'UPGRADE',

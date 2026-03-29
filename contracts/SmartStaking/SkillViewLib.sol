@@ -2,11 +2,11 @@
 pragma solidity 0.8.28;
 
 import "../interfaces/IStakingIntegration.sol";
-import "../interfaces/IEnhancedSmartStakingSkills.sol";
-import "../interfaces/IEnhancedSmartStakingGamification.sol";
+import "../interfaces/ISmartStakingPower.sol";
+import "../interfaces/ISmartStakingGamification.sol";
 
 /// @title SkillViewLib
-/// @notice External library containing skill-related view logic for EnhancedSmartStakingCoreV2
+/// @notice External library containing skill-related view logic for SmartStakingCoreV2
 /// @dev Deployed as a separate contract to keep CoreV2 bytecode under EIP-170 limit (24,576 bytes).
 ///      Called via STATICCALL from CoreV2 view functions (safe — no storage in library).
 /// @custom:version 6.2.0
@@ -18,20 +18,20 @@ library SkillViewLib {
     // EXTERNAL VIEW FUNCTIONS (called from CoreV2 stubs)
     // ════════════════════════════════════════════════════════════════════════════════════
 
-    /// @notice Returns active NFT skills for a user converted to the IStakingIntegration format
+    /// @notice Returns active NFT powers for a user converted to the IStakingIntegration format
     function getActiveSkills(
         address skillsMod,
         address user
-    ) external view returns (IStakingIntegration.NFTSkill[] memory skills) {
-        if (skillsMod == address(0)) return new IStakingIntegration.NFTSkill[](0);
+    ) external view returns (IStakingIntegration.NFTPower[] memory skills) {
+        if (skillsMod == address(0)) return new IStakingIntegration.NFTPower[](0);
 
-        IEnhancedSmartStakingSkills.SkillInfo[] memory infos =
-            IEnhancedSmartStakingSkills(skillsMod).getActiveSkillsWithDetails(user);
+        ISmartStakingPower.PowerInfo[] memory infos =
+            ISmartStakingPower(skillsMod).getActivePowersWithDetails(user);
 
-        skills = new IStakingIntegration.NFTSkill[](infos.length);
+        skills = new IStakingIntegration.NFTPower[](infos.length);
         for (uint256 i = 0; i < infos.length; i++) {
-            skills[i] = IStakingIntegration.NFTSkill({
-                skillType:    infos[i].skillType,
+            skills[i] = IStakingIntegration.NFTPower({
+                powerType:    infos[i].powerType,
                 effectValue:  infos[i].boost,
                 rarity:       IStakingIntegration.Rarity(uint8(infos[i].rarity)),
                 activatedAt:  infos[i].activatedAt,
@@ -41,12 +41,12 @@ library SkillViewLib {
         }
     }
 
-    /// @notice Returns the full skill + gamification profile for a user
+    /// @notice Returns the full power + gamification profile for a user
     function getUserSkillProfile(
         address skillsMod,
         address gamMod,
         address user
-    ) external view returns (IStakingIntegration.UserSkillProfile memory profile) {
+    ) external view returns (IStakingIntegration.UserPowerProfile memory profile) {
         profile.maxActiveSkills = 5; // MAX_ACTIVE_SKILL_SLOTS
         profile.activeNFTIds = new uint256[](0);
 
@@ -54,22 +54,22 @@ library SkillViewLib {
         bool hasAutoCompoundSkill;
 
         if (skillsMod != address(0)) {
-            IEnhancedSmartStakingSkills.UserSkillProfile memory sp =
-                IEnhancedSmartStakingSkills(skillsMod).getUserSkillProfile(user);
+            ISmartStakingPower.UserPowerProfile memory sp =
+                ISmartStakingPower(skillsMod).getUserPowerProfile(user);
             profile.activeNFTIds    = sp.activeSkillNFTIds;
             profile.stakingBoostTotal = sp.totalBoost;
 
-            IEnhancedSmartStakingSkills.SkillInfo[] memory infos =
-                IEnhancedSmartStakingSkills(skillsMod).getActiveSkillsWithDetails(user);
-            (feeDiscountBps, , hasAutoCompoundSkill) = _summarizeSkillEffects(infos);
+            ISmartStakingPower.PowerInfo[] memory infos =
+                ISmartStakingPower(skillsMod).getActivePowersWithDetails(user);
+            (feeDiscountBps, , hasAutoCompoundSkill) = _summarizePowerEffects(infos);
             profile.feeDiscountTotal = feeDiscountBps;
         }
 
         if (gamMod != address(0)) {
-            (uint256 xp, uint16 level,) = IEnhancedSmartStakingGamification(gamMod).getUserXPInfo(user);
+            (uint256 xp, uint16 level,) = ISmartStakingGamification(gamMod).getUserXPInfo(user);
             profile.totalXP = xp;
             profile.level   = level;
-            if (IEnhancedSmartStakingGamification(gamMod).getAutoCompoundConfig(user).enabled) {
+            if (ISmartStakingGamification(gamMod).getAutoCompoundConfig(user).enabled) {
                 profile.hasAutoCompound = true;
             }
         }
@@ -86,7 +86,7 @@ library SkillViewLib {
         uint256 baseAPY
     ) external view returns (uint256) {
         if (skillsMod == address(0)) return baseAPY;
-        (uint16 totalBoost,,) = IEnhancedSmartStakingSkills(skillsMod).getUserBoosts(user);
+        (uint16 totalBoost,,) = ISmartStakingPower(skillsMod).getUserBoosts(user);
         if (totalBoost == 0) return baseAPY;
         return baseAPY + (baseAPY * totalBoost / BASIS_POINTS);
     }
@@ -99,9 +99,9 @@ library SkillViewLib {
     ) external view returns (uint256) {
         if (skillsMod == address(0) || baseLockTime == 0) return baseLockTime;
 
-        IEnhancedSmartStakingSkills.SkillInfo[] memory infos =
-            IEnhancedSmartStakingSkills(skillsMod).getActiveSkillsWithDetails(user);
-        (, uint16 lockReducerBps,) = _summarizeSkillEffects(infos);
+        ISmartStakingPower.PowerInfo[] memory infos =
+            ISmartStakingPower(skillsMod).getActivePowersWithDetails(user);
+        (, uint16 lockReducerBps,) = _summarizePowerEffects(infos);
 
         if (lockReducerBps == 0) return baseLockTime;
         if (lockReducerBps > BASIS_POINTS) lockReducerBps = uint16(BASIS_POINTS);
@@ -118,9 +118,9 @@ library SkillViewLib {
     ) external view returns (uint256) {
         if (skillsMod == address(0) || baseFee == 0) return baseFee;
 
-        IEnhancedSmartStakingSkills.SkillInfo[] memory infos =
-            IEnhancedSmartStakingSkills(skillsMod).getActiveSkillsWithDetails(user);
-        (uint16 feeDiscountBps,,) = _summarizeSkillEffects(infos);
+        ISmartStakingPower.PowerInfo[] memory infos =
+            ISmartStakingPower(skillsMod).getActivePowersWithDetails(user);
+        (uint16 feeDiscountBps,,) = _summarizePowerEffects(infos);
 
         if (feeDiscountBps == 0) return baseFee;
         if (feeDiscountBps > BASIS_POINTS) feeDiscountBps = uint16(BASIS_POINTS);
@@ -136,14 +136,14 @@ library SkillViewLib {
         address user
     ) external view returns (bool) {
         if (gamMod != address(0) &&
-            IEnhancedSmartStakingGamification(gamMod).getAutoCompoundConfig(user).enabled) {
+            ISmartStakingGamification(gamMod).getAutoCompoundConfig(user).enabled) {
             return true;
         }
         if (skillsMod == address(0)) return false;
 
-        IEnhancedSmartStakingSkills.SkillInfo[] memory infos =
-            IEnhancedSmartStakingSkills(skillsMod).getActiveSkillsWithDetails(user);
-        (,, bool result) = _summarizeSkillEffects(infos);
+        ISmartStakingPower.PowerInfo[] memory infos =
+            ISmartStakingPower(skillsMod).getActivePowersWithDetails(user);
+        (,, bool result) = _summarizePowerEffects(infos);
         return result;
     }
 
@@ -153,8 +153,8 @@ library SkillViewLib {
         uint256 nftId
     ) external view returns (IStakingIntegration.Rarity) {
         if (skillsMod == address(0)) return IStakingIntegration.Rarity.COMMON;
-        (IEnhancedSmartStakingSkills.SkillRarity rarity,) =
-            IEnhancedSmartStakingSkills(skillsMod).getSkillRarity(nftId);
+        (ISmartStakingPower.PowerRarity rarity,) =
+            ISmartStakingPower(skillsMod).getPowerRarity(nftId);
         return IStakingIntegration.Rarity(uint8(rarity));
     }
 
@@ -164,42 +164,42 @@ library SkillViewLib {
         address user
     ) external view returns (bool upkeepNeeded, bytes memory performData) {
         if (gamMod == address(0)) return (false, "");
-        (bool shouldCompound,) = IEnhancedSmartStakingGamification(gamMod).checkAutoCompound(user);
+        (bool shouldCompound,) = ISmartStakingGamification(gamMod).checkAutoCompound(user);
         return (shouldCompound, shouldCompound ? abi.encode(user) : bytes(""));
     }
 
     /// @notice Returns all addresses that have auto-compound enabled
     function getAutoCompoundUsers(address gamMod) external view returns (address[] memory autoUsers) {
         if (gamMod == address(0)) return new address[](0);
-        (, , uint256 total) = IEnhancedSmartStakingGamification(gamMod).getAutoCompoundUsersPage(0, 1);
+        (, , uint256 total) = ISmartStakingGamification(gamMod).getAutoCompoundUsersPage(0, 1);
         if (total == 0) return new address[](0);
-        (autoUsers,,) = IEnhancedSmartStakingGamification(gamMod).getAutoCompoundUsersPage(0, total);
+        (autoUsers,,) = ISmartStakingGamification(gamMod).getAutoCompoundUsersPage(0, total);
     }
 
     // ════════════════════════════════════════════════════════════════════════════════════
     // INTERNAL PURE HELPERS
     // ════════════════════════════════════════════════════════════════════════════════════
 
-    function _summarizeSkillEffects(
-        IEnhancedSmartStakingSkills.SkillInfo[] memory skills
+    function _summarizePowerEffects(
+        ISmartStakingPower.PowerInfo[] memory powers
     ) internal pure returns (uint16 feeDiscountBps, uint16 lockReducerBps, bool hasAutoCompoundSkill) {
         uint256 feeAcc;
         uint256 lockAcc;
 
-        for (uint256 i = 0; i < skills.length; i++) {
-            if (!skills[i].isActive) continue;
+        for (uint256 i = 0; i < powers.length; i++) {
+            if (!powers[i].isActive) continue;
 
-            IStakingIntegration.SkillType st = skills[i].skillType;
-            uint16 boost = skills[i].boost;
+            IStakingIntegration.PowerType pt = powers[i].powerType;
+            uint16 boost = powers[i].boost;
 
-            if (st == IStakingIntegration.SkillType.FEE_REDUCER_I ||
-                st == IStakingIntegration.SkillType.FEE_REDUCER_II) {
+            if (pt == IStakingIntegration.PowerType.FEE_REDUCER_I ||
+                pt == IStakingIntegration.PowerType.FEE_REDUCER_II) {
                 feeAcc += boost;
             }
-            if (st == IStakingIntegration.SkillType.LOCK_REDUCER) {
+            if (pt == IStakingIntegration.PowerType.LOCK_REDUCER) {
                 lockAcc += boost;
             }
-            if (!hasAutoCompoundSkill && st == IStakingIntegration.SkillType.AUTO_COMPOUND) {
+            if (!hasAutoCompoundSkill && pt == IStakingIntegration.PowerType.AUTO_COMPOUND) {
                 hasAutoCompoundSkill = true;
             }
         }

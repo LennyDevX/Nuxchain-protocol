@@ -24,8 +24,8 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
     await referral.deploymentTransaction().wait();
 
-    // 3. Deploy GameifiedMarketplaceCoreV1 via UUPS proxy
-    const CoreFactory = await ethers.getContractFactory("GameifiedMarketplaceCoreV1");
+    // 3. Deploy MarketplaceCore via UUPS proxy
+    const CoreFactory = await ethers.getContractFactory("MarketplaceCore");
     const core = await upgrades.deployProxy(CoreFactory, [treasury.address], {
       initializer: 'initialize',
       kind: 'uups'
@@ -48,14 +48,17 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     await social.deploymentTransaction().wait();
 
     // 7. Deploy Skills V2
-    const SkillsFactory = await ethers.getContractFactory("GameifiedMarketplaceSkillsV2");
+    const SkillsFactory = await ethers.getContractFactory("NuxPowerNft");
     const skills = await SkillsFactory.deploy(await core.getAddress());
     await skills.deploymentTransaction().wait();
 
-    // 8. Deploy Quests
-    const QuestsFactory = await ethers.getContractFactory("GameifiedMarketplaceQuests");
-    const quests = await QuestsFactory.deploy(await core.getAddress());
-    await quests.deploymentTransaction().wait();
+    // 8. Deploy Quests (QuestCore - UUPS upgradeable)
+    const QuestsFactory = await ethers.getContractFactory("QuestCore");
+    const quests = await upgrades.deployProxy(QuestsFactory, [owner.address, await core.getAddress()], {
+      initializer: 'initialize',
+      kind: 'uups'
+    });
+    await quests.waitForDeployment();
 
     // ==================== Configure Contracts ====================
     
@@ -105,10 +108,10 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     };
   }
 
-  // Separate fixture for tests requiring IndividualSkillsMarketplace
-  // NOTE: IndividualSkillsMarketplace contract exceeds 24KB size limit in test environment
+  // Separate fixture for tests requiring NuxPowerMarketplace
+  // NOTE: NuxPowerMarketplace contract exceeds 24KB size limit in test environment
  // This fixture is only for specific tests that need it
-  async function deployWithIndividualSkills() {
+  async function deployWithnuxPowers() {
     // Skip deployment - contract too large for test environment
     // Tests using this fixture should be skipped or mocked
     const baseFixture = await deployMarketplaceFixture();
@@ -117,7 +120,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
 
   // ==================== CORE MARKETPLACE TESTS ====================
   
-  describe("GameifiedMarketplaceCoreV1 - NFT Creation & Management", function () {
+  describe("MarketplaceCore - NFT Creation & Management", function () {
     it("Should create standard NFT with metadata", async function () {
       const { core, view, social, statistics, user1 } = await loadFixture(deployMarketplaceFixture);
 
@@ -169,7 +172,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
   });
 
-  describe("GameifiedMarketplaceCoreV1 - Marketplace Operations", function () {
+  describe("MarketplaceCore - Marketplace Operations", function () {
     it("Should list NFT for sale", async function () {
       const { core, view, social, statistics, user1 } = await loadFixture(deployMarketplaceFixture);
 
@@ -271,7 +274,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
   });
 
-  describe("GameifiedMarketplaceCoreV1 - Offers System", function () {
+  describe("MarketplaceCore - Offers System", function () {
     it("Should make offer on listed NFT", async function () {
       const { core, view, social, statistics, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
@@ -336,7 +339,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
   });
 
-  describe("GameifiedMarketplaceCoreV1 - Social Features", function () {
+  describe("MarketplaceCore - Social Features", function () {
     it("Should toggle like on NFT", async function () {
       const { core, view, social, statistics, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
@@ -385,7 +388,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
         .withArgs(user2.address, 0n, comment);
 
       const comments = await view.getNFTComments(0);
-      expect(comments).to.include(comment);
+      expect(comments[0].text).to.equal(comment);
     });
 
     it("Should track multiple comments", async function () {
@@ -422,7 +425,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
   });
 
   // ════════════════════════════════════════════════════════════════════════════════════════
-  // FASE 3: ENHANCED TEST SUITE - GameifiedMarketplaceCoreV1 Advanced (25 tests)
+  // FASE 3: ENHANCED TEST SUITE - MarketplaceCore Advanced (25 tests)
   // ════════════════════════════════════════════════════════════════════════════════════════
   
   describe("Core Advanced - Batch Operations &  Pagination", function () {
@@ -1556,14 +1559,14 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
   });
 
-  // ==================== INDIVIDUAL SKILLS MARKETPLACE TESTS ====================
+  // ==================== NuxPowerS MARKETPLACE TESTS ====================
   
-  describe.skip("IndividualSkillsMarketplace - Skill Management", function () {
-    // NOTE: All tests in this suite are skipped due to IndividualSkillsMarketplace 
+  describe.skip("NuxPowerMarketplace - Skill Management", function () {
+    // NOTE: All tests in this suite are skipped due to NuxPowerMarketplace 
     // contract size limitation (>24KB). Contract deployment fails in test environment.
     // These tests pass in production environment with higher gas limits.
     
-    it("Should purchase individual skill with correct pricing", async function () {
+    it("Should purchase NuxPower with correct pricing", async function () {
       const { individual, user1, owner } = await loadFixture(deployMarketplaceFixture);
 
       // Get pricing for a skill
@@ -1574,7 +1577,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       expect(price).to.be.gt(0);
     });
 
-    it("Should get individual skill prices for all rarities", async function () {
+    it("Should get NuxPower prices for all rarities", async function () {
       const { individual } = await loadFixture(deployMarketplaceFixture);
 
       const skillType = 1; // STAKE_BOOST_I
@@ -1743,7 +1746,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
 
   // ==================== GAMEIFIED MARKETPLACE QUESTS TESTS ====================
   
-  describe("GameifiedMarketplaceQuests - Quest System", function () {
+  describe("QuestCore - Quest System", function () {
     it("Should get all active quests", async function () {
       const { quests } = await loadFixture(deployMarketplaceFixture);
 
@@ -2243,12 +2246,12 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
 
   // ==================== GAMEIFIED MARKETPLACE PROXY TESTS ====================
   
-  describe("GameifiedMarketplaceProxy - Proxy Management", function () {
+  describe("MarketplaceProxy - Proxy Management", function () {
     it("Should deploy proxy with valid implementation", async function () {
       const [owner] = await ethers.getSigners();
 
       // Get the implementation
-      const CoreFactory = await ethers.getContractFactory("GameifiedMarketplaceCoreV1");
+      const CoreFactory = await ethers.getContractFactory("MarketplaceCore");
       const implementation = await CoreFactory.deploy();
       await implementation.deploymentTransaction().wait();
 
@@ -2256,7 +2259,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       const initData = CoreFactory.interface.encodeFunctionData("initialize", [owner.address]);
 
       // Deploy proxy with valid implementation
-      const ProxyFactory = await ethers.getContractFactory("GameifiedMarketplaceProxy");
+      const ProxyFactory = await ethers.getContractFactory("MarketplaceProxy");
       const proxy = await ProxyFactory.deploy(await implementation.getAddress(), initData);
       
       expect(proxy).to.not.be.undefined;
@@ -2265,11 +2268,11 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     it("Should revert on invalid implementation address", async function () {
       const [owner] = await ethers.getSigners();
 
-      const CoreFactory = await ethers.getContractFactory("GameifiedMarketplaceCoreV1");
+      const CoreFactory = await ethers.getContractFactory("MarketplaceCore");
       const initData = CoreFactory.interface.encodeFunctionData("initialize", [owner.address]);
 
       // Try to deploy with EOA address (invalid)
-      const ProxyFactory = await ethers.getContractFactory("GameifiedMarketplaceProxy");
+      const ProxyFactory = await ethers.getContractFactory("MarketplaceProxy");
       const fakeImplementation = ethers.Wallet.createRandom().address;
 
       await expect(ProxyFactory.deploy(fakeImplementation, initData))
@@ -2277,12 +2280,12 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it("Should revert on empty initialization data", async function () {
-      const CoreFactory = await ethers.getContractFactory("GameifiedMarketplaceCoreV1");
+      const CoreFactory = await ethers.getContractFactory("MarketplaceCore");
       const implementation = await CoreFactory.deploy();
       await implementation.deploymentTransaction().wait();
 
       // Try to deploy with empty init data
-      const ProxyFactory = await ethers.getContractFactory("GameifiedMarketplaceProxy");
+      const ProxyFactory = await ethers.getContractFactory("MarketplaceProxy");
       await expect(ProxyFactory.deploy(await implementation.getAddress(), "0x"))
         .to.be.reverted;
     });
@@ -2290,13 +2293,13 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     it("Should emit ProxyInitialized event", async function () {
       const [owner] = await ethers.getSigners();
 
-      const CoreFactory = await ethers.getContractFactory("GameifiedMarketplaceCoreV1");
+      const CoreFactory = await ethers.getContractFactory("MarketplaceCore");
       const implementation = await CoreFactory.deploy();
       await implementation.deploymentTransaction().wait();
 
       const initData = CoreFactory.interface.encodeFunctionData("initialize", [owner.address]);
 
-      const ProxyFactory = await ethers.getContractFactory("GameifiedMarketplaceProxy");
+      const ProxyFactory = await ethers.getContractFactory("MarketplaceProxy");
       // Verify the proxy deploys without errors - the event is internal to proxy
       const proxy = await ProxyFactory.deploy(await implementation.getAddress(), initData);
       expect(proxy).to.not.be.undefined;
@@ -2306,13 +2309,13 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       const [owner, treasury, user1] = await ethers.getSigners();
 
       // Deploy proxy
-      const CoreFactory = await ethers.getContractFactory("GameifiedMarketplaceCoreV1");
+      const CoreFactory = await ethers.getContractFactory("MarketplaceCore");
       const implementation = await CoreFactory.deploy();
       await implementation.deploymentTransaction().wait();
 
       const initData = CoreFactory.interface.encodeFunctionData("initialize", [owner.address]);
 
-      const ProxyFactory = await ethers.getContractFactory("GameifiedMarketplaceProxy");
+      const ProxyFactory = await ethers.getContractFactory("MarketplaceProxy");
       const proxy = await ProxyFactory.deploy(await implementation.getAddress(), initData);
       const proxyAddr = await proxy.getAddress();
 
@@ -2329,7 +2332,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       const [owner, treasury] = await ethers.getSigners();
 
       // Deploy via UUPS proxy
-      const CoreFactory = await ethers.getContractFactory("GameifiedMarketplaceCoreV1");
+      const CoreFactory = await ethers.getContractFactory("MarketplaceCore");
       const core = await upgrades.deployProxy(CoreFactory, [treasury.address], {
         initializer: 'initialize',
         kind: 'uups'
@@ -2361,8 +2364,8 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       expect(profile.totalXP).to.equal(10);
     });
 
-    it.skip("Should manage multiple skill purchases via IndividualSkillsMarketplace", async function () {
-      // NOTE: Skipped - IndividualSkillsMarketplace contract too large (>24KB) for test environment
+    it.skip("Should manage multiple skill purchases via NuxPowerMarketplace", async function () {
+      // NOTE: Skipped - NuxPowerMarketplace contract too large (>24KB) for test environment
       const { individual } = await loadFixture(deployMarketplaceFixture);
 
       // Verify pricing structure is complete
@@ -2404,5 +2407,6 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
   });
 });
+
 
 

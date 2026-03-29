@@ -38,10 +38,11 @@ class AddressManager {
             const completeFile = path.join(this.deploymentsDir, "complete-deployment.json");
             if (fs.existsSync(completeFile)) {
                 const deployment = JSON.parse(fs.readFileSync(completeFile, "utf8"));
-                
-                // Extraer direcciones de staking
-                if (deployment.staking) {
-                    Object.entries(deployment.staking).forEach(([key, value]) => {
+
+                const contractGroups = this.getContractGroups(deployment);
+
+                if (contractGroups.staking) {
+                    Object.entries(contractGroups.staking).forEach(([key, value]) => {
                         if (typeof value === 'object' && value.address) {
                             addresses.staking[key] = value.address;
                         } else if (typeof value === 'string' && value.startsWith('0x')) {
@@ -50,9 +51,8 @@ class AddressManager {
                     });
                 }
 
-                // Extraer direcciones de marketplace
-                if (deployment.marketplace) {
-                    Object.entries(deployment.marketplace).forEach(([key, value]) => {
+                if (contractGroups.marketplace) {
+                    Object.entries(contractGroups.marketplace).forEach(([key, value]) => {
                         if (typeof value === 'object' && value.address) {
                             addresses.marketplace[key] = value.address;
                         } else if (typeof value === 'string' && value.startsWith('0x')) {
@@ -61,13 +61,22 @@ class AddressManager {
                     });
                 }
 
-                // Extraer direcciones de treasury - NUEVA ADICIÓN
-                if (deployment.treasury) {
-                    Object.entries(deployment.treasury).forEach(([key, value]) => {
+                if (contractGroups.treasury) {
+                    Object.entries(contractGroups.treasury).forEach(([key, value]) => {
                         if (typeof value === 'object' && value.address) {
                             addresses.treasury[key] = value.address;
                         } else if (typeof value === 'string' && value.startsWith('0x')) {
                             addresses.treasury[key] = value;
+                        }
+                    });
+                }
+
+                if (contractGroups.other) {
+                    Object.entries(contractGroups.other).forEach(([key, value]) => {
+                        if (typeof value === 'object' && value.address) {
+                            addresses.other[key] = value.address;
+                        } else if (typeof value === 'string' && value.startsWith('0x')) {
+                            addresses.other[key] = value;
                         }
                     });
                 }
@@ -86,6 +95,24 @@ class AddressManager {
         }
 
         return addresses;
+    }
+
+    /**
+     * Normalizar archivos de deployment antiguos y nuevos a la misma forma.
+     * @param {Object} deployment
+     * @returns {{staking?: Object, marketplace?: Object, treasury?: Object, other?: Object}}
+     */
+    getContractGroups(deployment) {
+        if (deployment.contracts && typeof deployment.contracts === 'object') {
+            return deployment.contracts;
+        }
+
+        return {
+            staking: deployment.staking,
+            marketplace: deployment.marketplace,
+            treasury: deployment.treasury,
+            other: deployment.other
+        };
     }
 
     /**
@@ -155,7 +182,7 @@ class AddressManager {
             'VITE_GAMEIFIED_MARKETPLACE_PROXY': 'proxy',
             'VITE_GAMEIFIED_MARKETPLACE_CORE': 'implementation',
             'VITE_GAMEIFIED_MARKETPLACE_SKILLS': 'skillsNFT',
-            'VITE_INDIVIDUAL_SKILLS': 'individualSkills',
+            'VITE_INDIVIDUAL_SKILLS': 'nuxPowers',
             'VITE_GAMEIFIED_MARKETPLACE_QUESTS': 'quests',
             'VITE_LEVELING_SYSTEM': 'leveling',
             'VITE_REFERRAL_SYSTEM': 'referral'
@@ -266,6 +293,7 @@ class AddressManager {
      */
     saveToDeploymentFile(addresses) {
         const deploymentFile = path.join(this.deploymentsDir, "complete-deployment.json");
+        const addressesFile = path.join(this.deploymentsDir, "addresses.json");
         
         let deploymentData = {};
         
@@ -278,32 +306,76 @@ class AddressManager {
         deploymentData.deployment = deploymentData.deployment || {};
         deploymentData.deployment.timestamp = new Date().toISOString();
         deploymentData.deployment.network = this.network;
+        deploymentData.contracts = deploymentData.contracts || {};
+        deploymentData.contracts.staking = deploymentData.contracts.staking || {};
+        deploymentData.contracts.marketplace = deploymentData.contracts.marketplace || {};
+        deploymentData.contracts.treasury = deploymentData.contracts.treasury || {};
+        deploymentData.contracts.other = deploymentData.contracts.other || {};
 
-        // Merge addresses preservando estructura de objetos {address, name, etc}
         if (addresses.staking) {
-            deploymentData.staking = deploymentData.staking || {};
             Object.entries(addresses.staking).forEach(([key, value]) => {
-                if (typeof deploymentData.staking[key] === 'object') {
-                    deploymentData.staking[key].address = value;
+                if (typeof deploymentData.contracts.staking[key] === 'object') {
+                    deploymentData.contracts.staking[key].address = value;
                 } else {
-                    deploymentData.staking[key] = value;
+                    deploymentData.contracts.staking[key] = value;
                 }
             });
         }
 
         if (addresses.marketplace) {
-            deploymentData.marketplace = deploymentData.marketplace || {};
             Object.entries(addresses.marketplace).forEach(([key, value]) => {
-                if (typeof deploymentData.marketplace[key] === 'object') {
-                    deploymentData.marketplace[key].address = value;
+                if (typeof deploymentData.contracts.marketplace[key] === 'object') {
+                    deploymentData.contracts.marketplace[key].address = value;
                 } else {
-                    deploymentData.marketplace[key] = value;
+                    deploymentData.contracts.marketplace[key] = value;
+                }
+            });
+        }
+
+        if (addresses.treasury) {
+            Object.entries(addresses.treasury).forEach(([key, value]) => {
+                if (typeof deploymentData.contracts.treasury[key] === 'object') {
+                    deploymentData.contracts.treasury[key].address = value;
+                } else {
+                    deploymentData.contracts.treasury[key] = value;
+                }
+            });
+        }
+
+        if (addresses.other) {
+            Object.entries(addresses.other).forEach(([key, value]) => {
+                if (typeof deploymentData.contracts.other[key] === 'object') {
+                    deploymentData.contracts.other[key].address = value;
+                } else {
+                    deploymentData.contracts.other[key] = value;
                 }
             });
         }
 
         fs.writeFileSync(deploymentFile, JSON.stringify(deploymentData, null, 2));
+        fs.writeFileSync(addressesFile, JSON.stringify(this.flattenAddresses(addresses), null, 2));
         console.log(`💾 Deployment file updated: complete-deployment.json`);
+    }
+
+    /**
+     * Crear un mapa plano util para frontends.
+     * @param {Object} addresses
+     * @returns {Object}
+     */
+    flattenAddresses(addresses) {
+        const flat = {};
+
+        ['staking', 'marketplace', 'treasury', 'other'].forEach((category) => {
+            if (!addresses[category]) {
+                return;
+            }
+
+            Object.entries(addresses[category]).forEach(([key, value]) => {
+                flat[`${category}.${key}`] = value;
+            });
+        });
+
+        return flat;
     }
 
     /**
@@ -372,8 +444,8 @@ class AddressManager {
         if (addresses.marketplace?.skillsNFT) {
             updates.push({ key: 'VITE_GAMEIFIED_MARKETPLACE_SKILLS', value: addresses.marketplace.skillsNFT });
         }
-        if (addresses.marketplace?.individualSkills) {
-            updates.push({ key: 'VITE_INDIVIDUAL_SKILLS', value: addresses.marketplace.individualSkills });
+        if (addresses.marketplace?.nuxPowers) {
+            updates.push({ key: 'VITE_INDIVIDUAL_SKILLS', value: addresses.marketplace.nuxPowers });
         }
         if (addresses.marketplace?.quests) {
             updates.push({ key: 'VITE_GAMEIFIED_MARKETPLACE_QUESTS', value: addresses.marketplace.quests });

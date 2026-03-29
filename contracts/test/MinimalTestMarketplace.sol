@@ -27,7 +27,7 @@ contract MinimalTestMarketplace is ERC721, AccessControl, Pausable {
     }
     
     struct SkillNFT {
-        IStakingIntegration.SkillType skillType;
+        IStakingIntegration.PowerType skillType;
         uint8 stars;
         bool isSkillActive;
     }
@@ -55,7 +55,7 @@ contract MinimalTestMarketplace is ERC721, AccessControl, Pausable {
     
     event QuestCreated(uint256 indexed questId, string name, uint256 questType);
     event QuestCompleted(address indexed user, uint256 indexed questId, uint256 xpReward);
-    event SkillNFTCreated(uint256 indexed tokenId, address indexed creator, IStakingIntegration.SkillType skillType);
+    event SkillNFTCreated(uint256 indexed tokenId, address indexed creator, IStakingIntegration.PowerType skillType);
 
     constructor() ERC721("MinimalTest", "MT") {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -79,7 +79,7 @@ contract MinimalTestMarketplace is ERC721, AccessControl, Pausable {
 
     function createSkillNFT(
         string calldata, string calldata, uint256,
-        IStakingIntegration.SkillType[] calldata skillTypes,
+        IStakingIntegration.PowerType[] calldata skillTypes,
         uint16[] calldata,
         IStakingIntegration.Rarity[] calldata rarities
     ) external whenNotPaused returns (uint256) {
@@ -89,9 +89,9 @@ contract MinimalTestMarketplace is ERC721, AccessControl, Pausable {
         _tokenIdCounter.increment();
         _safeMint(msg.sender, tokenId);
         
-        IStakingIntegration.SkillType firstSkill = skillTypes[0];
+        IStakingIntegration.PowerType firstSkill = skillTypes[0];
         if (!userReceivedFreeSkill[msg.sender]) {
-            firstSkill = IStakingIntegration.SkillType.STAKE_BOOST_I;
+            firstSkill = IStakingIntegration.PowerType.STAKE_BOOST_I;
             userReceivedFreeSkill[msg.sender] = true;
         }
         

@@ -8,9 +8,38 @@ Sistema inteligente de deployment para contratos de Nuxchain.
 # Instalar dependencias (si no lo has hecho)
 npm install
 
+# Generar artefactos compartidos para frontend / nuxchain-app
+npm run build:frontend
+
 # Ejecutar deployment inteligente
 npx hardhat run scripts/DeploySmartV2.cjs --network polygon
 ```
+
+## Frontend Package
+
+El repo ahora incluye una frontera compartida en `frontend/` para exponer ABIs, direcciones y helpers reutilizables.
+
+Comandos principales:
+
+```bash
+# Exportar solo ABIs
+npm run export:abis
+
+# Generar config y runtime del paquete frontend
+npm run export:frontend
+
+# Recomendado: regenerar todo el paquete compartido
+npm run build:frontend
+```
+
+Outputs principales:
+
+- `frontend/abis/runtime.js`
+- `frontend/config/contracts.generated.json`
+- `frontend/config/contracts.generated.ts`
+- `frontend/config/contracts.generated.js`
+
+Usa estos artefactos como base para `nuxchain-app` en vez de copiar archivos sueltos de deploy o ABIs manuales.
 
 ## Modos Disponibles
 

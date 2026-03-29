@@ -355,15 +355,15 @@ class DeploymentStrategy {
 
         // Mapeo de nombres de contratos a keys
         const keyMap = {
-            'EnhancedSmartStakingCoreV2': 'core',
-            'EnhancedSmartStakingRewards': 'rewards',
-            'EnhancedSmartStakingSkills': 'skills',
-            'EnhancedSmartStakingGamification': 'gamification',
-            'EnhancedSmartStakingView': 'view',
+            'SmartStakingCoreV2': 'core',
+            'SmartStakingRewards': 'rewards',
+            'SmartStakingSkills': 'skills',
+            'SmartStakingGamification': 'gamification',
+            'SmartStakingView': 'view',
             'GameifiedMarketplaceCoreV1': 'proxy',
             'GameifiedMarketplaceProxy': 'proxy',
-            'GameifiedMarketplaceSkillsNft': 'skillsNFT',
-            'IndividualSkillsMarketplace': 'individualSkills',
+            'GameifiedNuxPowerNft': 'skillsNFT',
+            'NuxPowerMarketplace': 'nuxPowers',
             'GameifiedMarketplaceQuests': 'quests',
             'LevelingSystem': 'leveling',
             'ReferralSystem': 'referral',
@@ -396,19 +396,19 @@ class DeploymentStrategy {
                 args: [],
                 options: { isProxy: true, kind: 'uups', initializer: 'initialize' }
             },
-            'EnhancedSmartStakingRewards': {
+            'SmartStakingRewards': {
                 args: [],
                 options: { isProxy: false }
             },
-            'EnhancedSmartStakingSkills': {
+            'SmartStakingSkills': {
                 args: [],
                 options: { isProxy: false }
             },
-            'EnhancedSmartStakingGamification': {
+            'SmartStakingGamification': {
                 args: [],
                 options: { isProxy: false }
             },
-            'EnhancedSmartStakingView': {
+            'SmartStakingView': {
                 args: [stakingCore],
                 options: { isProxy: false }
             },
@@ -428,15 +428,15 @@ class DeploymentStrategy {
             },
             
             // MARKETPLACE - SKILLS & NFTs
-            'GameifiedMarketplaceSkillsNft': {
+            'GameifiedNuxPowerNft': {
                 args: [marketplaceCore],
                 options: { isProxy: false }
             },
-            'IndividualSkillsMarketplace': {
+            'NuxPowerMarketplace': {
                 args: [treasuryAddress],
                 options: { isProxy: false }
             },
-            'IndividualSkillsMarketplaceImpl': {
+            'NuxPowerMarketplaceImpl': {
                 args: [treasuryAddress],
                 options: { isProxy: false }
             },

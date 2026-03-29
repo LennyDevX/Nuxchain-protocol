@@ -31,6 +31,12 @@ export interface ContractAddresses {
   MarketplaceSocial:     string;  // MarketplaceSocial
   // --- Treasury ---
   TreasuryManager:       string;  // TreasuryManager
+
+  // Power aliases kept in frontend for the renamed product language.
+  StakingPowers?:        string;
+  StakingViewPowers?:    string;
+  MarketplacePowerNFT?:  string;
+  IndividualPowers?:     string;
 }
 
 // ============================================
@@ -58,7 +64,13 @@ export const CONTRACT_ADDRESSES: ContractAddresses = {
   MarketplaceStatistics: '0x7C4c72d3D1b9a54178254c79Ca4F788111A9c99D',
   MarketplaceSocial:     '0x4FE695192c20E2D9b4bDB0A18F168e198F7e9557',
   // Treasury
-  TreasuryManager:       '0x312a3c5072c9DE2aB5cbDd799b3a65fb053DF043'
+  TreasuryManager:       '0x312a3c5072c9DE2aB5cbDd799b3a65fb053DF043',
+
+  // Power aliases
+  StakingPowers:         '0x4cF5F1eDfACC19E2FABC1Ec2955A0de4b222025d',
+  StakingViewPowers:     '0xc5a07f94b5Ecaaf8E65d9F3adb7AB590550a9bE9',
+  MarketplacePowerNFT:   '0xe09e85E7AEd3A35fa77DCaC44D110664C42A4DCd',
+  IndividualPowers:      '0x2248e909EC9E122D1D7206E86D2061681EfCC49B'
 };
 
 // ============================================
@@ -190,6 +202,8 @@ export interface UserSkillProfile {
   activeSkillCount: number;
 }
 
+export type UserPowerProfile = UserSkillProfile;
+
 /** Individual skill (IndividualSkillsMarketplace) */
 export interface IndividualSkill {
   skillType: SkillType;
@@ -203,6 +217,8 @@ export interface IndividualSkill {
   createdAt: bigint;
 }
 
+export type IndividualPower = IndividualSkill;
+
 /** NFT Skill info (Skills module) */
 export interface SkillNFTInfo {
   nftId: bigint;
@@ -214,6 +230,10 @@ export interface SkillNFTInfo {
   activatedAt: bigint;
   cooldownEnds: bigint;
 }
+
+export type PowerNFTInfo = SkillNFTInfo;
+
+export type PowerType = SkillType;
 
 // ============================================
 // TypeScript Interfaces — Marketplace

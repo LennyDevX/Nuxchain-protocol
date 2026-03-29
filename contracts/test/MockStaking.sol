@@ -5,7 +5,7 @@ import "../interfaces/IStakingIntegration.sol";
 
 /**
  * @title MockStaking
- * @dev Mock contract for EnhancedSmartStaking in tests
+ * @dev Mock contract for SmartStaking in tests
  */
 contract MockStaking {
     mapping(address => uint256) public userDeposits;
@@ -24,7 +24,7 @@ contract MockStaking {
     function notifySkillActivation(
         address user,
         uint256 skillId,
-        IStakingIntegration.SkillType skillType,
+        IStakingIntegration.PowerType skillType,
         uint16 value
     ) external {}
     

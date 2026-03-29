@@ -8,6 +8,15 @@ pragma solidity 0.8.28;
  */
 interface IMarketplaceStatistics {
     // ════════════════════════════════════════════════════════════════════════════════════════
+    // STRUCTS
+    // ════════════════════════════════════════════════════════════════════════════════════════
+
+    struct CategoryStats {
+        uint256 volume;
+        uint256 sales;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════════════════
     // EVENTS
     // ════════════════════════════════════════════════════════════════════════════════════════
     
@@ -31,7 +40,8 @@ interface IMarketplaceStatistics {
         address seller,
         address buyer,
         uint256 tokenId,
-        uint256 price
+        uint256 price,
+        string calldata category
     ) external;
     
     /**
@@ -74,4 +84,10 @@ interface IMarketplaceStatistics {
     
     /// @notice Get number of NFTs bought by a user
     function userNFTsBought(address user) external view returns (uint256);
+
+    /// @notice Get volume and sales count for a category
+    function getCategoryStats(string calldata category) external view returns (CategoryStats memory);
+
+    /// @notice Get trading volume for a specific day (0 = today, 1 = yesterday, etc.)
+    function getDailyVolume(uint256 daysAgo) external view returns (uint256);
 }

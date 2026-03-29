@@ -36,7 +36,7 @@ async function main() {
     const TREASURY_MANAGER = addrs.treasury.manager;
     const STAKING_CORE     = addrs.staking.core;
     const MARKETPLACE      = addrs.marketplace.proxy;
-    const SKILLS           = addrs.marketplace.individualSkills;
+    const SKILLS           = addrs.marketplace.nuxPowers;
     const OLD_TREASURY     = "0x9a7fac014e2056835878d1866651d673b0ba9407";
 
     console.log("═".repeat(70));
@@ -67,8 +67,8 @@ async function main() {
         if (v) console.log(`  .${fn}() =`, v, v.toLowerCase() === TREASURY_MANAGER.toLowerCase() ? "✅ CORRECT" : "❌ WRONG");
     }
 
-    // Check IndividualSkills
-    console.log("\n📍 IndividualSkills treasury references:");
+    // Check nuxPowers
+    console.log("\n📍 nuxPowers treasury references:");
     const skills = new hre.ethers.Contract(SKILLS, SKILLS_ABI, hre.ethers.provider);
     for (const fn of ["treasuryManager", "treasury", "treasuryAddress"]) {
         const v = await tryRead(skills, fn);

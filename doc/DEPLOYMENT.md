@@ -1,351 +1,237 @@
-# 🚀 Smart Deployment Guide
+# Deployment Guide
 
-**Automated contract deployment system for Nuxchain Protocol** | [← Back to doc](../doc)
-
----
-
-## 📋 Quick Start
-
-```bash
-# Install dependencies
-npm install
-
-# Run smart deployment (auto-detects changes)
-npx hardhat run scripts/DeploySmartV2.cjs --network polygon
-
-# Deploy to specific network
-npx hardhat run scripts/DeploySmartV2.cjs --network polygon
-npx hardhat run scripts/DeploySmartV2.cjs --network mumbai
-```
+**Nuxchain Protocol v7.0 — Polygon Mainnet**
 
 ---
 
-## ✨ Features
+## Prerequisites
 
-### Smart Change Detection
-- ✅ Analyzes git log to find modified contracts
-- ✅ Fallback to filesystem timestamps if git unavailable
-- ✅ Groups contracts by category (staking, marketplace, etc.)
-- ✅ Auto-analyzes dependencies
+### Environment file (`.env`)
 
-### Intelligent Deployment Strategies
+Create a `.env` in the project root with:
 
-| Strategy | Use Case | Result |
-|---|---|---|
-| **UPGRADE** | Core contracts, proxy updates | Preserves address ✅ |
-| **REDEPLOY** | Module updates, new code | New address 🆕 |
-| **MIXED** | Complex changes | Auto-detected |
+```env
+# Required
+PRIVATE_KEY=0x...                # Deployer wallet private key (must have enough POL for gas)
+TREASURY_ADDRESS=0x...           # Protocol owner address that receives dev/ownership funds
 
-### Address Management
-- ✅ Loads existing addresses from `deployments/complete-deployment.json`
-- ✅ Creates timestamped backups before each deployment
-- ✅ Auto-updates `.env` with new addresses
-- ✅ Verifies contracts exist on-chain
+# Required for verification
+POLYGONSCAN_API_KEY=...
 
-### Interactive CLI
-- ✅ Menu-driven interface with checkboxes
-- ✅ Visual contract selection
-- ✅ Action confirmation before execute
-- ✅ Real-time deployment progress
+# Optional — fund amounts (defaults shown)
+FUND_STAKING=1000                # POL to send to SmartStakingRewards
+FUND_LEVELING=1000               # POL to send to LevelingSystem
+FUND_QUEST=1000                  # POL to send to QuestRewardsPool
+```
+
+### RPC (hardhat.config.cjs)
+
+The config reads `process.env.POLYGON_RPC_URL` for mainnet and `process.env.AMOY_RPC_URL` for testnet. Add them to `.env`:
+
+```env
+POLYGON_RPC_URL=https://polygon-mainnet.g.alchemy.com/v2/YOUR_KEY
+AMOY_RPC_URL=https://polygon-amoy.g.alchemy.com/v2/YOUR_KEY
+```
 
 ---
 
-## 🎯 Deployment Modes
+## 5-Step Deployment Process
 
-### 1. Smart Deploy (Recommended)
+Each script reads `deployments/complete-deployment.json` written by the previous step.
 
-```bash
-npx hardhat run scripts/DeploySmartV2.cjs --network polygon
-```
-
-**What it does**:
-1. Analyzes git for modified contracts
-2. Shows change report
-3. Suggests UPGRADE or REDEPLOY for each
-4. Pre-selects modified contracts
-5. Allows manual adjustment
-6. Executes deployment
-7. Updates .env and deployment files
-
-**Best for**: Regular updates after code changes
-
-**Decision tree**:
-```
-Modified contract?
-├─ Core/Proxy → UPGRADE (preserve address)
-├─ Module → REDEPLOY (new address)
-└─ Multiple deps → MIXED (auto-calculate)
-```
-
-### 2. Upgrade Only
+### Step 1 — Deploy all contracts
 
 ```bash
-# Interactive menu shows only upgradeable contracts
-npm run deploy:upgrade
+npx hardhat run scripts/deploy.cjs --network polygon
 ```
 
-**Characteristics**:
-- Points to existing addresses
-- Uses `upgradeProxy()` for all
-- No new addresses created
-- Frontend doesn't need updates
+**What it does:**
+- Phase 0: Deploys `TreasuryManager` + `QuestRewardsPool`
+- Phase 1: Deploys all 12 staking contracts (including `SkillViewLib` library and `SmartStakingCoreV2` proxy), wires modules together
+- Phase 2: Deploys all 10 marketplace contracts, wires modules together
 
-**When to use**: Bug fixes, optimizations, non-breaking changes
+**Output:**
+- `deployments/complete-deployment.json` — all addresses organized by section
+- `deployments/addresses.json` — flat key/address map for easy consumption
 
-### 3. Fresh Deploy (New Network)
-
-```bash
-# Full clean deployment
-npm run deploy:fresh
-```
-
-**Characteristics**:
-- Deploys all contracts fresh
-- Creates new addresses
-- No address preservation
-- Useful for testnet initialization
-
-**When to use**: New network, clean slate, testing
+**Estimated gas:** ~35–50M gas total (~15 POL on mainnet at 30 gwei)
 
 ---
 
-## 🔧 Configuration
+### Step 2 — Configure
 
-### Prerequisites
+```bash
+npx hardhat run scripts/configure.cjs --network polygon
+```
+
+**What it does:**
+- Sets Treasury sub-treasury addresses in `TreasuryManager`
+- Grants `MARKETPLACE_ROLE` on `LevelingSystem` to `MarketplaceCore`
+- Grants `MARKETPLACE_ROLE` on `ReferralSystem` to `MarketplaceCore`
+- Authorizes `MarketplaceCore` as revenue source in `TreasuryManager`
+- Sets `TreasuryManager` in `CollaboratorBadgeRewards`
+- Sets treasury address in `NuxPowerNft`
+- Wires `QuestCore` to staking + marketplace
+
+---
+
+### Step 3 — Fund
+
+```bash
+npx hardhat run scripts/fund.cjs --network polygon
+```
+
+**What it does:**
+- Sends POL to `SmartStakingRewards` (reward payout pool)
+- Sends POL to `LevelingSystem` (level-up rewards)
+- Sends POL to `QuestRewardsPool` (quest prizes)
+
+Controlled by env vars:
+```env
+FUND_STAKING=1000    # 1000 POL → SmartStakingRewards
+FUND_LEVELING=1000   # 1000 POL → LevelingSystem
+FUND_QUEST=1000      # 1000 POL → QuestRewardsPool
+```
+
+---
+
+### Step 4 — Verify on Polygonscan
+
+```bash
+npx hardhat run scripts/verify.cjs --network polygon
+```
+
+**What it does:**
+- Reads all addresses from `deployments/complete-deployment.json`
+- Calls `hardhat verify` for every contract with correct constructor args
+- Skips UUPS proxy implementation contracts automatically
+
+---
+
+### Step 5 — Generate frontend integration package
+
+```bash
+npm run build:frontend
+```
+
+**What it does:**
+- Regenerates ABI exports from compiled artifacts
+- Generates `frontend/abis/runtime.js` for runtime imports
+- Generates `frontend/config/contracts.generated.*` from deployment output when available
+- Refreshes the shared frontend package consumed by external apps such as `nuxchain-app`
+
+**Output:**
+- `frontend/abis/all-abis.json`
+- `frontend/abis/runtime.js`
+- `frontend/config/contracts.generated.json`
+- `frontend/config/contracts.generated.ts`
+- `frontend/config/contracts.generated.js`
+- `frontend/package.json` package exports remain the stable consumer boundary
+
+---
+
+## Testnet Deployment (Amoy)
+
+Use `--network amoy` instead of `--network polygon` for all steps:
+
+```bash
+npx hardhat run scripts/deploy.cjs --network amoy
+npx hardhat run scripts/configure.cjs --network amoy
+npx hardhat run scripts/fund.cjs --network amoy
+npx hardhat run scripts/verify.cjs --network amoy
+npm run build:frontend
+```
+
+---
+
+## Post-Deployment Checklist
+
+After all 5 steps complete, verify:
+
+- [ ] `deployments/complete-deployment.json` exists with all addresses
+- [ ] `deployments/addresses.json` exists with the flat address map
+- [ ] `frontend/config/contracts.generated.json` exists and matches the deployed network
+- [ ] `frontend/abis/runtime.js` exists and exports the latest ABI catalog
+- [ ] `TreasuryManager.authorizedSources` — SmartStakingCoreV2 and MarketplaceCore are both `true`
+- [ ] `SmartStakingCoreV2.rewardsModule()` → SmartStakingRewards address
+- [ ] `SmartStakingCoreV2.powerModule()` → SmartStakingPower address
+- [ ] `SmartStakingCoreV2.gamificationModule()` → SmartStakingGamification address
+- [ ] `MarketplaceCore.statisticsModule()` → MarketplaceStatistics address
+- [ ] `MarketplaceCore.viewModule()` → MarketplaceView address
+- [ ] `MarketplaceCore.socialModule()` → MarketplaceSocial address
+- [ ] `SmartStakingRewards` balance ≥ expected POL
+- [ ] `LevelingSystem` balance ≥ expected POL
+- [ ] `QuestRewardsPool` balance ≥ expected POL
+
+---
+
+## Upgrading a Contract
+
+For UUPS proxies (`SmartStakingCoreV2`, `MarketplaceCore`, `LevelingSystem`, `ReferralSystem`, `QuestCore`, `CollaboratorBadgeRewards`):
+
+```js
+const proxyAddr = "0x...";   // existing proxy address (unchanged)
+const NewImpl = await ethers.getContractFactory("MyContractV2");
+await upgrades.upgradeProxy(proxyAddr, NewImpl, {
+    kind: "uups",
+    // if SmartStakingCoreV2, add library:
+    // unsafeAllow: ["external-library-linking"]
+});
+```
+
+The proxy address stays the same. Existing state is preserved.
+
+---
+
+## Module Replacement (non-upgradeable)
+
+For plain contracts (`SmartStakingRewards`, `SmartStakingPower`, etc.):
+
+1. Deploy the new contract
+2. Call the setter on the Core:
+   - `SmartStakingCoreV2.setRewardsModule(newAddr)`
+   - `SmartStakingCoreV2.setPowerModule(newAddr)`
+   - `SmartStakingCoreV2.setGamificationModule(newAddr)`
+   - `MarketplaceCore.setStatisticsModule(newAddr)`
+   - `MarketplaceCore.setViewModule(newAddr)`
+   - `MarketplaceCore.setSocialModule(newAddr)`
+3. Set back-references in the new module (e.g. `SmartStakingRewards.setCoreStakingContract`)
+
+---
+
+## Deployment Files
+
+| File | Contents |
+|---|---|
+| `deployments/complete-deployment.json` | All addresses grouped by section; network + timestamp |
+| `deployments/addresses.json` | Flat map: `"staking.core" → "0x..."` |
+| `frontend/config/contracts.generated.json` | Frontend-safe address manifest used by the shared package |
+| `frontend/abis/runtime.js` | Runtime ABI entrypoint for external apps |
+
+Example `addresses.json`:
 ```json
 {
-  "hardhat": "^2.26.5",
-  "ethers": "^6.15.0",
-  "inquirer": "^8.2.5",
-  "@openzeppelin/hardhat-upgrades": "^3.9.1"
+  "treasury.manager": "0x...",
+  "treasury.questRewardsPool": "0x...",
+  "staking.core": "0x...",
+  "staking.rewards": "0x...",
+  "staking.power": "0x...",
+  "staking.gamification": "0x...",
+  "staking.dynamicAPY": "0x...",
+  "staking.skillViewLib": "0x...",
+  "staking.viewCore": "0x...",
+  "staking.viewStats": "0x...",
+  "staking.viewSkills": "0x...",
+  "staking.viewDashboard": "0x...",
+  "marketplace.core": "0x...",
+  "marketplace.leveling": "0x...",
+  "marketplace.referral": "0x...",
+  "marketplace.view": "0x...",
+  "marketplace.statistics": "0x...",
+  "marketplace.social": "0x...",
+  "marketplace.nuxPowerNft": "0x...",
+  "marketplace.nuxPowerMarketplace": "0x...",
+  "marketplace.questCore": "0x...",
+  "marketplace.collaboratorRewards": "0x..."
 }
 ```
-
-### Environment Variables
-```bash
-# .env file
-POLYGON_RPC_URL=https://polygon-rpc.com/
-MUMBAI_RPC_URL=https://rpc-mumbai.maticvigil.com/
-PRIVATE_KEY=your_private_key_here
-ETHERSCAN_API_KEY=your_key_here
-```
-
-### Hardhat Config
-```javascript
-// hardhat.config.cjs
-module.exports = {
-  networks: {
-    polygon: {
-      url: process.env.POLYGON_RPC_URL,
-      accounts: [process.env.PRIVATE_KEY]
-    },
-    mumbai: {
-      url: process.env.MUMBAI_RPC_URL,
-      accounts: [process.env.PRIVATE_KEY]
-    }
-  }
-};
-```
-
-### Deployment File Structure
-```
-deployments/
-├── complete-deployment.json  // Main deployment record
-├── backup-2024-02-14.json   // Timestamped backups
-└── backup-2024-02-13.json
-```
-
----
-
-## 📊 Deployment Checklist
-
-### Before Deployment
-
-- [ ] All tests passing: `npm test`
-- [ ] No lint errors: `npx hardhat compile`
-- [ ] Git committed: `git status` (no uncommitted changes)
-- [ ] RPC URL set: `echo $POLYGON_RPC_URL`
-- [ ] Private key available: `echo $PRIVATE_KEY`
-- [ ] Sufficient balance: `ethers.getBalance(signer)`
-- [ ] Network correct: Verify mainnet vs testnet
-
-### During Deployment
-
-- [ ] Monitor transaction hashes
-- [ ] Check gas prices (Polygon usually <$1)
-- [ ] Wait for confirmations (usually <1 min)
-- [ ] Verify contract creation on PolygonScan
-- [ ] Review .env updates
-
-### After Deployment
-
-- [ ] Compare new vs old addresses in output
-- [ ] Verify contracts on PolygonScan
-- [ ] Update frontend config with new addresses
-- [ ] Test basic interactions
-- [ ] Commit updated files to git
-
----
-
-## 🔍 Contract Categories
-
-| Category | Contracts | Strategy |
-|---|---|---|
-| **Core** | EnhancedSmartStaking, GameifiedMarketplace | UPGRADE |
-| **Infrastructure** | TreasuryManager, DynamicAPYCalculator | UPGRADE |
-| **Modules** | Rewards, Skills, Marketplace subsystems | REDEPLOY or UPGRADE |
-| **Interfaces** | All IContract files | REDEPLOY (rarely change) |
-
----
-
-## 📝 Deployment Output Example
-
-```
-╔══════════════════════════════════════════════════════╗
-║          NUXCHAIN SMART DEPLOYMENT SYSTEM            ║
-╚══════════════════════════════════════════════════════╝
-
-🔍 CHANGE ANALYSIS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Modified contracts detected:
-[✓] EnhancedSmartStakingRewards.sol
-[✓] DynamicAPYCalculator.sol
-
-📋 DEPLOYMENT STRATEGY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-EnhancedSmartStakingRewards:
-  Current:  0x1234567890...
-  Strategy: UPGRADE (preserves address)
-  ✓ Selected
-
-DynamicAPYCalculator:
-  Current:  0xabcdef1234...
-  Strategy: UPGRADE (core infrastructure)
-  ✓ Selected
-
-🚀 EXECUTING DEPLOYMENT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-[1/2] Upgrading EnhancedSmartStakingRewards...
-      TxHash: 0xabc123...
-      Status: ✅ Success (1 confirmation)
-      Gas: 2,450,000 (cost: $0.12)
-
-[2/2] Upgrading DynamicAPYCalculator...
-      TxHash: 0xdef456...
-      Status: ✅ Success (1 confirmation)
-      Gas: 1,850,000 (cost: $0.09)
-
-✅ DEPLOYMENT COMPLETE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Total time: 45 seconds
-Total cost: ~$0.21
-Network: Polygon (mainnet)
-
-📁 Backup created: deployments/backup-2024-02-14-143022.json
-📝 .env updated with new addresses
-✅ All contracts verified on PolygonScan
-
-Next steps:
-1. Update frontend config with new addresses
-2. Run integration tests
-3. Commit changes: git add . && git commit -m "Deploy V5.0+"
-```
-
----
-
-## ⚠️ Common Issues
-
-### Issue: "RPC URL not configured"
-**Solution**: 
-```bash
-export POLYGON_RPC_URL="https://polygon-rpc.com/"
-```
-
-### Issue: "Not enough gas / Insufficient balance"
-**Solution**:
-```bash
-# Check balance
-ethers.getBalance(signerAddress)
-
-# Fund account from faucet or exchange
-```
-
-### Issue: "Contract already exists at address"
-**Solution**:
-```bash
-# Use UPGRADE strategy instead of REDEPLOY
-# Or uncheck the contract in interactive menu
-```
-
-### Issue: "Verification failed on PolygonScan"
-**Solution**:
-```bash
-# Manual verification (after deployment)
-npx hardhat verify --network polygon ADDRESS constructor_args
-```
-
----
-
-## 🔐 Security Best Practices
-
-✅ **Keep private keys secure** (never commit to git)  
-✅ **Use hardware wallet for mainnet deployments**  
-✅ **Test on testnet first** (Mumbai)  
-✅ **Verify contracts on PolygonScan** (for transparency)  
-✅ **Review deployment output** (verify addresses match expected)  
-✅ **Maintain deployment backups** (timestamped automatically)  
-✅ **Use multi-sig Treasury** (for mainnet access)  
-
----
-
-## 📊 Deployment History
-
-Latest deployments tracked in:
-- `deployments/complete-deployment.json` - Current addresses
-- `deployments/backup-*.json` - Historical records
-- `.env` - Current environment configuration
-
----
-
-## 🚀 Scripts Available
-
-```bash
-# Quick deployment (smart detection)
-npm run deploy
-
-# Upgrade existing contracts only
-npm run deploy:upgrade
-
-# Fresh deployment (all new)
-npm run deploy:fresh
-
-# Verify contract on-chain
-npm run verify:contract
-
-# Check deployment status
-npm run deploy:status
-
-# Create backup
-npm run deploy:backup
-```
-
----
-
-## 📞 Support
-
-**For deployment issues**:
-1. Check `.env` configuration
-2. Verify RPC connectivity
-3. Review [Hardhat docs](https://hardhat.org)
-4. Check deployment output logs
-5. Inspect contract on PolygonScan
-
----
-
-**Last Updated**: February 14, 2026  
-**Version**: Smart V2  
-**Network**: Polygon (Production) ✅

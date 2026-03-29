@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 /**
  * @title TreasuryManager
  * @notice Centralizes all protocol revenue streams and distributes to specialized treasuries
- * @dev Receives commissions from Staking (6%), Marketplace (6%), Individual Skills sales
+ * @dev Receives commissions from Staking (6%), Marketplace (6%), NuxPowers sales
  *      Implements weekly distribution cycle (7 days) starting from first deposit
  * 
  * RESERVE FUND SYSTEM:

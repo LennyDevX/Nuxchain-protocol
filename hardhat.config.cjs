@@ -10,7 +10,7 @@ module.exports = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 300, // Optimizado para deployment gas efficiency
+            runs: 50, // Bajo para mantener bytecode dentro del límite de 24576 bytes
             details: {
               yul: true,
               yulDetails: {
@@ -43,7 +43,26 @@ module.exports = {
       }
     ],
     overrides: {
-      "contracts/Marketplace/GameifiedMarketplaceCoreV1.sol": {
+      "contracts/Gamification/Gamification.sol": {
+        version: "0.8.28",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1,
+            details: {
+              yul: true,
+              yulDetails: {
+                stackAllocation: true,
+                optimizerSteps: "dhfoDgvulfnTUtnIf"
+              }
+            }
+          },
+          viaIR: true,
+          evmVersion: "shanghai"
+        }
+      },
+
+      "contracts/Marketplace/MarketplaceCore.sol": {
         version: "0.8.28",
         settings: {
           optimizer: {
@@ -60,35 +79,8 @@ module.exports = {
           evmVersion: "shanghai"
         }
       },
-      "contracts/Marketplace/GameifiedMarketplaceV1.sol": {
-        version: "0.8.28",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 100,
-            details: {
-              yul: true
-            }
-          },
-          viaIR: true,
-          evmVersion: "shanghai"
-        }
-      },
-      "contracts/Marketplace/GameifiedMarketplace.sol": {
-        version: "0.8.28",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 50, // Ultra-optimizado
-            details: {
-              yul: true
-            }
-          },
-          viaIR: true, // Necesario para evitar stack too deep
-          evmVersion: "shanghai"
-        }
-      },
-      "contracts/SmartStaking/EnhancedSmartStakingView.sol": {
+
+      "contracts/SmartStaking/SmartStakingView.sol": {
         version: "0.8.28",
         settings: {
           optimizer: {
@@ -113,21 +105,24 @@ module.exports = {
           evmVersion: "shanghai"
         }
       },
-      "contracts/SmartStaking/EnhancedSmartStakingCore.sol": {
+
+      "contracts/SmartStaking/SmartStakingViewDashboard.sol": {
         version: "0.8.28",
         settings: {
           optimizer: {
             enabled: true,
-            runs: 50, // Optimizado para balance tamaño/gas
+            runs: 1, // Size-optimised — purely view contract, high deployment frequency
             details: {
-              yul: true
+              yul: true,
+              yulDetails: { stackAllocation: true, optimizerSteps: "dhfoDgvulfnTUtnIf" }
             }
           },
           viaIR: true,
           evmVersion: "shanghai"
         }
       },
-      "contracts/SmartStaking/EnhancedSmartStakingCoreV2.sol": {
+
+      "contracts/SmartStaking/SmartStakingCore.sol": {
         version: "0.8.28",
         settings: {
           optimizer: {
@@ -169,7 +164,7 @@ module.exports = {
           evmVersion: "shanghai"
         }
       },
-      "contracts/Marketplace/IndividualSkillsMarketplace.sol": {
+      "contracts/NuxPower/NuxPowerMarketplace.sol": {
         version: "0.8.28",
         settings: {
           optimizer: {
@@ -186,7 +181,7 @@ module.exports = {
           evmVersion: "shanghai"
         }
       },
-      "contracts/Marketplace/IndividualSkillsMarketplaceImpl.sol": {
+      "contracts/NuxPower/NuxPowerMarketplaceImpl.sol": {
         version: "0.8.28",
         settings: {
           optimizer: {
@@ -200,6 +195,16 @@ module.exports = {
             }
           },
           viaIR: true,
+          evmVersion: "shanghai"
+        }
+      },
+      "contracts/NuxPower/AgentNuxPower.sol": {
+        version: "0.8.28",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1
+          },
           evmVersion: "shanghai"
         }
       }
@@ -212,7 +217,8 @@ module.exports = {
       },
       chainId: 31337,
       gas: "auto",
-      gasPrice: "auto"
+      gasPrice: "auto",
+      allowUnlimitedContractSize: true
     },
     polygon: {
       url: `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,

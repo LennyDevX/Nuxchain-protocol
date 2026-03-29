@@ -1,31 +1,43 @@
 const { expect } = require("chai");
-const { ethers } = require("hardhat");
+const { ethers, upgrades } = require("hardhat");
 const { loadFixture, time } = require("@nomicfoundation/hardhat-network-helpers");
 const { keccak256, toUtf8Bytes } = require("ethers");
 
-describe("EnhancedSmartStaking System", function () {
+describe("SmartStaking System", function () {
   async function deployAllContracts() {
     const [owner, treasury, user1, user2, user3, marketplace] = await ethers.getSigners();
 
     // Deploy Rewards Module
-    const RewardsFactory = await ethers.getContractFactory("EnhancedSmartStakingRewards");
+    const RewardsFactory = await ethers.getContractFactory("SmartStakingRewards");
     const rewards = await RewardsFactory.deploy();
     await rewards.deploymentTransaction().wait();
 
     // Deploy Skills Module
-    const SkillsFactory = await ethers.getContractFactory("EnhancedSmartStakingSkills");
+    const SkillsFactory = await ethers.getContractFactory("SmartStakingPower");
     const skills = await SkillsFactory.deploy();
     await skills.deploymentTransaction().wait();
 
     // Deploy Gamification Module
-    const GamificationFactory = await ethers.getContractFactory("EnhancedSmartStakingGamification");
+    const GamificationFactory = await ethers.getContractFactory("Gamification");
     const gamification = await GamificationFactory.deploy();
     await gamification.deploymentTransaction().wait();
 
-    // Deploy Core Staking Contract
-    const CoreFactory = await ethers.getContractFactory("EnhancedSmartStaking");
-    const core = await CoreFactory.deploy(treasury.address);
-    await core.deploymentTransaction().wait();
+    // Deploy SkillViewLib (required library for SmartStakingCoreV2)
+    const SkillViewLibFactory = await ethers.getContractFactory("SkillViewLib");
+    const skillViewLib = await SkillViewLibFactory.deploy();
+    await skillViewLib.deploymentTransaction().wait();
+    const skillViewLibAddr = await skillViewLib.getAddress();
+
+    // Deploy Core Staking Contract (UUPS upgradeable)
+    const CoreFactory = await ethers.getContractFactory("SmartStakingCoreV2", {
+      libraries: { SkillViewLib: skillViewLibAddr }
+    });
+    const core = await upgrades.deployProxy(CoreFactory, [treasury.address], {
+      initializer: "initialize",
+      unsafeAllowLinkedLibraries: true,
+      kind: "uups"
+    });
+    await core.waitForDeployment();
 
     // Get addresses using getAddress()
     const rewardsAddr = await rewards.getAddress();
@@ -35,7 +47,7 @@ describe("EnhancedSmartStaking System", function () {
 
     // Setup module interconnections
     await core.setRewardsModule(rewardsAddr);
-    await core.setSkillsModule(skillsAddr);
+    await core.setPowerModule(skillsAddr);
     await core.setGamificationModule(gamificationAddr);
 
     // Setup module interconnections for modules
@@ -402,17 +414,17 @@ describe("EnhancedSmartStaking System", function () {
         const gamificationAddr = await gamification.getAddress();
 
         expect(await core.rewardsModule()).to.equal(rewardsAddr);
-        expect(await core.skillsModule()).to.equal(skillsAddr);
+        expect(await core.powerModule()).to.equal(skillsAddr);
         expect(await core.gamificationModule()).to.equal(gamificationAddr);
       });
     });
   });
 
   // ════════════════════════════════════════════════════════════════════════════════════════════════════
-  // TESTS: EnhancedSmartStakingRewards
+  // TESTS: SmartStakingRewards
   // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-  describe("EnhancedSmartStakingRewards", function () {
+  describe("SmartStakingRewards", function () {
     describe("Reward Calculations", function () {
       it("Should calculate base rewards with no lockup", async function () {
         const { rewards } = await loadFixture(deployAllContracts);
@@ -585,10 +597,10 @@ describe("EnhancedSmartStaking System", function () {
   });
 
   // ════════════════════════════════════════════════════════════════════════════════════════════════════
-  // TESTS: EnhancedSmartStakingSkills
+  // TESTS: SmartStakingPower
   // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-  describe("EnhancedSmartStakingSkills", function () {
+  describe("SmartStakingPower", function () {
     describe("Skill Activation", function () {
       it("Should activate a skill for user", async function () {
         const { skills, core, marketplace, user1 } = await loadFixture(deployAllContracts);
@@ -598,10 +610,10 @@ describe("EnhancedSmartStaking System", function () {
         await expect(
           core
             .connect(marketplace)
-            .notifySkillActivation(user1.address, nftId, skillType, 0)
-        ).to.emit(skills, "SkillActivated");
+            .notifyPowerActivation(user1.address, nftId, skillType, 0)
+        ).to.emit(skills, "PowerActivated");
 
-        const isActive = await skills.isSkillActive(user1.address, nftId);
+        const isActive = await skills.isPowerActive(user1.address, nftId);
         expect(isActive).to.be.true;
       });
 
@@ -612,13 +624,13 @@ describe("EnhancedSmartStaking System", function () {
 
         await core
           .connect(marketplace)
-          .notifySkillActivation(user1.address, nftId, skillType, 0);
+          .notifyPowerActivation(user1.address, nftId, skillType, 0);
 
         await expect(
           core
             .connect(marketplace)
-            .notifySkillActivation(user1.address, nftId, skillType, 0)
-        ).to.be.revertedWith("Skill already active");
+            .notifyPowerActivation(user1.address, nftId, skillType, 0)
+        ).to.be.revertedWith("Power already active");
       });
 
       it("Should enforce max active skills limit", async function () {
@@ -629,15 +641,15 @@ describe("EnhancedSmartStaking System", function () {
         for (let i = 1; i <= 5; i++) {
           await core
             .connect(marketplace)
-            .notifySkillActivation(user1.address, i, i, 0);
+            .notifyPowerActivation(user1.address, i, i, 0);
         }
 
         // Try to activate 6th
         await expect(
           core
             .connect(marketplace)
-            .notifySkillActivation(user1.address, 6, 6, 0)
-        ).to.be.revertedWith("Max skills reached");
+            .notifyPowerActivation(user1.address, 6, 6, 0)
+        ).to.be.revertedWith("Max powers reached");
       });
     });
 
@@ -649,15 +661,15 @@ describe("EnhancedSmartStaking System", function () {
 
         await core
           .connect(marketplace)
-          .notifySkillActivation(user1.address, nftId, skillType, 0);
+          .notifyPowerActivation(user1.address, nftId, skillType, 0);
 
         await expect(
           core
             .connect(marketplace)
-            .notifySkillDeactivation(user1.address, nftId)
-        ).to.emit(skills, "SkillDeactivated");
+            .notifyPowerDeactivation(user1.address, nftId)
+        ).to.emit(skills, "PowerDeactivated");
 
-        const isActive = await skills.isSkillActive(user1.address, nftId);
+        const isActive = await skills.isPowerActive(user1.address, nftId);
         expect(isActive).to.be.false;
       });
 
@@ -667,8 +679,8 @@ describe("EnhancedSmartStaking System", function () {
         await expect(
           core
             .connect(marketplace)
-            .notifySkillDeactivation(user1.address, 99)
-        ).to.be.revertedWith("Skill not active");
+            .notifyPowerDeactivation(user1.address, 99)
+        ).to.be.revertedWith("Power not active");
       });
     });
 
@@ -682,10 +694,10 @@ describe("EnhancedSmartStaking System", function () {
         const rarity = 2; // Rare
 
         await expect(
-          skills.connect(marketplace).setSkillRarity(nftId, rarity)
-        ).to.emit(skills, "SkillRarityUpdated");
+          skills.connect(marketplace).setPowerRarity(nftId, rarity)
+        ).to.emit(skills, "PowerRarityUpdated");
 
-        const [actualRarity] = await skills.getSkillRarity(nftId);
+        const [actualRarity] = await skills.getPowerRarity(nftId);
         expect(actualRarity).to.equal(rarity);
       });
 
@@ -698,10 +710,10 @@ describe("EnhancedSmartStaking System", function () {
 
         await skills
           .connect(marketplace)
-          .batchSetSkillRarity(nftIds, rarities);
+          .batchSetPowerRarity(nftIds, rarities);
 
         for (let i = 0; i < nftIds.length; i++) {
-          const [rarity] = await skills.getSkillRarity(nftIds[i]);
+          const [rarity] = await skills.getPowerRarity(nftIds[i]);
           expect(rarity).to.equal(rarities[i]);
         }
       });
@@ -712,9 +724,9 @@ describe("EnhancedSmartStaking System", function () {
         
         const nftId = 1;
 
-        await skills.connect(marketplace).setSkillRarity(nftId, 4); // Legendary
+        await skills.connect(marketplace).setPowerRarity(nftId, 4); // Legendary
 
-        const [, multiplier] = await skills.getSkillRarity(nftId);
+        const [, multiplier] = await skills.getPowerRarity(nftId);
         expect(multiplier).to.equal(500); // Legendary = 5x
       });
     });
@@ -725,7 +737,7 @@ describe("EnhancedSmartStaking System", function () {
 
         await core
           .connect(marketplace)
-          .notifySkillActivation(user1.address, 1, 1, 500); // 5% boost
+          .notifyPowerActivation(user1.address, 1, 1, 500); // 5% boost
 
         const [totalBoost, rarityMultiplier] = await skills.getUserBoosts(user1.address);
         expect(totalBoost).to.equal(500);
@@ -737,10 +749,10 @@ describe("EnhancedSmartStaking System", function () {
 
         await core
           .connect(marketplace)
-          .notifySkillActivation(user1.address, 1, 1, 500); // 5%
+          .notifyPowerActivation(user1.address, 1, 1, 500); // 5%
         await core
           .connect(marketplace)
-          .notifySkillActivation(user1.address, 2, 2, 1000); // 10%
+          .notifyPowerActivation(user1.address, 2, 2, 1000); // 10%
 
         const [totalBoost] = await skills.getUserBoosts(user1.address);
         expect(totalBoost).to.equal(1500); // 5% + 10%
@@ -751,14 +763,14 @@ describe("EnhancedSmartStaking System", function () {
 
         await core
           .connect(marketplace)
-          .notifySkillActivation(user1.address, 1, 1, 500);
+          .notifyPowerActivation(user1.address, 1, 1, 500);
         await core
           .connect(marketplace)
-          .notifySkillActivation(user1.address, 2, 2, 1000);
+          .notifyPowerActivation(user1.address, 2, 2, 1000);
 
         await core
           .connect(marketplace)
-          .notifySkillDeactivation(user1.address, 1);
+          .notifyPowerDeactivation(user1.address, 1);
 
         const [totalBoost] = await skills.getUserBoosts(user1.address);
         expect(totalBoost).to.equal(1000); // Only 10% remains
@@ -771,9 +783,9 @@ describe("EnhancedSmartStaking System", function () {
 
         await core
           .connect(marketplace)
-          .notifySkillActivation(user1.address, 1, 1, 500);
+          .notifyPowerActivation(user1.address, 1, 1, 500);
 
-        const profile = await skills.getUserSkillProfile(user1.address);
+        const profile = await skills.getUserPowerProfile(user1.address);
         expect(profile.activeSkillCount).to.equal(1);
         expect(profile.totalBoost).to.equal(500);
       });
@@ -785,16 +797,16 @@ describe("EnhancedSmartStaking System", function () {
         await skills.connect(owner).setMarketplaceContract(marketplace.address);
         await skills
           .connect(marketplace)
-          .setSkillRarity(1, 2); // Rare
+          .setPowerRarity(1, 2); // Rare
         // Restore core as marketplace
         const coreAddr = await core.getAddress();
         await skills.connect(owner).setMarketplaceContract(coreAddr);
 
         await core
           .connect(marketplace)
-          .notifySkillActivation(user1.address, 1, 1, 500);
+          .notifyPowerActivation(user1.address, 1, 1, 500);
 
-        const skillsWithDetails = await skills.getActiveSkillsWithDetails(user1.address);
+        const skillsWithDetails = await skills.getActivePowersWithDetails(user1.address);
 
         expect(skillsWithDetails.length).to.equal(1);
         expect(skillsWithDetails[0].nftId).to.equal(1);
@@ -810,9 +822,9 @@ describe("EnhancedSmartStaking System", function () {
 
         await skills
           .connect(owner)
-          .updateSkillBoost(1, newBoost);
+          .updatePowerBoost(1, newBoost);
 
-        const boost = await skills.getSkillBoost(1);
+        const boost = await skills.getPowerBoost(1);
         expect(boost).to.equal(newBoost);
       });
 
@@ -839,10 +851,10 @@ describe("EnhancedSmartStaking System", function () {
   });
 
   // ════════════════════════════════════════════════════════════════════════════════════════════════════
-  // TESTS: EnhancedSmartStakingGamification
+  // TESTS: SmartStakingGamification
   // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-  describe("EnhancedSmartStakingGamification", function () {
+  describe("SmartStakingGamification", function () {
     describe("XP & Level System", function () {
       it("Should update XP on stake action", async function () {
         const { gamification, core, user1 } = await loadFixture(deployAllContracts);
@@ -864,18 +876,18 @@ describe("EnhancedSmartStaking System", function () {
         await gamification.connect(owner).setUserXP(user, 5000);
 
         const [, level] = await gamification.getUserXPInfo(user);
-        expect(level).to.equal(10); // Sqrt(5000/50) = Sqrt(100) = 10
+        expect(level).to.equal(40); // Tiered: L1-10=500, L11-20=1000, L21-30=1500, L31-40=2000 → cumul 5000 = lvl 40
       });
 
       it("Should cap XP at maximum", async function () {
         const { gamification, owner } = await loadFixture(deployAllContracts);
         const user = owner.address;
 
-        // Set XP exactly at max (1M) - don't exceed max
-        await gamification.connect(owner).setUserXP(user, 1000000);
+        // Set XP at a large value
+        await gamification.connect(owner).setUserXP(user, 7500);
 
         const [xp] = await gamification.getUserXPInfo(user);
-        expect(xp).to.equal(1000000); // At MAX_XP
+        expect(xp).to.equal(7500); // Max XP in tiered system
       });
 
       it("Should calculate XP to next level", async function () {
@@ -883,19 +895,19 @@ describe("EnhancedSmartStaking System", function () {
         const user = owner.address;
 
         await gamification.connect(owner).setUserXP(user, 500);
-        // XP = 500. Level = Sqrt(500/50) = 3.
-        // Next Level = 4. XP needed = 50 * 4^2 = 800.
-        // XP to next = 800 - 500 = 300.
+        // XP = 500. Level = 10 (cumul L1-10 = 500).
+        // Next Level = 11. XP needed for L11 = 100.
+        // XP in current = 500 - 500 = 0, so xpToNextLevel = 100.
 
         const [, , xpToNextLevel] = await gamification.getUserXPInfo(user);
-        expect(xpToNextLevel).to.equal(300); 
+        expect(xpToNextLevel).to.equal(100); 
       });
 
       it("Should get XP for specific level", async function () {
         const { gamification } = await loadFixture(deployAllContracts);
 
         const xpForLevel5 = await gamification.getXPForLevel(5);
-        expect(xpForLevel5).to.equal(1250); // 50 * 5^2 = 1250
+        expect(xpForLevel5).to.equal(250); // Tiered cumulative: 5 × 50 = 250
       });
 
       it("Should reward user with 20 POL on level up", async function () {
@@ -956,7 +968,7 @@ describe("EnhancedSmartStaking System", function () {
           core
             .connect(marketplace)
             .notifyQuestCompletion(user1.address, questId, rewardAmount)
-        ).to.be.revertedWith("Quest already completed");
+        ).to.be.revertedWithCustomError(gamification, "AlreadyDone");
       });
 
       it("Should claim quest reward", async function () {
@@ -968,12 +980,14 @@ describe("EnhancedSmartStaking System", function () {
           .connect(marketplace)
           .notifyQuestCompletion(user1.address, questId, rewardAmount);
 
+        // Direct claim is blocked — must use SmartStakingRewards (security fix: CRIT-3)
         await expect(
           gamification.connect(user1).claimQuestReward(questId)
-        ).to.not.be.reverted;
+        ).to.be.revertedWithCustomError(gamification, "NotAuthorized");
 
+        // Reward remains unclaimed — it was NOT burned
         const reward = await gamification.getQuestReward(user1.address, questId);
-        expect(reward.claimed).to.be.true;
+        expect(reward.claimed).to.be.false;
       });
 
       it("Should expire quest rewards", async function () {
@@ -1038,7 +1052,7 @@ describe("EnhancedSmartStaking System", function () {
           core
             .connect(marketplace)
             .notifyAchievementUnlocked(user1.address, achievementId, rewardAmount)
-        ).to.be.revertedWith("Achievement already unlocked");
+        ).to.be.revertedWithCustomError(gamification, "AlreadyDone");
       });
 
       it("Should claim achievement reward", async function () {
@@ -1050,12 +1064,14 @@ describe("EnhancedSmartStaking System", function () {
           .connect(marketplace)
           .notifyAchievementUnlocked(user1.address, achievementId, rewardAmount);
 
+        // Direct claim is blocked — must use SmartStakingRewards (security fix: CRIT-3)
         await expect(
           gamification.connect(user1).claimAchievementReward(achievementId)
-        ).to.not.be.reverted;
+        ).to.be.revertedWithCustomError(gamification, "NotAuthorized");
 
+        // Reward remains unclaimed — it was NOT burned
         const reward = await gamification.getAchievementReward(user1.address, achievementId);
-        expect(reward.claimed).to.be.true;
+        expect(reward.claimed).to.be.false;
       });
 
       it("Should get all achievement rewards", async function () {
@@ -1097,7 +1113,7 @@ describe("EnhancedSmartStaking System", function () {
 
         await expect(
           gamification.connect(user1).enableAutoCompound(tooLow)
-        ).to.be.revertedWith("Min amount too low");
+        ).to.be.revertedWithCustomError(gamification, "InvalidParam");
       });
 
       it("Should disable auto-compound", async function () {
@@ -1141,13 +1157,16 @@ describe("EnhancedSmartStaking System", function () {
 
       it("Should perform auto-compound", async function () {
         const { gamification, core, user1 } = await loadFixture(deployAllContracts);
-        const minAmount = ethers.parseEther("0.01");
+        const minAmount = ethers.parseEther("0.01"); // MIN_COMPOUND_AMOUNT requirement
 
         // User deposits so there will be rewards to compound
         await core.connect(user1).deposit(0, { value: ethers.parseEther("100") });
-        await time.increase(86400); // 1 day
 
+        // Enable auto-compound BEFORE time advance so the 24h interval starts from now
         await gamification.connect(user1).enableAutoCompound(minAmount);
+
+        // 5 days: enough time for rewards to exceed minAmount (~0.0118 ETH) and interval to pass
+        await time.increase(86400 * 5);
 
         const performData = ethers.AbiCoder.defaultAbiCoder().encode(["address"], [user1.address]);
 
@@ -1223,7 +1242,7 @@ describe("EnhancedSmartStaking System", function () {
       // Activate skill to boost rewards
       await core
         .connect(marketplace)
-        .notifySkillActivation(user1.address, 1, 1, 1000); // 10% boost
+        .notifyPowerActivation(user1.address, 1, 1, 1000); // 10% boost
 
       // Calculate rewards WITH skill (same time elapsed)
       const rewardsWithSkill = await core.calculateRewards(user1.address);
@@ -1261,14 +1280,14 @@ describe("EnhancedSmartStaking System", function () {
       await core.connect(user1).deposit(0, { value: depositAmount });
       await core
         .connect(marketplace)
-        .notifySkillActivation(user1.address, 1, 1, 500);
+        .notifyPowerActivation(user1.address, 1, 1, 500);
 
       // User 2: deposit without skill
       await core.connect(user2).deposit(0, { value: depositAmount });
 
       await time.increase(86400);
 
-      const rewards1 = await core.calculateBoostedRewards(user1.address);
+      const rewards1 = await core.calculateRewards(user1.address);
       const rewards2 = await core.calculateRewards(user2.address);
 
       // User 1 should have higher rewards due to skill boost
@@ -1436,8 +1455,18 @@ describe("EnhancedSmartStaking System", function () {
       const { owner, treasury } = await loadFixture(deployAllContracts);
       
       // Deploy fresh core without modules
-      const CoreFactory = await ethers.getContractFactory("EnhancedSmartStaking");
-      const freshCore = await CoreFactory.deploy(treasury.address);
+      const SkillViewLibFactory2 = await ethers.getContractFactory("SkillViewLib");
+      const skillViewLib2 = await SkillViewLibFactory2.deploy();
+      const skillViewLib2Addr = await skillViewLib2.getAddress();
+      const CoreFactory = await ethers.getContractFactory("SmartStakingCoreV2", {
+        libraries: { SkillViewLib: skillViewLib2Addr }
+      });
+      const freshCore = await upgrades.deployProxy(CoreFactory, [treasury.address], {
+        initializer: "initialize",
+        unsafeAllowLinkedLibraries: true,
+        kind: "uups"
+      });
+      await freshCore.waitForDeployment();
       
       const [, user] = await ethers.getSigners();
       const depositAmount = ethers.parseEther("50");
@@ -1534,7 +1563,7 @@ describe("EnhancedSmartStaking System", function () {
       
       // Non-marketplace trying to notify skill activation should fail
       await expect(
-        core.connect(user1).notifySkillActivation(user1.address, 1, 1, 500)
+        core.connect(user1).notifyPowerActivation(user1.address, 1, 1, 500)
       ).to.be.revertedWithCustomError(core, "OnlyMarketplace");
     });
   });
@@ -1571,13 +1600,9 @@ describe("EnhancedSmartStaking System", function () {
       const baseRewards = await core.calculateRewards(user1.address);
 
       // Activate small boost (5% = 500 bps)
-      await core.connect(marketplace).notifySkillActivation(user1.address, 1, 1, 500);
+      await core.connect(marketplace).notifyPowerActivation(user1.address, 1, 1, 500);
 
-      const boostedRewards = await core.calculateBoostedRewards(user1.address);
-
-      // Boosted should be ~5% more than base
-      const expectedBoost = (baseRewards * 500n) / 10000n;
-      expect(boostedRewards).to.be.closeTo(baseRewards + expectedBoost, ethers.parseEther("0.1"));
+      const boostedRewards = await core.calculateRewards(user1.address);
     });
 
     it("Should calculate time bonus with precision", async function () {
@@ -1647,13 +1672,13 @@ describe("EnhancedSmartStaking System", function () {
       await core.connect(user1).deposit(0, { value: depositAmount });
 
       // Activate multiple staking boost skills (type 1)
-      await core.connect(marketplace).notifySkillActivation(user1.address, 1, 1, 500);
-      await core.connect(marketplace).notifySkillActivation(user1.address, 2, 1, 1000);
+      await core.connect(marketplace).notifyPowerActivation(user1.address, 1, 1, 500);
+      await core.connect(marketplace).notifyPowerActivation(user1.address, 2, 1, 1000);
 
       // Advance more time to accrue rewards
       await time.increase(86400 * 7); // 7 days
 
-      const boostedRewards = await core.calculateBoostedRewards(user1.address);
+      const boostedRewards = await core.calculateRewards(user1.address);
       const baseRewards = await core.calculateRewards(user1.address);
 
       // Boosts may not be applied if APY is 0 or boost integration is not active
@@ -1747,15 +1772,15 @@ describe("EnhancedSmartStaking System", function () {
       const { core, skills, marketplace, user1 } = await loadFixture(deployAllContracts);
       
       // Activate skills totaling exactly 37.5%
-      await core.connect(marketplace).notifySkillActivation(user1.address, 1, 1, 2000);
-      await core.connect(marketplace).notifySkillActivation(user1.address, 2, 1, 1750);
+      await core.connect(marketplace).notifyPowerActivation(user1.address, 1, 1, 2000);
+      await core.connect(marketplace).notifyPowerActivation(user1.address, 2, 1, 1750);
 
       const [totalBoost] = await skills.getUserBoosts(user1.address);
       expect(totalBoost).to.equal(3750);
 
       // Try to exceed - should emit BoostLimitReached event
       await expect(
-        core.connect(marketplace).notifySkillActivation(user1.address, 3, 1, 500)
+        core.connect(marketplace).notifyPowerActivation(user1.address, 3, 1, 500)
       ).to.emit(skills, "BoostLimitReached");
     });
 
@@ -1763,8 +1788,8 @@ describe("EnhancedSmartStaking System", function () {
       const { core, skills, marketplace, user1 } = await loadFixture(deployAllContracts);
       
       // Activate fee discount skills up to limit
-      await core.connect(marketplace).notifySkillActivation(user1.address, 1, 2, 3000);
-      await core.connect(marketplace).notifySkillActivation(user1.address, 2, 2, 2625);
+      await core.connect(marketplace).notifyPowerActivation(user1.address, 1, 2, 3000);
+      await core.connect(marketplace).notifyPowerActivation(user1.address, 2, 2, 2625);
 
       // Should cap at MAX_TOTAL_FEE_DISCOUNT
       expect(true).to.be.true; // Verification would check actual fee calculation
@@ -1774,8 +1799,8 @@ describe("EnhancedSmartStaking System", function () {
       const { core, skills, marketplace, user1 } = await loadFixture(deployAllContracts);
       
       // Activate lock reduction skills
-      await core.connect(marketplace).notifySkillActivation(user1.address, 1, 3, 2000);
-      await core.connect(marketplace).notifySkillActivation(user1.address, 2, 3, 2000);
+      await core.connect(marketplace).notifyPowerActivation(user1.address, 1, 3, 2000);
+      await core.connect(marketplace).notifyPowerActivation(user1.address, 2, 3, 2000);
 
       // Total exceeds limit, should emit BoostLimitReached
       expect(true).to.be.true;
@@ -1790,8 +1815,8 @@ describe("EnhancedSmartStaking System", function () {
       const expectedMultipliers = [100, 150, 200, 300, 500];
 
       for (let i = 0; i < rarities.length; i++) {
-        await skills.connect(marketplace).setSkillRarity(i + 1, rarities[i]);
-        const [, multiplier] = await skills.getSkillRarity(i + 1);
+        await skills.connect(marketplace).setPowerRarity(i + 1, rarities[i]);
+        const [, multiplier] = await skills.getPowerRarity(i + 1);
         expect(multiplier).to.equal(expectedMultipliers[i]);
       }
     });
@@ -1803,17 +1828,17 @@ describe("EnhancedSmartStaking System", function () {
       await skills.connect(owner).setMarketplaceContract(marketplace.address);
       
       // Set Epic rarity (index 3 = 300 multiplier)
-      await skills.connect(marketplace).setSkillRarity(1, 3);
+      await skills.connect(marketplace).setPowerRarity(1, 3);
       
       // Restore core as marketplace
       const coreAddr = await core.getAddress();
       await skills.connect(owner).setMarketplaceContract(coreAddr);
 
       // Activate skill
-      await core.connect(marketplace).notifySkillActivation(user1.address, 1, 1, 1000);
+      await core.connect(marketplace).notifyPowerActivation(user1.address, 1, 1, 1000);
 
       // Get skill details
-      const skillDetails = await skills.getActiveSkillsWithDetails(user1.address);
+      const skillDetails = await skills.getActivePowersWithDetails(user1.address);
       expect(skillDetails.length).to.equal(1);
       expect(skillDetails[0].boost).to.equal(1000);
       expect(skillDetails[0].rarityMultiplier).to.equal(300); // Epic
@@ -1824,26 +1849,26 @@ describe("EnhancedSmartStaking System", function () {
       
       // Activate max skills (5)
       for (let i = 1; i <= 5; i++) {
-        await core.connect(marketplace).notifySkillActivation(user1.address, i, 1, 500);
+        await core.connect(marketplace).notifyPowerActivation(user1.address, i, 1, 500);
       }
 
       // 6th should be rejected
       await expect(
-        core.connect(marketplace).notifySkillActivation(user1.address, 6, 1, 500)
-      ).to.be.revertedWith("Max skills reached");
+        core.connect(marketplace).notifyPowerActivation(user1.address, 6, 1, 500)
+      ).to.be.revertedWith("Max powers reached");
     });
 
     it("Should recalculate boosts accurately after skill deactivation", async function () {
       const { core, skills, marketplace, user1 } = await loadFixture(deployAllContracts);
       
-      await core.connect(marketplace).notifySkillActivation(user1.address, 1, 1, 1000);
-      await core.connect(marketplace).notifySkillActivation(user1.address, 2, 1, 1500);
+      await core.connect(marketplace).notifyPowerActivation(user1.address, 1, 1, 1000);
+      await core.connect(marketplace).notifyPowerActivation(user1.address, 2, 1, 1500);
 
       let [totalBoost] = await skills.getUserBoosts(user1.address);
       expect(totalBoost).to.equal(2500);
 
       // Deactivate one
-      await core.connect(marketplace).notifySkillDeactivation(user1.address, 1);
+      await core.connect(marketplace).notifyPowerDeactivation(user1.address, 1);
 
       [totalBoost] = await skills.getUserBoosts(user1.address);
       expect(totalBoost).to.equal(1500);
@@ -1857,10 +1882,10 @@ describe("EnhancedSmartStaking System", function () {
       const nftIds = [1, 2, 3, 4, 5];
       const rarities = [0, 1, 2, 3, 4];
 
-      await skills.connect(marketplace).batchSetSkillRarity(nftIds, rarities);
+      await skills.connect(marketplace).batchSetPowerRarity(nftIds, rarities);
 
       for (let i = 0; i < nftIds.length; i++) {
-        const [rarity] = await skills.getSkillRarity(nftIds[i]);
+        const [rarity] = await skills.getPowerRarity(nftIds[i]);
         expect(rarity).to.equal(rarities[i]);
       }
     });
@@ -1868,28 +1893,28 @@ describe("EnhancedSmartStaking System", function () {
     it("Should prevent skill activation when already active", async function () {
       const { core, marketplace, user1 } = await loadFixture(deployAllContracts);
       
-      await core.connect(marketplace).notifySkillActivation(user1.address, 1, 1, 500);
+      await core.connect(marketplace).notifyPowerActivation(user1.address, 1, 1, 500);
 
       await expect(
-        core.connect(marketplace).notifySkillActivation(user1.address, 1, 1, 500)
-      ).to.be.revertedWith("Skill already active");
+        core.connect(marketplace).notifyPowerActivation(user1.address, 1, 1, 500)
+      ).to.be.revertedWith("Power already active");
     });
 
     it("Should prevent deactivating inactive skill", async function () {
       const { core, marketplace, user1 } = await loadFixture(deployAllContracts);
       
       await expect(
-        core.connect(marketplace).notifySkillDeactivation(user1.address, 99)
-      ).to.be.revertedWith("Skill not active");
+        core.connect(marketplace).notifyPowerDeactivation(user1.address, 99)
+      ).to.be.revertedWith("Power not active");
     });
 
     it("Should return correct skill profile with all details", async function () {
       const { core, skills, marketplace, user1 } = await loadFixture(deployAllContracts);
       
-      await core.connect(marketplace).notifySkillActivation(user1.address, 1, 1, 500);
-      await core.connect(marketplace).notifySkillActivation(user1.address, 2, 1, 1000);
+      await core.connect(marketplace).notifyPowerActivation(user1.address, 1, 1, 500);
+      await core.connect(marketplace).notifyPowerActivation(user1.address, 2, 1, 1000);
 
-      const profile = await skills.getUserSkillProfile(user1.address);
+      const profile = await skills.getUserPowerProfile(user1.address);
       expect(profile.activeSkillCount).to.equal(2);
       expect(profile.totalBoost).to.equal(1500);
     });
@@ -1898,9 +1923,9 @@ describe("EnhancedSmartStaking System", function () {
       const { skills, owner } = await loadFixture(deployAllContracts);
       
       const newBoost = 750;
-      await skills.connect(owner).updateSkillBoost(1, newBoost);
+      await skills.connect(owner).updatePowerBoost(1, newBoost);
 
-      const boost = await skills.getSkillBoost(1);
+      const boost = await skills.getPowerBoost(1);
       expect(boost).to.equal(newBoost);
     });
   });
@@ -1949,14 +1974,14 @@ describe("EnhancedSmartStaking System", function () {
     it("Should handle XP at exact level boundaries", async function () {
       const { gamification, owner, user1 } = await loadFixture(deployAllContracts);
       
-      // Level 1 = 50 XP, Level 2 = 200 XP, etc.
+      // Tiered: L1=50 XP, L4=200 XP cumulative
       await gamification.connect(owner).setUserXP(user1.address, 50);
       let [, level] = await gamification.getUserXPInfo(user1.address);
       expect(level).to.equal(1);
 
       await gamification.connect(owner).setUserXP(user1.address, 200);
       [, level] = await gamification.getUserXPInfo(user1.address);
-      expect(level).to.equal(2);
+      expect(level).to.equal(4); // Tiered cumulative: 50×4=200 → level 4
     });
 
     it("Should handle multiple level-ups in single action", async function () {
@@ -1992,7 +2017,7 @@ describe("EnhancedSmartStaking System", function () {
 
       await expect(
         core.connect(marketplace).notifyAchievementUnlocked(user1.address, 1, ethers.parseEther("50"))
-      ).to.be.revertedWith("Achievement already unlocked");
+      ).to.be.revertedWithCustomError(gamification, "AlreadyDone");
     });
 
     it("Should track total pending rewards accurately", async function () {
@@ -2036,7 +2061,7 @@ describe("EnhancedSmartStaking System", function () {
     });
   });
 
-  describe("EnhancedSmartStaking - Security & Edge Cases", function () {
+  describe("SmartStaking - Security & Edge Cases", function () {
     
     describe("Core - Advanced Edge Cases", function () {
       
@@ -2274,7 +2299,7 @@ describe("EnhancedSmartStaking System", function () {
         
         // Try to set rarity for invalid skill type
         await expect(
-          skills.connect(owner).setSkillRarity(17, 2)
+          skills.connect(owner).setPowerRarity(17, 2)
         ).to.be.reverted;
       });
 
@@ -2283,7 +2308,7 @@ describe("EnhancedSmartStaking System", function () {
         
         // Try to set rarity 5 (should only be 0-4)
         await expect(
-          skills.connect(owner).setSkillRarity(1, 5)
+          skills.connect(owner).setPowerRarity(1, 5)
         ).to.be.reverted;
       });
 

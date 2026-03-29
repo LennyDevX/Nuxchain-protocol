@@ -1,142 +1,102 @@
-# 📚 Technical Documentation
+# Nuxchain Protocol — Technical Documentation
 
-**Complete reference for developers & technical users**
-
----
-
-## 🗺️ Quick Navigation
-
-| Document | Purpose | Time |
-|---|---|---|
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | System design, contracts, formulas | 30 min |
-| [SMART_CONTRACTS_REFERENCE.md](./SMART_CONTRACTS_REFERENCE.md) | API reference & function docs | 45 min |
-| [DEPLOYMENT.md](./DEPLOYMENT.md) | Setup & deployment scripts | 20 min |
-| [Implementation Guides](./IMPLEMENTATION_GUIDES/) | Feature-specific integration | 60 min |
-| [Features](./FEATURES/) | Badge system & mechanics | 15 min |
-| [Contract Docs](./contracts/) | Individual contract details | Variable |
+**Version 7.0 · Solidity 0.8.28 · Polygon (chainId 137)**
 
 ---
 
-## 📖 Core Documentation
+## What is Nuxchain Protocol?
 
-### [ARCHITECTURE.md](./ARCHITECTURE.md)
-Complete system design overview
+Nuxchain is an on-chain DeFi + NFT ecosystem built on Polygon. It combines three interconnected pillars:
 
-✅ System architecture (5 layers)  
-✅ Smart staking protocol & formulas  
-✅ Gameified marketplace mechanics  
-✅ Treasury & sustainability model  
-✅ Cross-contract integration  
-✅ Tokenomics & rewards  
-✅ Security & risk management  
+| Pillar | What it does |
+|---|---|
+| **Smart Staking** | Users deposit POL and earn dynamic APY rewards. NFT Powers boost yields. |
+| **NFT Marketplace** | Users mint, trade, and collect NFTs. Trading earns XP and levels up user profiles. |
+| **NuxPower System** | Special NFTs that grant permanent on-chain powers (APY boosts, fee reductions, access rights). |
 
-**Start here** if you want to understand the entire system.
+All revenue flows through a central **TreasuryManager** that distributes funds weekly to staking rewards, collaborators, and development.
 
 ---
 
-### [SMART_CONTRACTS_REFERENCE.md](./SMART_CONTRACTS_REFERENCE.md)
-Complete API reference for developers
+## Documentation Index
 
-✅ Function signatures  
-✅ Event definitions  
-✅ State variables  
-✅ Error codes  
-✅ Gas estimates  
-
-**Start here** if you're integrating with contracts.
-
----
-
-### [DEPLOYMENT.md](./DEPLOYMENT.md)
-Deployment system & operational guide
-
-✅ Smart deployment (auto-detect changes)  
-✅ 3 deployment modes (Smart, Upgrade, Fresh)  
-✅ Configuration & environment setup  
-✅ Deployment checklist  
-✅ Troubleshooting & security  
-
-**Start here** if you're deploying contracts.
+| File | Description |
+|---|---|
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Full system overview, contract map, data flows |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | Deploy workflow: 4-step process from zero to live |
+| [contracts/SmartStaking.md](./contracts/SmartStaking.md) | All 12 staking contracts: core, modules, views |
+| [contracts/Marketplace.md](./contracts/Marketplace.md) | All 10 marketplace contracts: core, modules, social |
+| [contracts/Treasury.md](./contracts/Treasury.md) | TreasuryManager + QuestRewardsPool |
+| [contracts/NuxPower.md](./contracts/NuxPower.md) | NuxPowerNFT + PowerType enum + SmartStakingPower |
+| [contracts/Gamification.md](./contracts/Gamification.md) | LevelingSystem, QuestCore, CollaboratorBadgeRewards |
+| [integration/FRONTEND.md](./integration/FRONTEND.md) | ABI usage, key read calls, ethers.js patterns |
+| [integration/REWARDS.md](./integration/REWARDS.md) | APY formula, XP system, treasury flow details |
 
 ---
 
-## 📁 Directories
+## Quick Start
 
-### [IMPLEMENTATION_GUIDES/](./IMPLEMENTATION_GUIDES/)
-Step-by-step integration guides
+### Prerequisites
 
-- **[DynamicAPYCalculator.md](./IMPLEMENTATION_GUIDES/DynamicAPYCalculator.md)** - TVL-based APY scaling
-- **[EmergencyFundSystem.md](./IMPLEMENTATION_GUIDES/EmergencyFundSystem.md)** - Emergency fund mechanics
+- Node.js 18+
+- A `.env` file with:
 
-### [FEATURES/](./FEATURES/)
-Feature-specific documentation
+```env
+PRIVATE_KEY=0x...          # Deployer wallet private key
+TREASURY_ADDRESS=0x...     # Address to receive dev/owner fees
+POLYGONSCAN_API_KEY=...    # For contract verification
+```
 
-- **[CollaboratorBadgeRewards.md](./FEATURES/CollaboratorBadgeRewards.md)** - Badge system mechanics
+### Install & Test
 
-### [contracts/](./contracts/)
-Individual contract documentation
+```bash
+npm install
+npx hardhat compile
+npx hardhat test           # 623 tests — all must pass
+```
 
-- EnhancedSmartStaking.md
-- GameifiedMarketplaceCoreV1.md
-- GameifiedMarketplaceQuests.md
-- IndividualSkillsMarketplace.md
-- LevelingSystem.md
-- ReferralSystem.md
+### Deploy (4 steps)
 
----
+```bash
+# 1. Deploy all ~23 contracts
+npx hardhat run scripts/deploy.cjs --network polygon
 
-## 🎯 By Role
+# 2. Post-deploy wiring and configuration
+npx hardhat run scripts/configure.cjs --network polygon
 
-### Smart Contract Developers
-1. [ARCHITECTURE.md](./ARCHITECTURE.md) - Understand system
-2. [SMART_CONTRACTS_REFERENCE.md](./SMART_CONTRACTS_REFERENCE.md) - API reference
-3. [IMPLEMENTATION_GUIDES/](./IMPLEMENTATION_GUIDES/) - Specific features
-4. [contracts/](./contracts/) - Contract details
+# 3. Fund reward contracts with POL
+npx hardhat run scripts/fund.cjs --network polygon
 
-### DevOps / Deployment Engineers
-1. [DEPLOYMENT.md](./DEPLOYMENT.md) - Getting started
-2. Follow deployment checklist
-3. Configure environment
-4. Run scripts
+# 4. Verify on Polygonscan
+npx hardhat run scripts/verify.cjs --network polygon
+```
 
-### Architects / System Design
-1. [ARCHITECTURE.md](./ARCHITECTURE.md) - Complete overview
-2. Review security section
-3. Check integration flows
-4. Review tokenomics
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for full details.
 
 ---
 
-## 🔗 By Need
+## Contract Count
 
-**Understand...**
-- How rewards work → [ARCHITECTURE.md](./ARCHITECTURE.md#-smart-staking-protocol)
-- How marketplace works → [ARCHITECTURE.md](./ARCHITECTURE.md#-gameified-marketplace)
-- How skills affect APY → [ARCHITECTURE.md](./ARCHITECTURE.md#-nft--skills-system)
-- Treasury distribution → [ARCHITECTURE.md](./ARCHITECTURE.md#-treasury--circular-economy)
-
-**Integrate...**
-- Dynamic APY → [IMPLEMENTATION_GUIDES/DynamicAPYCalculator.md](./IMPLEMENTATION_GUIDES/DynamicAPYCalculator.md)
-- Emergency system → [IMPLEMENTATION_GUIDES/EmergencyFundSystem.md](./IMPLEMENTATION_GUIDES/EmergencyFundSystem.md)
-- Badge rewards → [FEATURES/CollaboratorBadgeRewards.md](./FEATURES/CollaboratorBadgeRewards.md)
-
-**Call...**
-- A specific function → [SMART_CONTRACTS_REFERENCE.md](./SMART_CONTRACTS_REFERENCE.md)
-- A specific contract → [contracts/](./contracts/)
+| System | Deployable contracts |
+|---|---|
+| Treasury | 2 |
+| Smart Staking | 12 (1 library + 11 deployable) |
+| Marketplace | 10 |
+| **Total** | **24** |
 
 ---
 
-## ✅ Quality
+## Key Numbers
 
-- ✅ Comprehensive architecture
-- ✅ Complete API reference
-- ✅ Deployment documented
-- ✅ Integration patterns
-- ✅ Security notes
-- ✅ Examples included
-- ✅ Cross-references
-- ✅ Up-to-date
-
----
-
-**Last Updated**: February 14, 2026 | **Version**: 5.0+ | **Status**: Complete ✅
+| Parameter | Value |
+|---|---|
+| Platform fee (staking & marketplace) | 6% |
+| Max marketplace offers per NFT | 50 |
+| Max NFT level (marketplace XP) | 50 |
+| Max staking deposits per user | 400 |
+| Min deposit | 10 POL |
+| Max deposit | 100,000 POL |
+| Base APY (no lock) | 8.60% |
+| Base APY (365-day lock) | 25.50% |
+| Treasury reserve allocation | 20% of all revenue |
+| Treasury distribution interval | Every 7 days |

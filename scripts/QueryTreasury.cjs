@@ -187,7 +187,7 @@ async function main() {
         ? [
             { name: "StakingCore",        addr: addresses.staking?.core },
             { name: "Marketplace",        addr: addresses.marketplace?.proxy },
-            { name: "IndividualSkills",   addr: addresses.marketplace?.individualSkills },
+            { name: "nuxPowers",   addr: addresses.marketplace?.nuxPowers },
           ]
         : [];
 

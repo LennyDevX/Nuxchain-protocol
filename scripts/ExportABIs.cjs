@@ -176,13 +176,13 @@ async function main() {
     console.log("   import allABIs from './abis/all-abis.json';\n");
     
     console.log("   // Access specific contract ABI");
-    console.log("   const core = allABIs['EnhancedSmartStaking'];\n");
+    console.log("   const core = allABIs['SmartStaking'];\n");
     
     console.log("   // Use with ethers.js (v6)");
     console.log("   const contract = new ethers.Contract(address, core.abi, signer);\n");
 
     console.log("   // TypeScript import (from index.ts)");
-    console.log("   import { EnhancedSmartStaking } from './abis';\n");
+    console.log("   import { SmartStaking } from './abis';\n");
 }
 
 /**
