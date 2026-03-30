@@ -32,7 +32,7 @@ interface ISmartStakingRewardsExtended {
     function clearStakingSince(address user) external;
 }
 
-contract SmartStakingCoreV2 is 
+contract SmartStakingCore is 
     Initializable,
     OwnableUpgradeable, 
     PausableUpgradeable, 

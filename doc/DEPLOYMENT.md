@@ -47,7 +47,7 @@ npx hardhat run scripts/deploy.cjs --network polygon
 
 **What it does:**
 - Phase 0: Deploys `TreasuryManager` + `QuestRewardsPool`
-- Phase 1: Deploys all 12 staking contracts (including `SkillViewLib` library and `SmartStakingCoreV2` proxy), wires modules together
+- Phase 1: Deploys all 12 staking contracts (including `SkillViewLib` library and `SmartStakingCore` proxy), wires modules together
 - Phase 2: Deploys all 10 marketplace contracts, wires modules together
 
 **Output:**
@@ -152,10 +152,10 @@ After all 5 steps complete, verify:
 - [ ] `deployments/addresses.json` exists with the flat address map
 - [ ] `frontend/config/contracts.generated.json` exists and matches the deployed network
 - [ ] `frontend/abis/runtime.js` exists and exports the latest ABI catalog
-- [ ] `TreasuryManager.authorizedSources` — SmartStakingCoreV2 and MarketplaceCore are both `true`
-- [ ] `SmartStakingCoreV2.rewardsModule()` → SmartStakingRewards address
-- [ ] `SmartStakingCoreV2.powerModule()` → SmartStakingPower address
-- [ ] `SmartStakingCoreV2.gamificationModule()` → SmartStakingGamification address
+- [ ] `TreasuryManager.authorizedSources` — SmartStakingCore and MarketplaceCore are both `true`
+- [ ] `SmartStakingCore.rewardsModule()` → SmartStakingRewards address
+- [ ] `SmartStakingCore.powerModule()` → SmartStakingPower address
+- [ ] `SmartStakingCore.gamificationModule()` → SmartStakingGamification address
 - [ ] `MarketplaceCore.statisticsModule()` → MarketplaceStatistics address
 - [ ] `MarketplaceCore.viewModule()` → MarketplaceView address
 - [ ] `MarketplaceCore.socialModule()` → MarketplaceSocial address
@@ -167,14 +167,14 @@ After all 5 steps complete, verify:
 
 ## Upgrading a Contract
 
-For UUPS proxies (`SmartStakingCoreV2`, `MarketplaceCore`, `LevelingSystem`, `ReferralSystem`, `QuestCore`, `CollaboratorBadgeRewards`):
+For UUPS proxies (`SmartStakingCore`, `MarketplaceCore`, `LevelingSystem`, `ReferralSystem`, `QuestCore`, `CollaboratorBadgeRewards`):
 
 ```js
 const proxyAddr = "0x...";   // existing proxy address (unchanged)
 const NewImpl = await ethers.getContractFactory("MyContractV2");
 await upgrades.upgradeProxy(proxyAddr, NewImpl, {
     kind: "uups",
-    // if SmartStakingCoreV2, add library:
+  // if SmartStakingCore, add library:
     // unsafeAllow: ["external-library-linking"]
 });
 ```
@@ -189,9 +189,9 @@ For plain contracts (`SmartStakingRewards`, `SmartStakingPower`, etc.):
 
 1. Deploy the new contract
 2. Call the setter on the Core:
-   - `SmartStakingCoreV2.setRewardsModule(newAddr)`
-   - `SmartStakingCoreV2.setPowerModule(newAddr)`
-   - `SmartStakingCoreV2.setGamificationModule(newAddr)`
+  - `SmartStakingCore.setRewardsModule(newAddr)`
+  - `SmartStakingCore.setPowerModule(newAddr)`
+  - `SmartStakingCore.setGamificationModule(newAddr)`
    - `MarketplaceCore.setStatisticsModule(newAddr)`
    - `MarketplaceCore.setViewModule(newAddr)`
    - `MarketplaceCore.setSocialModule(newAddr)`

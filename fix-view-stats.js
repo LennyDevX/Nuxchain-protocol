@@ -7,7 +7,7 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Using account:", deployer.address);
   
-  const viewStats = await ethers.getContractAt("EnhancedSmartStakingViewStats", viewStatsAddress);
+  const viewStats = await ethers.getContractAt("SmartStakingViewStats", viewStatsAddress);
   
   console.log("Updating stakingContract to:", coreAddress);
   const tx = await viewStats.setStakingContract(coreAddress);

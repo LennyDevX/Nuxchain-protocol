@@ -134,9 +134,7 @@ function setTreasuryManager(address _manager) external onlyRole(ADMIN_ROLE)
 function setSkillsContract(address _skills) external onlyRole(ADMIN_ROLE)
 function setLevelingSystem(address _leveling) external onlyRole(ADMIN_ROLE)
 function setReferralSystem(address _referral) external onlyRole(ADMIN_ROLE)
-function setCollaboratorRewardsContract(address _collab) external onlyRole(ADMIN_ROLE)
 function setStakingContract(address _staking) external onlyRole(ADMIN_ROLE)
-function setQuestsContract(address _quests) external onlyRole(ADMIN_ROLE)
 function pause() / unpause() external onlyRole(ADMIN_ROLE)
 ```
 

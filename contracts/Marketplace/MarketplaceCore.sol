@@ -36,11 +36,15 @@ contract MarketplaceCore is
     
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+    bytes32 private constant MODS_CATEGORY_HASH = keccak256("Mods");
+    bytes32 private constant INFLUENCER_CATEGORY_HASH = keccak256("Influencer");
+    bytes32 private constant AMBASSADOR_CATEGORY_HASH = keccak256("Ambassador");
+    bytes32 private constant BETA_TESTER_CATEGORY_HASH = keccak256("BetaTester");
+    bytes32 private constant VIP_PARTNER_CATEGORY_HASH = keccak256("VIPPartner");
     
     uint256 public constant PLATFORM_FEE_PERCENTAGE = 6;
     uint8 private constant MAX_LEVEL = 50;
     uint256 private constant MAX_XP = 5000;
-    uint256 private constant MAX_COMMENTS_PER_NFT = 1000;
     uint256 public constant MAX_OFFERS_PER_TOKEN = 50;
     
     struct NFTMetadata {
@@ -66,6 +70,15 @@ contract MarketplaceCore is
         uint32 nftsSold;
         uint32 nftsBought;
     }
+
+    struct SaleSettlement {
+        address seller;
+        address buyer;
+        uint256 grossAmount;
+        uint256 platformFee;
+        uint256 royaltyAmount;
+        uint256 sellerAmount;
+    }
     
     mapping(uint256 => NFTMetadata) public nftMetadata;
     mapping(uint256 => bool) public isListed;
@@ -84,15 +97,11 @@ contract MarketplaceCore is
     IMarketplaceStatistics public statisticsModule;
     IMarketplaceView public viewModule;
     IMarketplaceSocial public socialModule;
-    
-    mapping(address => uint256) public totalCreators;
-    
-    address public questsContractAddress;
+
     address public stakingContractAddress;
     mapping(address => UserProfile) public userProfiles;
     mapping(uint256 => bool) public isBadge;
     mapping(address => bool) public hasBadge;
-    address public collaboratorRewardsContract;
 
     event TokenCreated(address indexed creator, uint256 indexed tokenId, string uri);
     event TokenListed(address indexed seller, uint256 indexed tokenId, uint256 price);
@@ -106,7 +115,6 @@ contract MarketplaceCore is
     event LikeToggled(address indexed user, uint256 indexed tokenId, bool liked);
     event CommentAdded(address indexed user, uint256 indexed tokenId, string comment);
     event SkillsContractUpdated(address indexed oldAddress, address indexed newAddress);
-    event QuestsContractUpdated(address indexed oldAddress, address indexed newAddress);
     event StakingContractUpdated(address indexed oldAddress, address indexed newAddress);
     event LevelingSystemUpdated(address indexed oldAddress, address indexed newAddress);
     event ReferralSystemUpdated(address indexed oldAddress, address indexed newAddress);
@@ -114,11 +122,9 @@ contract MarketplaceCore is
     event TreasuryManagerUpdated(address indexed newManager);
     event ModuleUpdated(string indexed moduleName, address indexed oldModule, address indexed newModule);
 
-    error TokenNotFound();
     error NotTokenOwner();
     error TokenNotListed();
     error InsufficientPayment();
-    error NoOffersAvailable();
     error InvalidRoyalty();
     error InvalidPrice();
     error InvalidOfferId();
@@ -133,8 +139,6 @@ contract MarketplaceCore is
     error XPOverflow();
     error InvalidAddress();
     error TreasuryFailed();
-    error CollaboratorFailed();
-    error FallbackFailed();
     error SellerFailed();
     error RefundFailed();
     error BadgeSoulbound();
@@ -163,7 +167,6 @@ contract MarketplaceCore is
     
     function setViewModule(address _view) external onlyRole(ADMIN_ROLE) {
         if (_view == address(0)) revert InvalidAddress();
-        require(_view.code.length > 0, "Address is not a contract");
         address oldModule = address(viewModule);
         viewModule = IMarketplaceView(_view);
         emit ModuleUpdated("View", oldModule, _view);
@@ -171,7 +174,6 @@ contract MarketplaceCore is
     
     function setSocialModule(address _social) external onlyRole(ADMIN_ROLE) {
         if (_social == address(0)) revert InvalidAddress();
-        require(_social.code.length > 0, "Address is not a contract");
         address oldModule = address(socialModule);
         socialModule = IMarketplaceSocial(_social);
         emit ModuleUpdated("Social", oldModule, _social);
@@ -186,10 +188,10 @@ contract MarketplaceCore is
         
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
-        
+
         _safeMint(msg.sender, tokenId);
         _setTokenURI(tokenId, _tokenURI);
-        
+
         nftMetadata[tokenId] = NFTMetadata({
             creator: msg.sender,
             uri: _tokenURI,
@@ -201,11 +203,11 @@ contract MarketplaceCore is
         userProfiles[msg.sender].nftsCreated++;
         userProfiles[msg.sender].totalXP += 10;
         _createdTokens[msg.sender].add(tokenId);
-        
+
         if (address(viewModule) != address(0)) {
             viewModule.addNFTToCategory(tokenId, _category);
         }
-        
+
         if (_isBadgeCategory(_category)) {
             if (hasBadge[msg.sender]) revert AlreadyHasBadge();
             isBadge[tokenId] = true;
@@ -219,13 +221,13 @@ contract MarketplaceCore is
     }
 
     function _isBadgeCategory(string memory _category) internal pure returns (bool) {
-        bytes32 catHash = keccak256(abi.encodePacked(_category));
+        bytes32 catHash = keccak256(bytes(_category));
         return (
-            catHash == keccak256(abi.encodePacked("Mods")) ||
-            catHash == keccak256(abi.encodePacked("Influencer")) ||
-            catHash == keccak256(abi.encodePacked("Ambassador")) ||
-            catHash == keccak256(abi.encodePacked("BetaTester")) ||
-            catHash == keccak256(abi.encodePacked("VIPPartner"))
+            catHash == MODS_CATEGORY_HASH ||
+            catHash == INFLUENCER_CATEGORY_HASH ||
+            catHash == AMBASSADOR_CATEGORY_HASH ||
+            catHash == BETA_TESTER_CATEGORY_HASH ||
+            catHash == VIP_PARTNER_CATEGORY_HASH
         );
     }
 
@@ -244,10 +246,10 @@ contract MarketplaceCore is
             uint256 tokenId = _tokenIdCounter.current();
             tokenIds[i] = tokenId;
             _tokenIdCounter.increment();
-            
+
             _safeMint(msg.sender, tokenId);
             _setTokenURI(tokenId, _tokenURI);
-            
+
             nftMetadata[tokenId] = NFTMetadata({
                 creator: msg.sender,
                 uri: _tokenURI,
@@ -255,7 +257,7 @@ contract MarketplaceCore is
                 createdAt: block.timestamp,
                 royaltyPercentage: _royaltyPercentage
             });
-            
+
             _createdTokens[msg.sender].add(tokenId);
 
             if (_isBadgeCategory(_category)) {
@@ -310,56 +312,27 @@ contract MarketplaceCore is
         emit PriceUpdated(msg.sender, _tokenId, _newPrice);
     }
 
-    function buyToken(uint256 _tokenId) public payable whenNotPaused nonReentrant {
+    function buyToken(uint256 _tokenId) external payable whenNotPaused nonReentrant {
         if (!isListed[_tokenId]) revert TokenNotListed();
         if (msg.value < listedPrice[_tokenId]) revert InsufficientPayment();
         
         address seller = ownerOf(_tokenId);
         uint256 price = listedPrice[_tokenId];
         NFTMetadata memory meta = nftMetadata[_tokenId];
+        SaleSettlement memory settlement = _buildSaleSettlement(seller, msg.sender, price, meta);
         
         _transfer(seller, msg.sender, _tokenId);
-        
-        uint256 platformFee = (price * PLATFORM_FEE_PERCENTAGE) / 100;
-        uint256 royaltyAmount = 0;
-        if (meta.creator != seller && meta.royaltyPercentage > 0) {
-            royaltyAmount = (price * meta.royaltyPercentage) / 10000;
-            if (platformFee + royaltyAmount > price) royaltyAmount = price - platformFee;
-        }
-        uint256 sellerAmount = price - platformFee - royaltyAmount;
-        
-        userProfiles[seller].nftsSold++;
-        userProfiles[msg.sender].nftsBought++;
-        _addXP(seller, 20);
-        _addXP(msg.sender, 15);
-        
-        if (address(statisticsModule) != address(0)) {
-            statisticsModule.recordSale(seller, msg.sender, _tokenId, price, meta.category);
-            if (royaltyAmount > 0) statisticsModule.recordRoyaltyPayment(meta.creator, _tokenId, royaltyAmount);
-        }
-        
-        isListed[_tokenId] = false;
-        listedPrice[_tokenId] = 0;
-        _listedTokenIds.remove(_tokenId);
-        _refundAllOffers(_tokenId);
-        delete nftOffers[_tokenId];
-        
-        _distributeFee(platformFee);
-        
-        if (royaltyAmount > 0) {
-            (bool r,) = payable(meta.creator).call{value: royaltyAmount}("");
-            if (!r) revert RefundFailed();
-        }
-        
-        (bool s,) = payable(seller).call{value: sellerAmount}("");
-        if (!s) revert SellerFailed();
+
+        _recordSale(_tokenId, settlement, meta);
+        _clearListingAndRefundOffers(_tokenId, type(uint256).max);
+        _payoutSale(settlement, meta);
         
         if (msg.value > price) {
             (bool e,) = payable(msg.sender).call{value: msg.value - price}("");
             if (!e) revert RefundFailed();
         }
         
-        emit PlatformFeeTransferred(msg.sender, platformFee, platformTreasury, "TOKEN_SALE");
+        emit PlatformFeeTransferred(msg.sender, settlement.platformFee, platformTreasury, "TOKEN_SALE");
         emit TokenSold(seller, msg.sender, _tokenId, price);
         emit XPGained(seller, 20, "NFT_SOLD");
         emit XPGained(msg.sender, 15, "NFT_BOUGHT");
@@ -394,53 +367,15 @@ contract MarketplaceCore is
         address buyer = offer.offeror;
         uint256 amount = offer.amount;
         NFTMetadata memory meta = nftMetadata[_tokenId];
+        SaleSettlement memory settlement = _buildSaleSettlement(msg.sender, buyer, amount, meta);
         
         _transfer(msg.sender, buyer, _tokenId);
+
+        _recordSale(_tokenId, settlement, meta);
+        _clearListingAndRefundOffers(_tokenId, _offerIndex);
+        _payoutSale(settlement, meta);
         
-        uint256 platformFee = (amount * PLATFORM_FEE_PERCENTAGE) / 100;
-        uint256 royaltyAmount = 0;
-        if (meta.creator != msg.sender && meta.royaltyPercentage > 0) {
-            royaltyAmount = (amount * meta.royaltyPercentage) / 10000;
-            if (platformFee + royaltyAmount > amount) royaltyAmount = amount - platformFee;
-        }
-        uint256 sellerAmount = amount - platformFee - royaltyAmount;
-        
-        userProfiles[msg.sender].nftsSold++;
-        userProfiles[buyer].nftsBought++;
-        _addXP(msg.sender, 20);
-        _addXP(buyer, 15);
-        
-        if (address(statisticsModule) != address(0)) {
-            statisticsModule.recordSale(msg.sender, buyer, _tokenId, amount, meta.category);
-            if (royaltyAmount > 0) statisticsModule.recordRoyaltyPayment(meta.creator, _tokenId, royaltyAmount);
-        }
-        
-        isListed[_tokenId] = false;
-        listedPrice[_tokenId] = 0;
-        _listedTokenIds.remove(_tokenId);
-        
-        uint256 offerCount = nftOffers[_tokenId].length;
-        for (uint256 i = 0; i < offerCount; i++) {
-            if (i == _offerIndex) continue;
-            Offer memory other = nftOffers[_tokenId][i];
-            if (other.amount > 0) {
-                (bool r,) = payable(other.offeror).call{value: other.amount}("");
-                if (!r) revert RefundFailed();
-            }
-        }
-        delete nftOffers[_tokenId];
-        
-        _distributeFee(platformFee);
-        
-        if (royaltyAmount > 0) {
-            (bool r,) = payable(meta.creator).call{value: royaltyAmount}("");
-            if (!r) revert RefundFailed();
-        }
-        
-        (bool s,) = payable(msg.sender).call{value: sellerAmount}("");
-        if (!s) revert SellerFailed();
-        
-        emit PlatformFeeTransferred(buyer, platformFee, platformTreasury, "OFFER_ACCEPTED");
+        emit PlatformFeeTransferred(buyer, settlement.platformFee, platformTreasury, "OFFER_ACCEPTED");
         emit OfferAccepted(msg.sender, buyer, _tokenId, amount);
     }
 
@@ -489,21 +424,11 @@ contract MarketplaceCore is
     }
 
     function getOwnedTokensArray(address user) external view returns (uint256[] memory) {
-        uint256 count = _ownedTokens[user].length();
-        uint256[] memory result = new uint256[](count);
-        for (uint256 i = 0; i < count; i++) {
-            result[i] = _ownedTokens[user].at(i);
-        }
-        return result;
+        return _getTokenSetValues(_ownedTokens[user]);
     }
 
     function getCreatedTokensArray(address user) external view returns (uint256[] memory) {
-        uint256 count = _createdTokens[user].length();
-        uint256[] memory result = new uint256[](count);
-        for (uint256 i = 0; i < count; i++) {
-            result[i] = _createdTokens[user].at(i);
-        }
-        return result;
+        return _getTokenSetValues(_createdTokens[user]);
     }
 
     function getOffersArray(uint256 tokenId) external view returns (Offer[] memory) {
@@ -513,20 +438,6 @@ contract MarketplaceCore is
     // ════════════════════════════════════════════════════════════════════════════════════════
     // SOCIAL MODULE DELEGATORS (for backward compatibility with tests)
     // ════════════════════════════════════════════════════════════════════════════════════════
-
-    function nftLikeCount(uint256 _tokenId) external view returns (uint256) {
-        if (address(socialModule) != address(0)) {
-            return socialModule.getLikeCount(_tokenId);
-        }
-        return 0;
-    }
-
-    function totalTradingVolume() external view returns (uint256) {
-        if (address(statisticsModule) != address(0)) {
-            return statisticsModule.totalTradingVolume();
-        }
-        return 0;
-    }
 
     function updateUserXP(address _user, uint256 _amount) external onlyRole(ADMIN_ROLE) {
         if (userProfiles[_user].totalXP + _amount > MAX_XP) revert XPOverflow();
@@ -553,23 +464,11 @@ contract MarketplaceCore is
         emit SkillsContractUpdated(oldAddress, _skillsAddress);
     }
 
-    function setQuestsContract(address _questsAddress) external onlyRole(ADMIN_ROLE) {
-        if (_questsAddress == address(0)) revert InvalidAddress();
-        address oldAddress = questsContractAddress;
-        questsContractAddress = _questsAddress;
-        emit QuestsContractUpdated(oldAddress, _questsAddress);
-    }
-
     function setStakingContract(address _stakingAddress) external onlyRole(ADMIN_ROLE) {
         if (_stakingAddress == address(0)) revert InvalidAddress();
         address oldAddress = stakingContractAddress;
         stakingContractAddress = _stakingAddress;
         emit StakingContractUpdated(oldAddress, _stakingAddress);
-    }
-
-    function setCollaboratorRewardsContract(address _collaboratorRewards) external onlyRole(ADMIN_ROLE) {
-        if (_collaboratorRewards == address(0)) revert InvalidAddress();
-        collaboratorRewardsContract = _collaboratorRewards;
     }
 
     function setTreasuryManager(address _treasuryManager) external onlyRole(ADMIN_ROLE) {
@@ -653,15 +552,91 @@ contract MarketplaceCore is
         }
     }
 
-    function _refundAllOffers(uint256 _tokenId) private {
-        uint256 count = nftOffers[_tokenId].length;
+    function _getTokenSetValues(EnumerableSet.UintSet storage tokenSet)
+        private
+        view
+        returns (uint256[] memory result)
+    {
+        uint256 count = tokenSet.length();
+        result = new uint256[](count);
         for (uint256 i = 0; i < count; i++) {
-            Offer memory offer = nftOffers[_tokenId][i];
-            if (offer.amount > 0) {
-                (bool r,) = payable(offer.offeror).call{value: offer.amount}("");
-                if (!r) revert RefundFailed();
+            result[i] = tokenSet.at(i);
+        }
+    }
+
+    function _buildSaleSettlement(
+        address seller,
+        address buyer,
+        uint256 grossAmount,
+        NFTMetadata memory meta
+    ) private pure returns (SaleSettlement memory settlement) {
+        settlement.seller = seller;
+        settlement.buyer = buyer;
+        settlement.grossAmount = grossAmount;
+        settlement.platformFee = (grossAmount * PLATFORM_FEE_PERCENTAGE) / 100;
+
+        if (meta.creator != seller && meta.royaltyPercentage > 0) {
+            settlement.royaltyAmount = (grossAmount * meta.royaltyPercentage) / 10000;
+            if (settlement.platformFee + settlement.royaltyAmount > grossAmount) {
+                settlement.royaltyAmount = grossAmount - settlement.platformFee;
             }
         }
+
+        settlement.sellerAmount = grossAmount - settlement.platformFee - settlement.royaltyAmount;
+    }
+    function _recordSale(
+        uint256 tokenId,
+        SaleSettlement memory settlement,
+        NFTMetadata memory meta
+    ) private {
+        userProfiles[settlement.seller].nftsSold++;
+        userProfiles[settlement.buyer].nftsBought++;
+        _addXP(settlement.seller, 20);
+        _addXP(settlement.buyer, 15);
+
+        if (address(statisticsModule) != address(0)) {
+            statisticsModule.recordSale(
+                settlement.seller,
+                settlement.buyer,
+                tokenId,
+                settlement.grossAmount,
+                meta.category
+            );
+            if (settlement.royaltyAmount > 0) {
+                statisticsModule.recordRoyaltyPayment(meta.creator, tokenId, settlement.royaltyAmount);
+            }
+        }
+    }
+
+    function _clearListingAndRefundOffers(uint256 tokenId, uint256 skipOfferIndex) private {
+        isListed[tokenId] = false;
+        listedPrice[tokenId] = 0;
+        _listedTokenIds.remove(tokenId);
+
+        uint256 offerCount = nftOffers[tokenId].length;
+        for (uint256 i = 0; i < offerCount; i++) {
+            if (i == skipOfferIndex) continue;
+
+            Offer memory offer = nftOffers[tokenId][i];
+            if (offer.amount > 0) {
+                (bool refunded,) = payable(offer.offeror).call{value: offer.amount}("");
+                if (!refunded) revert RefundFailed();
+            }
+        }
+
+        delete nftOffers[tokenId];
+    }
+
+    function _payoutSale(SaleSettlement memory settlement, NFTMetadata memory meta) private {
+        _distributeFee(settlement.platformFee);
+
+        if (settlement.royaltyAmount > 0) {
+            (bool royaltyPaid,) = payable(meta.creator).call{value: settlement.royaltyAmount}("");
+            if (!royaltyPaid) revert RefundFailed();
+        }
+
+        (bool sellerPaid,) = payable(settlement.seller).call{value: settlement.sellerAmount}("");
+        if (!sellerPaid) revert SellerFailed();
     }
 
     /// @dev Internal fee distribution (100% to TreasuryManager integrated model)

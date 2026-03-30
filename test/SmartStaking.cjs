@@ -22,14 +22,14 @@ describe("SmartStaking System", function () {
     const gamification = await GamificationFactory.deploy();
     await gamification.deploymentTransaction().wait();
 
-    // Deploy SkillViewLib (required library for SmartStakingCoreV2)
+    // Deploy SkillViewLib (required library for SmartStakingCore)
     const SkillViewLibFactory = await ethers.getContractFactory("SkillViewLib");
     const skillViewLib = await SkillViewLibFactory.deploy();
     await skillViewLib.deploymentTransaction().wait();
     const skillViewLibAddr = await skillViewLib.getAddress();
 
     // Deploy Core Staking Contract (UUPS upgradeable)
-    const CoreFactory = await ethers.getContractFactory("SmartStakingCoreV2", {
+    const CoreFactory = await ethers.getContractFactory("SmartStakingCore", {
       libraries: { SkillViewLib: skillViewLibAddr }
     });
     const core = await upgrades.deployProxy(CoreFactory, [treasury.address], {
@@ -81,7 +81,7 @@ describe("SmartStaking System", function () {
     };
   }
 
-  describe("EnhancedSmartStakingCore", function () {
+  describe("SmartStakingCore", function () {
     describe("Deployment", function () {
       it("Should deploy with correct treasury address", async function () {
         const { core, treasury } = await loadFixture(deployAllContracts);
@@ -1458,7 +1458,7 @@ describe("SmartStaking System", function () {
       const SkillViewLibFactory2 = await ethers.getContractFactory("SkillViewLib");
       const skillViewLib2 = await SkillViewLibFactory2.deploy();
       const skillViewLib2Addr = await skillViewLib2.getAddress();
-      const CoreFactory = await ethers.getContractFactory("SmartStakingCoreV2", {
+      const CoreFactory = await ethers.getContractFactory("SmartStakingCore", {
         libraries: { SkillViewLib: skillViewLib2Addr }
       });
       const freshCore = await upgrades.deployProxy(CoreFactory, [treasury.address], {

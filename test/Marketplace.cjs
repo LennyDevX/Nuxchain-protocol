@@ -349,7 +349,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
         .to.emit(core, "LikeToggled")
         .withArgs(user2.address, 0n, true);
 
-      expect(await core.nftLikeCount(0)).to.equal(1);
+      expect(await social.getLikeCount(0)).to.equal(1);
     });
 
     it("Should toggle like off", async function () {
@@ -362,7 +362,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
         .to.emit(core, "LikeToggled")
         .withArgs(user2.address, 0n, false);
 
-      expect(await core.nftLikeCount(0)).to.equal(0);
+      expect(await social.getLikeCount(0)).to.equal(0);
     });
 
     it("Should track multiple likes", async function () {
@@ -374,7 +374,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       await core.connect(user3).toggleLike(0);
       await core.connect(user4).toggleLike(0);
 
-      expect(await core.nftLikeCount(0)).to.equal(3);
+      expect(await social.getLikeCount(0)).to.equal(3);
     });
 
     it("Should add comment to NFT", async function () {
@@ -815,7 +815,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it.skip("Should track NFT activities in profile", async function () {
-      const { core, leveling, user1, user2 } = await loadFixture(deployMarketplaceFixture);
+      const { core, statistics, leveling, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       // User1 creates NFT
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
@@ -1211,7 +1211,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
 
       // User3 likes the NFT
       await core.connect(user3).toggleLike(0);
-      expect(await core.nftLikeCount(0)).to.equal(1);
+      expect(await social.getLikeCount(0)).to.equal(1);
 
       // User3 adds comment
       await core.connect(user3).addComment(0, "Amazing art!");
@@ -2183,12 +2183,12 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it("Should track global ecosystem statistics accurately", async function () {
-      const { core, leveling, user1, user2 } = await loadFixture(deployMarketplaceFixture);
+      const { core, statistics, leveling, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
       await core.connect(user2).createStandardNFT("uri2", "music", 0);
 
-      const totalVolume = await core.totalTradingVolume();
+      const totalVolume = await statistics.totalTradingVolume();
       expect(totalVolume).to.be.gte(0);
     });
 

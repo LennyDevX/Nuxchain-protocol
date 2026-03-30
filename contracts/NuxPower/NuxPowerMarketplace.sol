@@ -88,7 +88,7 @@ contract NuxPowerMarketplace is AccessControl, Pausable, ReentrancyGuard, INuxPo
     uint8 private constant MAX_SKILL_TYPE = 16;                        // PRIVATE_AUCTIONS (17 total skills: 1-16)
     uint8 private constant MAX_RARITY = 4;                             // LEGENDARY
     uint8 private constant MIN_LEVEL = 1;
-    uint8 private constant MAX_LEVEL = 50;                             // Synchronized with GameifiedMarketplaceQuests
+    uint8 private constant MAX_LEVEL = 50;                             // Synchronized with QuestCore
     
     uint256 private constant MAX_ACTIVE_SKILLS_TOTAL = 5;              // Max 5 active skills total (synchronized with system)
     uint256 private constant BASIS_POINTS = 10000;                     // For percentage calculations

@@ -355,6 +355,7 @@ class DeploymentStrategy {
 
         // Mapeo de nombres de contratos a keys
         const keyMap = {
+            'SmartStakingCore': 'core',
             'SmartStakingCoreV2': 'core',
             'SmartStakingRewards': 'rewards',
             'SmartStakingSkills': 'skills',
@@ -364,7 +365,7 @@ class DeploymentStrategy {
             'GameifiedMarketplaceProxy': 'proxy',
             'GameifiedNuxPowerNft': 'skillsNFT',
             'NuxPowerMarketplace': 'nuxPowers',
-            'GameifiedMarketplaceQuests': 'quests',
+            'QuestCore': 'questCore',
             'LevelingSystem': 'leveling',
             'ReferralSystem': 'referral',
             'TreasuryManager': 'manager',
@@ -392,6 +393,10 @@ class DeploymentStrategy {
         
         const configs = {
             // STAKING CONTRACTS
+            'SmartStakingCore': {
+                args: [],
+                options: { isProxy: true, kind: 'uups', initializer: 'initialize' }
+            },
             'EnhancedSmartStakingCore': {
                 args: [],
                 options: { isProxy: true, kind: 'uups', initializer: 'initialize' }
@@ -442,9 +447,9 @@ class DeploymentStrategy {
             },
             
             // MARKETPLACE - FEATURES
-            'GameifiedMarketplaceQuests': {
-                args: [marketplaceCore],
-                options: { isProxy: false }
+            'QuestCore': {
+                args: [adminAddress, marketplaceCore],
+                options: { isProxy: true, kind: 'uups', initializer: 'initialize' }
             },
             'LevelingSystem': {
                 args: [],

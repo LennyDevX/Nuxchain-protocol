@@ -10,13 +10,13 @@
 // ============================================
 export interface ContractAddresses {
   // --- Smart Staking ---
-  StakingCore:           string;  // EnhancedSmartStakingCoreV2
-  StakingRewards:        string;  // EnhancedSmartStakingRewards
-  StakingSkills:         string;  // EnhancedSmartStakingSkills
-  StakingGamification:   string;  // EnhancedSmartStakingGamification
-  StakingViewCore:       string;  // EnhancedSmartStakingViewCore
-  StakingViewStats:      string;  // EnhancedSmartStakingViewStats
-  StakingViewSkills:     string;  // EnhancedSmartStakingViewSkills
+  StakingCore:           string;  // SmartStakingCore
+  StakingRewards:        string;  // SmartStakingRewards
+  StakingSkills:         string;  // SmartStakingPower
+  StakingGamification:   string;  // Gamification
+  StakingViewCore:       string;  // SmartStakingViewCore
+  StakingViewStats:      string;  // SmartStakingViewStats
+  StakingViewSkills:     string;  // SmartStakingViewSkills
   DynamicAPYCalculator:  string;  // DynamicAPYCalculator
   // --- Marketplace ---
   MarketplaceProxy:      string;  // GameifiedMarketplaceProxy (UUPS)
@@ -24,7 +24,7 @@ export interface ContractAddresses {
   MarketplaceReferral:   string;  // ReferralSystem
   MarketplaceSkillsNFT:  string;  // GameifiedMarketplaceSkillsNft
   IndividualSkills:      string;  // IndividualSkillsMarketplace
-  MarketplaceQuests:     string;  // GameifiedMarketplaceQuests
+  QuestCore:             string;  // QuestCore
   CollaboratorBadges:    string;  // CollaboratorBadgeRewards
   MarketplaceView:       string;  // MarketplaceView
   MarketplaceStatistics: string;  // MarketplaceStatistics
@@ -58,7 +58,7 @@ export const CONTRACT_ADDRESSES: ContractAddresses = {
   MarketplaceReferral:   '0xBCEFd299776237e6D7cf0d08E030582cE3214C90',
   MarketplaceSkillsNFT:  '0xe09e85E7AEd3A35fa77DCaC44D110664C42A4DCd',
   IndividualSkills:      '0x2248e909EC9E122D1D7206E86D2061681EfCC49B',
-  MarketplaceQuests:     '0x090774e87CFF7478910fbF8f035fA85414a8625a',
+  QuestCore:             '0x090774e87CFF7478910fbF8f035fA85414a8625a',
   CollaboratorBadges:    '0xc9B1bf1ae921280f2f048fd3d893AF6D18E99C51',
   MarketplaceView:       '0x579d34872d25a56235D61138dBdE1c81a6f20f4d',
   MarketplaceStatistics: '0x7C4c72d3D1b9a54178254c79Ca4F788111A9c99D',
@@ -107,21 +107,31 @@ export enum Rarity {
 }
 
 // ============================================
-// Marketplace QuestType Enum
+// QuestCore Enums
 // ============================================
 export enum QuestType {
-  PURCHASE = 0,
-  CREATE   = 1,
-  SOCIAL   = 2,
-  LEVEL_UP = 3,
-  TRADING  = 4
+  PURCHASE   = 0,
+  CREATE     = 1,
+  SOCIAL     = 2,
+  LEVEL_UP   = 3,
+  TRADING    = 4,
+  STAKE      = 5,
+  COMPOUND   = 6,
+  AGENT_TASK = 7
+}
+
+export enum QuestCategory {
+  MARKETPLACE = 0,
+  STAKING     = 1,
+  NFT_AGENT   = 2,
+  GENERAL     = 3
 }
 
 // ============================================
 // TypeScript Interfaces — Smart Staking
 // ============================================
 
-/** Single deposit details (EnhancedSmartStakingCoreV2) */
+/** Single deposit details (SmartStakingCore) */
 export interface DepositDetails {
   amount: bigint;
   depositTime: number;
@@ -356,11 +366,21 @@ export const RARITY_COLORS: Record<Rarity, string> = {
 };
 
 export const QUEST_TYPE_NAMES: Record<QuestType, string> = {
-  [QuestType.PURCHASE]: 'Purchase NFTs',
-  [QuestType.CREATE]:   'Create NFTs',
-  [QuestType.SOCIAL]:   'Social Engagement',
-  [QuestType.LEVEL_UP]: 'Level Up',
-  [QuestType.TRADING]:  'Trading Activity'
+  [QuestType.PURCHASE]:   'Purchase NFTs',
+  [QuestType.CREATE]:     'Create NFTs',
+  [QuestType.SOCIAL]:     'Social Engagement',
+  [QuestType.LEVEL_UP]:   'Level Up',
+  [QuestType.TRADING]:    'Trading Activity',
+  [QuestType.STAKE]:      'Stake POL',
+  [QuestType.COMPOUND]:   'Compound Rewards',
+  [QuestType.AGENT_TASK]: 'Agent Tasks'
+};
+
+export const QUEST_CATEGORY_NAMES: Record<QuestCategory, string> = {
+  [QuestCategory.MARKETPLACE]: 'Marketplace',
+  [QuestCategory.STAKING]:     'Staking',
+  [QuestCategory.NFT_AGENT]:   'NFT Agent',
+  [QuestCategory.GENERAL]:     'General'
 };
 
 export const PROTOCOL_STATUS_NAMES: Record<ProtocolStatus, string> = {

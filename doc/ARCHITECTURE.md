@@ -51,7 +51,7 @@ The protocol is organized in three independently deployable systems that share a
 | Contract | Type | Purpose |
 |---|---|---|
 | `SkillViewLib` | External library | Linked to Core; provides view helper logic |
-| `SmartStakingCoreV2` | UUPS Proxy | Orchestrator; handles deposits, withdrawals, lockups |
+| `SmartStakingCore` | UUPS Proxy | Orchestrator; handles deposits, withdrawals, lockups |
 | `SmartStakingRewards` | Plain (Ownable) | APY calculation and reward payouts |
 | `SmartStakingPower` | Plain (Ownable) | NFT power activation, rarity multipliers |
 | `SmartStakingGamification` | Plain (Ownable) | XP and level tracking for staking actions |
@@ -87,7 +87,7 @@ Deployment must follow this order (inner deps must exist before outer):
 ```
 Phase 0:  TreasuryManager, QuestRewardsPool
 Phase 1:  SmartStakingRewards, SmartStakingPower, SmartStakingGamification,
-          DynamicAPYCalculator, SkillViewLib, SmartStakingCoreV2 (links lib),
+          DynamicAPYCalculator, SkillViewLib, SmartStakingCore (links lib),
           ViewCore, ViewStats, ViewSkills, ViewDashboard
 Phase 2:  LevelingSystem, ReferralSystem, MarketplaceCore,
           MarketplaceView, MarketplaceStatistics, MarketplaceSocial,
@@ -101,7 +101,7 @@ Phase 2:  LevelingSystem, ReferralSystem, MarketplaceCore,
 ### Revenue Flow (Staking)
 
 ```
-user.deposit() → SmartStakingCoreV2
+user.deposit() → SmartStakingCore
                      └─ 6% commission → TreasuryManager.receiveRevenue()
                            └─ weekly → sub-treasuries (Rewards/Staking/Collaborators/Dev)
 ```
@@ -144,7 +144,7 @@ upgrader → proxy.upgradeTo(newImplementation)
                 └─ requires UPGRADER_ROLE
 ```
 
-Upgradeable contracts: `SmartStakingCoreV2`, `MarketplaceCore`, `LevelingSystem`, `ReferralSystem`, `QuestCore`, `CollaboratorBadgeRewards`.
+Upgradeable contracts: `SmartStakingCore`, `MarketplaceCore`, `LevelingSystem`, `ReferralSystem`, `QuestCore`, `CollaboratorBadgeRewards`.
 
 Non-upgradeable (plain): All module/view contracts, TreasuryManager, QuestRewardsPool. If updated, they get new addresses and Core must call `setXxxModule(newAddr)`.
 
@@ -152,7 +152,7 @@ Non-upgradeable (plain): All module/view contracts, TreasuryManager, QuestReward
 
 ## Role & Access Control
 
-### SmartStakingCoreV2 (Ownable)
+### SmartStakingCore (Ownable)
 
 | Who | Can do |
 |---|---|

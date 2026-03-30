@@ -1,11 +1,11 @@
 import { Contract } from "ethers";
 
 import {
-  EnhancedSmartStakingCoreV2,
-  EnhancedSmartStakingViewCore,
-  EnhancedSmartStakingViewStats,
-  EnhancedSmartStakingViewSkills,
-  GameifiedMarketplaceCoreV1,
+  SmartStakingCore,
+  SmartStakingViewCore,
+  SmartStakingViewStats,
+  SmartStakingViewSkills,
+  MarketplaceCore,
   MarketplaceView,
   MarketplaceStatistics,
   TreasuryManager
@@ -18,16 +18,16 @@ export function createTreasuryClient(runner, addresses = CONTRACT_ADDRESSES) {
 
 export function createStakingClients(runner, addresses = CONTRACT_ADDRESSES) {
   return {
-    stakingCore: new Contract(addresses.StakingCore, EnhancedSmartStakingCoreV2, runner),
-    stakingViewCore: new Contract(addresses.StakingViewCore, EnhancedSmartStakingViewCore, runner),
-    stakingViewStats: new Contract(addresses.StakingViewStats, EnhancedSmartStakingViewStats, runner),
-    stakingViewSkills: new Contract(addresses.StakingViewSkills, EnhancedSmartStakingViewSkills, runner)
+    stakingCore: new Contract(addresses.StakingCore, SmartStakingCore, runner),
+    stakingViewCore: new Contract(addresses.StakingViewCore, SmartStakingViewCore, runner),
+    stakingViewStats: new Contract(addresses.StakingViewStats, SmartStakingViewStats, runner),
+    stakingViewSkills: new Contract(addresses.StakingViewSkills, SmartStakingViewSkills, runner)
   };
 }
 
 export function createMarketplaceClients(runner, addresses = CONTRACT_ADDRESSES) {
   return {
-    marketplaceCore: new Contract(addresses.MarketplaceProxy, GameifiedMarketplaceCoreV1, runner),
+    marketplaceCore: new Contract(addresses.MarketplaceProxy, MarketplaceCore, runner),
     marketplaceView: new Contract(addresses.MarketplaceView, MarketplaceView, runner),
     marketplaceStatistics: new Contract(addresses.MarketplaceStatistics, MarketplaceStatistics, runner)
   };

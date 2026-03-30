@@ -10,7 +10,7 @@ import "../NuxAgentNFTBase.sol";
  *
  * CAPABILITIES:
  *   - Portfolio management with configurable risk profiles (CONSERVATIVE/MODERATE/AGGRESSIVE)
- *   - Automated staking strategies (integrates with SmartStakingCoreV2.sol)
+ *   - Automated staking strategies (integrates with SmartStakingCore.sol)
  *   - Yield optimization recommendations across multiple DeFi protocols
  *   - Price alert triggers (on-chain oracle integration)
  *   - Automated rebalancing proposals (off-chain via Gemini, executed by owner signature)
@@ -19,7 +19,7 @@ import "../NuxAgentNFTBase.sol";
  * STAKING INTEGRATION:
  *   The agent's TBA (Token Bound Account via ERC-6551) can hold staking positions.
  *   The Finance agent can trigger AUTO_COMPOUND on the owner's staking positions
- *   if granted operator approval on SmartStakingCoreV2.
+ *   if granted operator approval on SmartStakingCore.
  *
  * GEMINI INTEGRATION:
  *   - Model: gemini-2.5-pro (deep financial reasoning)
@@ -60,7 +60,7 @@ contract FinanceAgentNFT is NuxAgentNFTBase {
         uint256     alertsTriggered;
         uint256     stakingAPYBoost;
         bool        autoCompoundEnabled;  // Whether agent auto-compounds staking for owner
-        address     stakingContract;      // SmartStakingCoreV2 address
+        address     stakingContract;      // SmartStakingCore address
     }
 
     struct PriceAlert {
@@ -166,7 +166,7 @@ contract FinanceAgentNFT is NuxAgentNFTBase {
 
     /**
      * @notice Enable auto-compound — agent will propose compound calls for owner's staking
-     * @param stakingContract_ Address of SmartStakingCoreV2
+        * @param stakingContract_ Address of SmartStakingCore
      */
     function enableAutoCompound(uint256 tokenId, address stakingContract_) external {
         if (!_exists(tokenId)) revert TokenNotFound();

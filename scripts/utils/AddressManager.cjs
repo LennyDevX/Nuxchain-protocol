@@ -183,7 +183,7 @@ class AddressManager {
             'VITE_GAMEIFIED_MARKETPLACE_CORE': 'implementation',
             'VITE_GAMEIFIED_MARKETPLACE_SKILLS': 'skillsNFT',
             'VITE_INDIVIDUAL_SKILLS': 'nuxPowers',
-            'VITE_GAMEIFIED_MARKETPLACE_QUESTS': 'quests',
+            'VITE_QUEST_CORE_ADDRESS': 'questCore',
             'VITE_LEVELING_SYSTEM': 'leveling',
             'VITE_REFERRAL_SYSTEM': 'referral'
         };
@@ -447,8 +447,8 @@ class AddressManager {
         if (addresses.marketplace?.nuxPowers) {
             updates.push({ key: 'VITE_INDIVIDUAL_SKILLS', value: addresses.marketplace.nuxPowers });
         }
-        if (addresses.marketplace?.quests) {
-            updates.push({ key: 'VITE_GAMEIFIED_MARKETPLACE_QUESTS', value: addresses.marketplace.quests });
+        if (addresses.marketplace?.questCore) {
+            updates.push({ key: 'VITE_QUEST_CORE_ADDRESS', value: addresses.marketplace.questCore });
         }
         if (addresses.marketplace?.leveling) {
             updates.push({ key: 'VITE_LEVELING_SYSTEM', value: addresses.marketplace.leveling });

@@ -55,7 +55,7 @@ contract NuxPowerNft is AccessControl, Pausable, ReentrancyGuard {
     uint256 private constant MAX_ACTIVE_SKILLS_PER_USER = 5;        // Global max active skills (can distribute across NFTs)
     uint256 private constant SKILL_DURATION = 30 days;
     uint256 private constant MAX_XP_REWARD_PER_SKILL = 50;          // Max XP per skill (level 1-50 progression)
-    uint8 private constant MAX_LEVEL = 50;                           // Synchronized with MarketplaceQuests
+    uint8 private constant MAX_LEVEL = 50;                           // Synchronized with QuestCore
     
     // STAKING SKILLS PRICING (Skills 1-7) - Fixed prices in POL (wei)
     // COMMON=50, UNCOMMON=80, RARE=100, EPIC=150, LEGENDARY=220

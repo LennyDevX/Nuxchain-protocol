@@ -6,9 +6,9 @@ import "../interfaces/ISmartStakingPower.sol";
 import "../interfaces/ISmartStakingGamification.sol";
 
 /// @title SkillViewLib
-/// @notice External library containing skill-related view logic for SmartStakingCoreV2
-/// @dev Deployed as a separate contract to keep CoreV2 bytecode under EIP-170 limit (24,576 bytes).
-///      Called via STATICCALL from CoreV2 view functions (safe — no storage in library).
+/// @notice External library containing skill-related view logic for SmartStakingCore
+/// @dev Deployed as a separate contract to keep Core bytecode under EIP-170 limit (24,576 bytes).
+///      Called via STATICCALL from Core view functions (safe — no storage in library).
 /// @custom:version 6.2.0
 library SkillViewLib {
 

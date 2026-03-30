@@ -158,11 +158,11 @@ async function main() {
     d.contracts.staking.skillViewLib = skillViewLibAddr;
 
     // 1.3 Deploy Core (UUPS proxy — links to library)
-    const CoreF = await ethers.getContractFactory("SmartStakingCoreV2", {
+    const CoreF = await ethers.getContractFactory("SmartStakingCore", {
         libraries: { SkillViewLib: skillViewLibAddr },
     });
     const { contract: stakingCore, address: stakingCoreAddr } =
-        await deployUUPS(CoreF, [TREASURY_ADDRESS], "SmartStakingCoreV2");
+        await deployUUPS(CoreF, [TREASURY_ADDRESS], "SmartStakingCore");
     d.contracts.staking.core = stakingCoreAddr;
 
     // 1.4 Deploy view contracts (need Core address)
@@ -315,9 +315,8 @@ async function main() {
     const mw7 = await mktCore.setSkillsContract(nuxPowerNftAddr);
     const mw8 = await mktCore.setLevelingSystem(levelingAddr);
     const mw9 = await mktCore.setReferralSystem(referralAddr);
-    const mw10 = await mktCore.setCollaboratorRewardsContract(collabAddr);
-    await Promise.all([mw7.wait(1), mw8.wait(1), mw9.wait(1), mw10.wait(1)]);
-    console.log("   ✅ Core → Skills / Leveling / Referral / CollaboratorRewards");
+    await Promise.all([mw7.wait(1), mw8.wait(1), mw9.wait(1)]);
+    console.log("   ✅ Core → Skills / Leveling / Referral");
 
     // Grant MARKETPLACE_ROLE in Leveling + Referral to Core
     const mr1 = await leveling.grantRole(MARKETPLACE_ROLE, mktCoreAddr);
@@ -367,7 +366,7 @@ async function main() {
     console.log("\n   Contract summary:");
     console.log(`     TreasuryManager          : ${d.contracts.treasury.manager}`);
     console.log(`     QuestRewardsPool         : ${d.contracts.treasury.questRewardsPool}`);
-    console.log(`     SmartStakingCoreV2       : ${d.contracts.staking.core}`);
+    console.log(`     SmartStakingCore         : ${d.contracts.staking.core}`);
     console.log(`     SmartStakingRewards      : ${d.contracts.staking.rewards}`);
     console.log(`     SmartStakingPower        : ${d.contracts.staking.power}`);
     console.log(`     SmartStakingGamification : ${d.contracts.staking.gamification}`);

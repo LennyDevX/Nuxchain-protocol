@@ -91,9 +91,9 @@ async function main() {
     (await verify(st.viewDashboard,"contracts/SmartStaking/SmartStakingViewDashboard.sol:SmartStakingViewDashboard",[st.core, st.rewards, st.power, st.gamification], "SmartStakingViewDashboard")) ? ok() : bad(); await sleep(2000);
 
     // UUPS: verify implementation of Core
-    console.log("   (UUPS) SmartStakingCoreV2 proxy implementation...");
+    console.log("   (UUPS) SmartStakingCore proxy implementation...");
     const coreImpl = await getImpl(st.core);
-    (await verify(coreImpl, "contracts/SmartStaking/SmartStakingCore.sol:SmartStakingCoreV2", [], "SmartStakingCoreV2 impl")) ? ok() : bad(); await sleep(2000);
+    (await verify(coreImpl, "contracts/SmartStaking/SmartStakingCore.sol:SmartStakingCore", [], "SmartStakingCore impl")) ? ok() : bad(); await sleep(2000);
 
     // ── Marketplace — UUPS proxies ─────────────────────────────────────────────
     console.log("\n── MARKETPLACE ───────────────────────────────────────────────────────────────");

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "../interfaces/INuxAgentNFT.sol";
 import "../interfaces/ITreasuryManager.sol";
 
@@ -42,7 +42,7 @@ interface ICategoryNFT {
     function mintingFee() external view returns (uint256);
 }
 
-contract NuxAgentFactory is AccessControl, Initializable, UUPSUpgradeable, ReentrancyGuard {
+contract NuxAgentFactory is Initializable, AccessControlUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
 
     // ============================================
     // ROLES
@@ -116,6 +116,9 @@ contract NuxAgentFactory is AccessControl, Initializable, UUPSUpgradeable, Reent
     ) public initializer {
         require(admin_ != address(0), "Factory: invalid admin");
         require(treasuryManager_ != address(0), "Factory: invalid treasury");
+        __AccessControl_init();
+        __UUPSUpgradeable_init();
+        __ReentrancyGuard_init();
         _grantRole(DEFAULT_ADMIN_ROLE, admin_);
         _grantRole(ADMIN_ROLE, admin_);
         _grantRole(UPGRADER_ROLE, admin_);

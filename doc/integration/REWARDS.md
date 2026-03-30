@@ -76,11 +76,11 @@ Up to 5 NuxPower NFTs can be active simultaneously (`MAX_ACTIVE_SKILL_SLOTS = 5`
 | Default boost | 1.5% (`referralBoostBps = 150`) |
 | Default duration | 30 days per referral |
 
-Boosts stack per referral but are time-limited. The current admin-configurable values are set on `SmartStakingCoreV2`.
+Boosts stack per referral but are time-limited. The current admin-configurable values are set on `SmartStakingCore`.
 
 ### DynamicAPYCalculator (optional)
 
-If set via `SmartStakingCoreV2.setDynamicAPYCalculator()`, the calculator can compress or expand base APY based on TVL levels. This is optional and disabled by default.
+If set via `SmartStakingCore.setDynamicAPYCalculator()`, the calculator can compress or expand base APY based on TVL levels. This is optional and disabled by default.
 
 ---
 

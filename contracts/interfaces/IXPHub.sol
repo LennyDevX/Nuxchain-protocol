@@ -12,8 +12,8 @@ pragma solidity 0.8.28;
  *  maintaining their own XP mappings.
  *
  * ROLES (implemented in LevelingSystem)
- *  MARKETPLACE_ROLE — legacy callers (MarketplaceCore, MarketplaceQuests,
- *                     QuestCore, NFT contracts, MiniGame).  Uses updateUserXP.
+ *  MARKETPLACE_ROLE — legacy callers (MarketplaceCore, QuestCore,
+ *                     NFT contracts, MiniGame).  Uses updateUserXP.
  *  REPORTER_ROLE    — new callers (SmartStakingGamification, Auction,
  *                     NuxPower, Referral).  Uses awardXP() with source enum.
  *

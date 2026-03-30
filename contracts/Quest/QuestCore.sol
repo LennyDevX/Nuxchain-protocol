@@ -32,8 +32,8 @@ interface IQuestPoolCaller {
  *     LEVEL_UP  → profile.level (capped at 50)
  *   Counter-based (incremented via notifyAction):
  *     SOCIAL    → likes + comments (notified by MarketplaceSocial)
- *     STAKE     → wei deposited    (notified by SmartStakingCoreV2)
- *     COMPOUND  → compound count   (notified by SmartStakingCoreV2)
+ *     STAKE     → wei deposited    (notified by SmartStakingCore)
+ *     COMPOUND  → compound count   (notified by SmartStakingCore)
  *     AGENT_TASK → tasks approved  (notified by NuxAgentMiniGame)
  *
  * POST-DEPLOY SETUP (admin dashboard):
@@ -95,6 +95,12 @@ contract QuestCore is
 
     /// @notice Total quest completions across all users (for dashboard stats).
     uint256 public totalCompletionsAllTime;
+
+    /// @notice Cached leaderboard aggregates updated on quest completion.
+    mapping(address => uint256) public userCompletionCounts;
+    mapping(address => uint256) public userTotalXPEarned;
+    mapping(address => bool) private _knownQuestUsers;
+    address[] private _questUsers;
 
     // ============================================
     // ADDITIONAL EVENTS
@@ -225,6 +231,13 @@ contract QuestCore is
         userCompletedQuests[msg.sender].push(questId);
         questGlobalCompletions[questId]++;
         totalCompletionsAllTime++;
+        userCompletionCounts[msg.sender]++;
+        userTotalXPEarned[msg.sender] += quest.xpReward;
+
+        if (!_knownQuestUsers[msg.sender]) {
+            _knownQuestUsers[msg.sender] = true;
+            _questUsers.push(msg.sender);
+        }
 
         // Award XP via LevelingSystem
         if (quest.xpReward > 0 && levelingContractAddress != address(0)) {
@@ -300,6 +313,26 @@ contract QuestCore is
         if (qt == QuestType.LEVEL_UP) return profile.level > MAX_LEVEL ? MAX_LEVEL : profile.level;
 
         return 0;
+    }
+
+    function _buildUserQuestProgress(address user, uint256 questId, Quest memory quest)
+        internal
+        view
+        returns (UserQuestProgress memory progress)
+    {
+        UserQuestProgress memory storedProgress = userQuestProgress[user][questId];
+        uint256 currentProgress = _getProgress(user, quest);
+
+        if (storedProgress.currentProgress > currentProgress) {
+            currentProgress = storedProgress.currentProgress;
+        }
+
+        progress = UserQuestProgress({
+            questId: questId,
+            currentProgress: currentProgress,
+            completed: storedProgress.completed,
+            completedAt: storedProgress.completedAt
+        });
     }
 
     // ============================================
@@ -396,7 +429,40 @@ contract QuestCore is
     function getUserQuestProgress(address user, uint256 questId)
         external view override returns (UserQuestProgress memory)
     {
-        return userQuestProgress[user][questId];
+        if (questId == 0 || questId > _questIdCounter) {
+            return userQuestProgress[user][questId];
+        }
+
+        return _buildUserQuestProgress(user, questId, quests[questId]);
+    }
+
+    /// @inheritdoc IQuestCore
+    function getUserQuestProgressByType(address user, QuestType questType)
+        external
+        view
+        override
+        returns (uint256[] memory questIds, UserQuestProgress[] memory progresses)
+    {
+        uint256 total = _questIdCounter;
+        uint256 count;
+
+        for (uint256 i = 1; i <= total; i++) {
+            if (quests[i].questType == questType) {
+                count++;
+            }
+        }
+
+        questIds = new uint256[](count);
+        progresses = new UserQuestProgress[](count);
+
+        uint256 idx;
+        for (uint256 i = 1; i <= total; i++) {
+            if (quests[i].questType == questType) {
+                questIds[idx] = i;
+                progresses[idx] = _buildUserQuestProgress(user, i, quests[i]);
+                idx++;
+            }
+        }
     }
 
     /// @inheritdoc IQuestCore
@@ -437,7 +503,7 @@ contract QuestCore is
         totalCompleted = userCompletedQuests[user].length;
         uint256 total  = _questIdCounter;
         for (uint256 i = 1; i <= total; i++) {
-            UserQuestProgress memory prog = userQuestProgress[user][i];
+            UserQuestProgress memory prog = _buildUserQuestProgress(user, i, quests[i]);
             if (prog.completed) {
                 totalXPEarned += quests[i].xpReward;
             } else if (prog.currentProgress > 0) {
@@ -465,13 +531,141 @@ contract QuestCore is
         uint256 idx;
         for (uint256 i = 1; i <= total; i++) {
             if (quests[i].active && !userQuestProgress[user][i].completed) {
+                UserQuestProgress memory progress = _buildUserQuestProgress(user, i, quests[i]);
                 questIds[idx]  = i;
                 questData[idx] = quests[i];
-                uint256 current  = userQuestProgress[user][i].currentProgress;
                 uint256 required = quests[i].requirement;
-                progressPercentages[idx] = required > 0 ? (current * 100) / required : 0;
+                progressPercentages[idx] = required > 0 ? (progress.currentProgress * 100) / required : 0;
                 idx++;
             }
         }
+    }
+
+    /// @inheritdoc IQuestCore
+    function getMostPopularQuests(uint256 limit)
+        external
+        view
+        override
+        returns (uint256[] memory questIds, uint256[] memory completionCounts, string[] memory titles)
+    {
+        uint256 total = _questIdCounter;
+        uint256 activeCount;
+
+        for (uint256 i = 1; i <= total; i++) {
+            if (quests[i].active) {
+                activeCount++;
+            }
+        }
+
+        uint256 resultSize = limit < activeCount ? limit : activeCount;
+        questIds = new uint256[](resultSize);
+        completionCounts = new uint256[](resultSize);
+        titles = new string[](resultSize);
+
+        bool[] memory selected = new bool[](total + 1);
+
+        for (uint256 rank = 0; rank < resultSize; rank++) {
+            uint256 bestQuestId;
+            uint256 bestCount;
+
+            for (uint256 i = 1; i <= total; i++) {
+                if (!quests[i].active || selected[i]) {
+                    continue;
+                }
+
+                uint256 completions = questGlobalCompletions[i];
+                if (
+                    bestQuestId == 0 ||
+                    completions > bestCount ||
+                    (completions == bestCount && i < bestQuestId)
+                ) {
+                    bestQuestId = i;
+                    bestCount = completions;
+                }
+            }
+
+            if (bestQuestId == 0) {
+                break;
+            }
+
+            selected[bestQuestId] = true;
+            questIds[rank] = bestQuestId;
+            completionCounts[rank] = bestCount;
+            titles[rank] = quests[bestQuestId].title;
+        }
+    }
+
+    /// @inheritdoc IQuestCore
+    function getQuestLeaderboard(uint256 limit)
+        external
+        view
+        override
+        returns (address[] memory users, uint256[] memory completedCounts, uint256[] memory totalXP)
+    {
+        uint256 userCount = _questUsers.length;
+        uint256 resultSize = limit < userCount ? limit : userCount;
+
+        users = new address[](resultSize);
+        completedCounts = new uint256[](resultSize);
+        totalXP = new uint256[](resultSize);
+
+        bool[] memory selected = new bool[](userCount);
+
+        for (uint256 rank = 0; rank < resultSize; rank++) {
+            uint256 bestIndex = type(uint256).max;
+
+            for (uint256 i = 0; i < userCount; i++) {
+                if (selected[i]) {
+                    continue;
+                }
+
+                address candidate = _questUsers[i];
+
+                if (bestIndex == type(uint256).max) {
+                    bestIndex = i;
+                    continue;
+                }
+
+                address currentBest = _questUsers[bestIndex];
+                uint256 candidateCompleted = userCompletionCounts[candidate];
+                uint256 bestCompleted = userCompletionCounts[currentBest];
+
+                if (candidateCompleted > bestCompleted) {
+                    bestIndex = i;
+                    continue;
+                }
+
+                if (
+                    candidateCompleted == bestCompleted &&
+                    userTotalXPEarned[candidate] > userTotalXPEarned[currentBest]
+                ) {
+                    bestIndex = i;
+                }
+            }
+
+            if (bestIndex == type(uint256).max) {
+                break;
+            }
+
+            selected[bestIndex] = true;
+            address user = _questUsers[bestIndex];
+            users[rank] = user;
+            completedCounts[rank] = userCompletionCounts[user];
+            totalXP[rank] = userTotalXPEarned[user];
+        }
+    }
+
+    /// @inheritdoc IQuestCore
+    function updateQuestProgress(address user, uint256 questId) external override onlyRole(ADMIN_ROLE) {
+        if (questId == 0 || questId > _questIdCounter) revert QuestNotFound();
+
+        Quest memory quest = quests[questId];
+        if (!quest.active) revert QuestNotActive();
+
+        UserQuestProgress memory progress = _buildUserQuestProgress(user, questId, quest);
+        userQuestProgress[user][questId].questId = questId;
+        userQuestProgress[user][questId].currentProgress = progress.currentProgress;
+
+        emit QuestProgressUpdated(user, questId, progress.currentProgress);
     }
 }

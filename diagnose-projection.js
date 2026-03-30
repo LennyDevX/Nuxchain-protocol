@@ -10,31 +10,31 @@ async function main() {
   console.log("🔍 DIAGNÓSTICO DETALLADO\n");
   
   // 1. Verificar conexión al contrato ViewStats
-  const viewStats = await ethers.getContractAt("EnhancedSmartStakingViewStats", viewStatsAddress);
+  const viewStats = await ethers.getContractAt("SmartStakingViewStats", viewStatsAddress);
   console.log("✅ ViewStats conectado");
   
-  // 2. Verificar conexión al CoreV2 directamente
-  const core = await ethers.getContractAt("EnhancedSmartStakingCoreV2", coreAddress);
-  console.log("✅ CoreV2 conectado");
+  // 2. Verificar conexión al Core directamente
+  const core = await ethers.getContractAt("SmartStakingCore", coreAddress);
+  console.log("✅ Core conectado");
   
-  // 3. Probar llamadas directas al CoreV2
+  // 3. Probar llamadas directas al Core
   try {
     const userInfo = await core.getUserInfo(testUser);
-    console.log("\n📊 CoreV2.getUserInfo():", {
+    console.log("\n📊 Core.getUserInfo():", {
       totalDeposited: userInfo[0].toString(),
       totalRewards: userInfo[1].toString(),
       depositCount: userInfo[2].toString(),
       lastWithdrawTime: userInfo[3].toString()
     });
   } catch (e) {
-    console.log("❌ CoreV2.getUserInfo() falló:", e.message);
+    console.log("❌ Core.getUserInfo() falló:", e.message);
   }
   
   try {
     const rewards = await core.calculateRewards(testUser);
-    console.log("📊 CoreV2.calculateRewards():", rewards.toString());
+    console.log("📊 Core.calculateRewards():", rewards.toString());
   } catch (e) {
-    console.log("❌ CoreV2.calculateRewards() falló:", e.message);
+    console.log("❌ Core.calculateRewards() falló:", e.message);
   }
   
   // 4. Probar funciones individuales de ViewStats

@@ -152,10 +152,13 @@ async function main() {
     console.log(`💾 Saved ABIs by category: ${abisByCategoryPath}`);
     console.log(`   Size: ${(fs.statSync(abisByCategoryPath).size / 1024).toFixed(2)} KB\n`);
 
-    // 6. Generar index.ts para fácil importación
+    // 6. Generar index.ts / index.js para fácil importación
     const indexPath = path.join(ABIS_OUTPUT_DIR, 'index.ts');
+    const indexJsPath = path.join(ABIS_OUTPUT_DIR, 'index.js');
     generateIndexFile(indexPath, allABIs);
     console.log(`💾 Generated TypeScript index: ${indexPath}\n`);
+    generateIndexJsFile(indexJsPath);
+    console.log(`💾 Generated JavaScript index: ${indexJsPath}\n`);
 
     // 7. Resumen por categoría
     console.log("📊 SUMMARY BY CATEGORY:\n");
@@ -209,6 +212,11 @@ function generateIndexFile(outputPath, allABIs) {
     });
     content += `};\n`;
 
+    fs.writeFileSync(outputPath, content);
+}
+
+function generateIndexJsFile(outputPath) {
+    const content = `export * from "./runtime.js";\nexport { default } from "./runtime.js";\n`;
     fs.writeFileSync(outputPath, content);
 }
 

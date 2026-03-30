@@ -6,10 +6,10 @@
 
 ## Overview
 
-The staking system lets users deposit POL and earn dynamic APY rewards. It is organized as a hub-and-spoke architecture: `SmartStakingCoreV2` is the central proxy that delegates to specialized modules.
+The staking system lets users deposit POL and earn dynamic APY rewards. It is organized as a hub-and-spoke architecture: `SmartStakingCore` is the central proxy that delegates to specialized modules.
 
 ```
-SmartStakingCoreV2 (UUPS proxy)
+SmartStakingCore (UUPS proxy)
     ├── SmartStakingRewards     — APY calc + reward payouts
     ├── SmartStakingPower       — NFT power activation + rarity boosts
     ├── SmartStakingGamification — XP + level tracking
@@ -26,7 +26,7 @@ View contracts (read-only, no storage):
 
 ---
 
-## SmartStakingCoreV2
+## SmartStakingCore
 
 **Type:** UUPS Proxy (Ownable + Pausable + ReentrancyGuard)  
 **Version:** v7.0  
@@ -336,9 +336,9 @@ Provides TVL-based APY adjustments. Set on Core via `setDynamicAPYCalculator()`.
 **Type:** External library  
 **Deploy:** `new SkillViewLib()`
 
-Must be deployed before `SmartStakingCoreV2`. Address passed to factory:
+Must be deployed before `SmartStakingCore`. Address passed to factory:
 ```js
-const CoreFactory = await ethers.getContractFactory("SmartStakingCoreV2", {
+const CoreFactory = await ethers.getContractFactory("SmartStakingCore", {
     libraries: { SkillViewLib: skillViewLibAddr }
 });
 ```

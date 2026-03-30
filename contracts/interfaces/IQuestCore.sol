@@ -134,8 +134,20 @@ interface IQuestCore {
     function getQuestsByCategory(QuestCategory category) external view returns (Quest[] memory);
     function getQuest(uint256 questId) external view returns (Quest memory);
     function getUserQuestProgress(address user, uint256 questId) external view returns (UserQuestProgress memory);
+    function getUserQuestProgressByType(address user, QuestType questType)
+        external
+        view
+        returns (uint256[] memory questIds, UserQuestProgress[] memory progresses);
     function getUserCompletedQuests(address user) external view returns (uint256[] memory);
     function getUserSocialActions(address user) external view returns (uint256);
+    function getMostPopularQuests(uint256 limit)
+        external
+        view
+        returns (uint256[] memory questIds, uint256[] memory completionCounts, string[] memory titles);
+    function getQuestLeaderboard(uint256 limit)
+        external
+        view
+        returns (address[] memory users, uint256[] memory completedCounts, uint256[] memory totalXP);
 
     function getQuestSystemStats() external view returns (
         uint256 totalQuests,
@@ -158,4 +170,6 @@ interface IQuestCore {
         Quest[]   memory questData,
         uint256[] memory progressPercentages
     );
+
+    function updateQuestProgress(address user, uint256 questId) external;
 }

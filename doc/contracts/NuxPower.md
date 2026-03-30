@@ -135,7 +135,7 @@ A power deactivates when the NFT is transferred or listed for sale. The marketpl
 
 ## Max Active Powers
 
-`SmartStakingCoreV2` constant `MAX_ACTIVE_SKILL_SLOTS = 5`. A user can hold at most 5 active NuxPower NFTs simultaneously. Attempting to activate a 6th will fail with `PowerSlotsFull`.
+`SmartStakingCore` constant `MAX_ACTIVE_SKILL_SLOTS = 5`. A user can hold at most 5 active NuxPower NFTs simultaneously. Attempting to activate a 6th will fail with `PowerSlotsFull`.
 
 ---
 
@@ -144,7 +144,7 @@ A power deactivates when the NFT is transferred or listed for sale. The marketpl
 Each `PowerType` can be individually enabled or disabled by the staking owner:
 
 ```solidity
-SmartStakingCoreV2.setPowerEnabled(PowerType.STAKE_BOOST_III, false);
+SmartStakingCore.setPowerEnabled(PowerType.STAKE_BOOST_III, false);
 ```
 
 Disabled powers revert with `PowerDisabled(PowerType)` when a user attempts activation.

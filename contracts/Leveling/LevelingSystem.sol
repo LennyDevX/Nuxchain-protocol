@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "../interfaces/IXPHub.sol";
 
 /**
@@ -14,7 +14,7 @@ import "../interfaces/IXPHub.sol";
  * - Tracks per-source XP breakdown for frontend dashboards
  * - All protocol contracts call awardXP() (REPORTER_ROLE) or updateUserXP() (MARKETPLACE_ROLE)
  */
-contract LevelingSystem is AccessControl, Initializable, UUPSUpgradeable, IXPHub {
+contract LevelingSystem is Initializable, AccessControlUpgradeable, UUPSUpgradeable, IXPHub {
     bytes32 public constant ADMIN_ROLE       = keccak256("ADMIN_ROLE");
     bytes32 public constant UPGRADER_ROLE    = keccak256("UPGRADER_ROLE");
     bytes32 public constant MARKETPLACE_ROLE = keccak256("MARKETPLACE_ROLE");
@@ -77,6 +77,8 @@ contract LevelingSystem is AccessControl, Initializable, UUPSUpgradeable, IXPHub
 
     function initialize(address platformAdmin) public initializer {
         require(platformAdmin != address(0), "Invalid platform admin");
+        __AccessControl_init();
+        __UUPSUpgradeable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, platformAdmin);
         _grantRole(ADMIN_ROLE, platformAdmin);
         _grantRole(UPGRADER_ROLE, platformAdmin);

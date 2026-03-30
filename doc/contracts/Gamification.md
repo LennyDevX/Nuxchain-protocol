@@ -87,7 +87,7 @@ Central quest registry for the entire protocol. All quest creation, tracking, an
 |---|---|---|
 | `ADMIN_ROLE` | Deployer | Create quests, set contracts |
 | `UPGRADER_ROLE` | Deployer | Upgrade proxy |
-| `REPORTER_ROLE` | SmartStakingCoreV2, MarketplaceSocial, NuxAgentMiniGame | Call `notifyAction()` |
+| `REPORTER_ROLE` | SmartStakingCore, MarketplaceSocial, NuxAgentMiniGame | Call `notifyAction()` |
 
 ### Post-Deploy Setup
 

@@ -22,6 +22,7 @@
   "scripts": {
     "clean": "rm -rf node_modules package-lock.json",
     "setup": "npm run clean && npm install",
+    "check:contract-sizes": "node scripts/CheckContractSizes.cjs",
     "export:abis": "npx hardhat run scripts/ExportABIs.cjs",
     "export:frontend": "node scripts/ExportFrontendPackage.cjs",
     "build:frontend": "npm run export:abis && npm run export:frontend"

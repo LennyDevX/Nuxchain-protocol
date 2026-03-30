@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "../interfaces/INuxAgentNFT.sol";
 
 /**
@@ -34,7 +34,7 @@ import "../interfaces/INuxAgentNFT.sol";
  *   - Reputation is updated on each validated task
  *   - getReputationScore() is used by the marketplace to display agent quality
  */
-contract NuxAgentRegistry is AccessControl, Initializable, UUPSUpgradeable, ReentrancyGuard {
+contract NuxAgentRegistry is Initializable, AccessControlUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
 
     // ============================================
     // ROLES
@@ -178,6 +178,9 @@ contract NuxAgentRegistry is AccessControl, Initializable, UUPSUpgradeable, Reen
 
     function initialize(address admin_) public initializer {
         require(admin_ != address(0), "Registry: invalid admin");
+        __AccessControl_init();
+        __UUPSUpgradeable_init();
+        __ReentrancyGuard_init();
         _grantRole(DEFAULT_ADMIN_ROLE, admin_);
         _grantRole(ADMIN_ROLE, admin_);
         _grantRole(UPGRADER_ROLE, admin_);

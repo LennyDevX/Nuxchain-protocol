@@ -30,7 +30,7 @@ const FRONTEND_ADDRESS_MAP = {
     MarketplaceReferral: ["marketplace", "referral"],
     MarketplaceSkillsNFT: ["marketplace", "nuxPowerNft"],
     IndividualSkills: ["marketplace", "nuxPowerMarketplace"],
-    MarketplaceQuests: ["marketplace", "questCore"],
+    QuestCore: ["marketplace", "questCore"],
     CollaboratorBadges: ["marketplace", "collaboratorRewards"],
     MarketplaceView: ["marketplace", "view"],
     MarketplaceStatistics: ["marketplace", "statistics"],
