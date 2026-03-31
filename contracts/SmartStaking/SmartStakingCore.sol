@@ -13,6 +13,8 @@ import "../interfaces/ISmartStakingPower.sol";
 import "../interfaces/ISmartStakingGamification.sol";
 import "../interfaces/ITreasuryManager.sol";
 import "./SkillViewLib.sol";
+import { Deposit, User } from "./SmartStakingTypes.sol";
+import { SmartStakingCoreLib } from "./SmartStakingCoreLib.sol";
 
 /// @title SmartStaking Core - Modular Architecture with UUPS
 /// @notice Core orchestration contract for modular staking system (Upgradeable)
@@ -63,23 +65,6 @@ contract SmartStakingCore is
     uint256 private constant EARLY_EXIT_WINDOW = 7 days;
     /// @notice Fee charged on rewards when auto-compounding (0.25%)
     uint256 private constant AUTOCOMPOUND_FEE_BPS = 25;
-    
-    // ════════════════════════════════════════════════════════════════════════════════════════
-    // STRUCTS
-    // ════════════════════════════════════════════════════════════════════════════════════════
-    
-    struct Deposit {
-        uint128 amount;
-        uint64 timestamp;
-        uint64 lastClaimTime;
-        uint64 lockupDuration;
-    }
-    
-    struct User {
-        Deposit[] deposits;
-        uint128 totalDeposited;
-        uint64 lastWithdrawTime;
-    }
     
     // ════════════════════════════════════════════════════════════════════════════════════════
     // STATE VARIABLES - CORE
@@ -471,36 +456,14 @@ contract SmartStakingCore is
     }
     
     function calculateRewards(address userAddress) public view returns (uint256 totalRewards) {
-        if (address(rewardsModule) == address(0)) revert ModuleNotSet();
-        
-        User storage user = users[userAddress];
-        if (user.deposits.length == 0) return 0;
-
-        uint16 stakingBoostTotal = 0;
-        if (address(powerModule) != address(0)) {
-            (stakingBoostTotal,,) = powerModule.getUserBoosts(userAddress);
-        }
-
-        // v6.1.0 Referral boost: grant active referrers a temporary APY bonus
-        if (referralBoostBps > 0 && referralBoostEndTime[userAddress] > block.timestamp) {
-            uint256 combined = uint256(stakingBoostTotal) + referralBoostBps;
-            stakingBoostTotal = combined > type(uint16).max ? type(uint16).max : uint16(combined);
-        }
-
-        for (uint256 i = 0; i < user.deposits.length; i++) {
-            Deposit storage userDeposit = user.deposits[i];
-            uint8 lockupIndex = _getLockupIndex(userDeposit.lockupDuration);
-            
-            uint256 reward = rewardsModule.calculateStakingRewards(
-                uint256(userDeposit.amount),
-                uint256(userDeposit.timestamp),
-                uint256(userDeposit.lastClaimTime),
-                lockupIndex,
-                stakingBoostTotal
-            );
-            
-            totalRewards += reward;
-        }
+        return SmartStakingCoreLib.calculateRewards(
+            users,
+            address(rewardsModule),
+            address(powerModule),
+            referralBoostEndTime,
+            referralBoostBps,
+            userAddress
+        );
     }
     
     function withdrawBoosted() external nonReentrant whenNotPaused notMigrated {
@@ -512,159 +475,63 @@ contract SmartStakingCore is
     }
 
     function _withdraw() internal {
-        User storage user = users[msg.sender];
+        (uint256 netAmount, uint256 compoundPortion, uint256 newTotalPoolBalance) = SmartStakingCoreLib.withdrawRewards(
+            users,
+            _dailyWithdrawalAmount,
+            _lastWithdrawalDay,
+            totalRewardsClaimed,
+            reinvestmentPercentage,
+            address(rewardsModule),
+            address(powerModule),
+            referralBoostEndTime,
+            referralBoostBps,
+            treasury,
+            address(treasuryManager),
+            totalPoolBalance,
+            msg.sender
+        );
 
-        if (block.timestamp / WITHDRAWAL_LIMIT_PERIOD > _lastWithdrawalDay[msg.sender]) {
-            _dailyWithdrawalAmount[msg.sender] = 0;
-            _lastWithdrawalDay[msg.sender] = uint64(block.timestamp / WITHDRAWAL_LIMIT_PERIOD);
-        }
-
-        uint256 totalRewards = calculateRewards(msg.sender);
-        if (totalRewards == 0) revert NoRewardsAvailable();
-
-        // v6.1.0 Partial reinvestment: compound user's chosen % before paying out
-        uint256 userReinvestPct = reinvestmentPercentage[msg.sender];
-        uint256 compoundPortion = 0;
-        if (userReinvestPct > 0) {
-            compoundPortion = (totalRewards * userReinvestPct) / BASIS_POINTS;
-            totalRewards = totalRewards - compoundPortion;
-        }
-
-        if (totalRewards == 0) revert NoRewardsAvailable();
-
-        if (_dailyWithdrawalAmount[msg.sender] + totalRewards > DAILY_WITHDRAWAL_LIMIT) {
-            revert DailyWithdrawalLimitExceeded(DAILY_WITHDRAWAL_LIMIT - _dailyWithdrawalAmount[msg.sender]);
-        }
-
-        _dailyWithdrawalAmount[msg.sender] += totalRewards;
-        
-        for (uint256 i = 0; i < user.deposits.length; i++) {
-            Deposit storage userDeposit = user.deposits[i];
-            if (userDeposit.lockupDuration > 0 && block.timestamp < userDeposit.timestamp + userDeposit.lockupDuration) {
-                revert FundsAreLocked();
-            }
-        }
-        
-        uint256 commission = (totalRewards * COMMISSION_PERCENTAGE) / BASIS_POINTS;
-        uint256 netAmount = totalRewards - commission;
-
-        if (address(this).balance < netAmount + commission) {
-            revert InsufficientBalance();
-        }
-
-        uint64 currentTime = uint64(block.timestamp);
-        for (uint256 i = 0; i < user.deposits.length; i++) {
-            user.deposits[i].lastClaimTime = currentTime;
-        }
-        user.lastWithdrawTime = currentTime;
-
-        // Add compound portion as a new flexible deposit
+        totalPoolBalance = newTotalPoolBalance;
         if (compoundPortion > 0) {
-            user.totalDeposited += uint128(compoundPortion);
-            totalPoolBalance += compoundPortion;
-            user.deposits.push(Deposit({
-                amount: uint128(compoundPortion),
-                timestamp: currentTime,
-                lastClaimTime: currentTime,
-                lockupDuration: 0
-            }));
-            _syncTVLToRewards();
             emit Compounded(msg.sender, compoundPortion);
         }
-
-        totalRewardsClaimed[msg.sender] += netAmount;
-
-        _transferCommission(commission);
-        payable(msg.sender).sendValue(netAmount);
-
         emit Withdrawn(msg.sender, netAmount);
     }
     
     function withdrawAll() external nonReentrant whenNotPaused notMigrated {
-        User storage user = users[msg.sender];
-        if (user.totalDeposited == 0) revert NoDepositsFound();
-        
-        for (uint256 i = 0; i < user.deposits.length; i++) {
-            Deposit storage userDeposit = user.deposits[i];
-            if (userDeposit.lockupDuration > 0 && block.timestamp < userDeposit.timestamp + userDeposit.lockupDuration) {
-                revert FundsAreLocked();
-            }
-        }
-        
-        // v6.1.0 Early exit fee: 0.5% on flexible principal withdrawn within 7 days
-        uint256 earlyExitFee = 0;
-        for (uint256 i = 0; i < user.deposits.length; i++) {
-            Deposit storage dep = user.deposits[i];
-            if (dep.lockupDuration == 0 && block.timestamp < uint256(dep.timestamp) + EARLY_EXIT_WINDOW) {
-                earlyExitFee += (uint256(dep.amount) * EARLY_EXIT_FEE_BPS) / BASIS_POINTS;
-            }
-        }
+        (uint256 netAmount, uint256 newTotalPoolBalance, uint256 newUniqueUsersCount) = SmartStakingCoreLib.withdrawAll(
+            users,
+            address(rewardsModule),
+            address(powerModule),
+            referralBoostEndTime,
+            referralBoostBps,
+            treasury,
+            address(treasuryManager),
+            totalPoolBalance,
+            uniqueUsersCount,
+            msg.sender
+        );
 
-        uint256 rewards = calculateRewards(msg.sender);
-        uint256 totalAmount = user.totalDeposited + rewards;
-        uint256 rewardCommission = (rewards * COMMISSION_PERCENTAGE) / BASIS_POINTS;
-        uint256 totalFees = rewardCommission + earlyExitFee;
-        uint256 netAmount = totalAmount - totalFees;
-
-        if (address(this).balance < netAmount + totalFees) {
-            revert InsufficientBalance();
-        }
-        
-        user.totalDeposited = 0;
-        user.lastWithdrawTime = uint64(block.timestamp);
-        delete user.deposits;
-        
-        totalPoolBalance -= (totalAmount - rewards); // only reduce by principal
-        if (uniqueUsersCount > 0) {
-            unchecked { --uniqueUsersCount; }
-        }
-        if (address(rewardsModule) != address(0)) {
-            try ISmartStakingRewardsExtended(address(rewardsModule)).clearStakingSince(msg.sender) {} catch {}
-        }
-        
-        _syncTVLToRewards();
-
-        if (earlyExitFee > 0) {
-            emit EarlyExitFeePaid(msg.sender, earlyExitFee);
-        }
-        
-        _transferCommission(totalFees);
-        payable(msg.sender).sendValue(netAmount);
-        
+        totalPoolBalance = newTotalPoolBalance;
+        uniqueUsersCount = newUniqueUsersCount;
         emit WithdrawAll(msg.sender, netAmount);
     }
     
     function compound() public nonReentrant whenNotPaused notMigrated {
-        User storage userStruct = users[msg.sender];
-        uint256 rewards = calculateRewards(msg.sender);
+        (uint256 compoundAmount, uint256 newTotalPoolBalance) = SmartStakingCoreLib.compoundRewards(
+            users,
+            address(rewardsModule),
+            address(powerModule),
+            referralBoostEndTime,
+            referralBoostBps,
+            treasury,
+            address(treasuryManager),
+            totalPoolBalance,
+            msg.sender
+        );
 
-        if (rewards == 0) revert NoRewardsAvailable();
+        totalPoolBalance = newTotalPoolBalance;
 
-        // v6.1.0 Autocompound fee: 0.25% of rewards goes to treasury for sustainability
-        uint256 acFee = (rewards * AUTOCOMPOUND_FEE_BPS) / BASIS_POINTS;
-        uint256 compoundAmount = rewards - acFee;
-
-        if (acFee > 0) {
-            _transferCommission(acFee);
-            emit AutocompoundFeePaid(msg.sender, acFee);
-        }
-
-        userStruct.totalDeposited += uint128(compoundAmount);
-        totalPoolBalance += compoundAmount;
-        _syncTVLToRewards();
-
-        uint64 currentTime = uint64(block.timestamp);
-        userStruct.deposits.push(Deposit({
-            amount: uint128(compoundAmount),
-            timestamp: currentTime,
-            lastClaimTime: currentTime,
-            lockupDuration: 0
-        }));
-
-        for (uint256 i = 0; i < userStruct.deposits.length; i++) {
-            userStruct.deposits[i].lastClaimTime = currentTime;
-        }
-        
         if (address(gamificationModule) != address(0)) {
             gamificationModule.updateUserXP(msg.sender, 1, compoundAmount);
         }
@@ -816,35 +683,19 @@ contract SmartStakingCore is
     
     function performAutoCompound(bytes calldata performData) external override {
         address user = abi.decode(performData, (address));
-        
-        if (address(gamificationModule) == address(0)) revert ModuleNotSet();
-        
-        // Access control: only compound if user has auto-compound enabled
-        (bool shouldCompound,) = gamificationModule.checkAutoCompound(user);
-        if (!shouldCompound) revert AutoCompoundNotEnabled();
-        
-        uint256 rewards = calculateRewards(user);
-        if (rewards == 0) revert NoRewardsAvailable();
-        
-        User storage userStruct = users[user];
-        userStruct.totalDeposited += uint128(rewards);
-        totalPoolBalance += rewards;
-        
-        uint64 currentTime = uint64(block.timestamp);
-        userStruct.deposits.push(Deposit({
-            amount: uint128(rewards),
-            timestamp: currentTime,
-            lastClaimTime: currentTime,
-            lockupDuration: 0
-        }));
-        
-        for (uint256 i = 0; i < userStruct.deposits.length; i++) {
-            userStruct.deposits[i].lastClaimTime = currentTime;
-        }
-        
-        gamificationModule.performAutoCompound(user);
-        _syncTVLToRewards();
-        
+
+        (uint256 rewards, uint256 newTotalPoolBalance) = SmartStakingCoreLib.performAutoCompound(
+            users,
+            address(rewardsModule),
+            address(powerModule),
+            address(gamificationModule),
+            referralBoostEndTime,
+            referralBoostBps,
+            totalPoolBalance,
+            user
+        );
+
+        totalPoolBalance = newTotalPoolBalance;
         emit Compounded(user, rewards);
     }
     
@@ -925,26 +776,14 @@ contract SmartStakingCore is
     }
     
     function emergencyWithdrawStake() external nonReentrant {
-        User storage user = users[msg.sender];
-        uint256 stakeAmount = user.totalDeposited;
-        if (stakeAmount == 0) revert NoDepositsFound();
-
-        if (address(this).balance < stakeAmount) {
-            revert InsufficientBalance();
-        }
-
-        user.totalDeposited = 0;
-        user.lastWithdrawTime = uint64(block.timestamp);
-        delete user.deposits;
-
-        totalPoolBalance -= stakeAmount;
-        if (uniqueUsersCount > 0) {
-            unchecked { --uniqueUsersCount; }
-        }
-
-        _syncTVLToRewards();
-
-        payable(msg.sender).sendValue(stakeAmount);
+        uint256 stakeAmount;
+        (stakeAmount, totalPoolBalance, uniqueUsersCount) = SmartStakingCoreLib.emergencyWithdrawStake(
+            users,
+            address(rewardsModule),
+            totalPoolBalance,
+            uniqueUsersCount,
+            msg.sender
+        );
 
         emit EmergencyWithdrawal(msg.sender, stakeAmount);
     }
@@ -996,74 +835,27 @@ contract SmartStakingCore is
     /// @dev Shared withdrawal logic for both withdrawByIndex and withdrawBatch.
     ///      Returns (totalPrincipal, netRewards) so the caller can emit precise events.
     function _executeWithdrawals(uint256[] memory indices) internal returns (uint256 principal, uint256 netRewards) {
-        User storage user = users[msg.sender];
+        uint256 payout;
+        uint256 newTotalPoolBalance;
+        uint256 newUniqueUsersCount;
 
-        // Reset daily counter if a new day has started
-        if (block.timestamp / WITHDRAWAL_LIMIT_PERIOD > _lastWithdrawalDay[msg.sender]) {
-            _dailyWithdrawalAmount[msg.sender] = 0;
-            _lastWithdrawalDay[msg.sender] = block.timestamp / WITHDRAWAL_LIMIT_PERIOD;
-        }
+        (principal, netRewards, payout, newTotalPoolBalance, newUniqueUsersCount) = SmartStakingCoreLib.executeWithdrawals(
+            users,
+            _dailyWithdrawalAmount,
+            _lastWithdrawalDay,
+            totalRewardsClaimed,
+            address(rewardsModule),
+            address(powerModule),
+            treasury,
+            address(treasuryManager),
+            totalPoolBalance,
+            uniqueUsersCount,
+            indices,
+            msg.sender
+        );
 
-        uint16 boost = 0;
-        if (address(powerModule) != address(0)) (boost,,) = powerModule.getUserBoosts(msg.sender);
-
-        uint256 totalEarlyFee;
-        uint256 totalRewards_;
-        uint64  now_ = uint64(block.timestamp);
-
-        for (uint256 i; i < indices.length; i++) {
-            uint256 idx = indices[i];
-            if (idx >= user.deposits.length) revert DepositIndexOutOfBounds(idx, user.deposits.length);
-            Deposit storage dep = user.deposits[idx];
-            if (dep.lockupDuration > 0 && now_ < dep.timestamp + dep.lockupDuration) revert FundsAreLocked();
-
-            principal += dep.amount;
-
-            if (address(rewardsModule) != address(0)) {
-                totalRewards_ += rewardsModule.calculateStakingRewards(
-                    dep.amount, dep.timestamp, dep.lastClaimTime, _getLockupIndex(dep.lockupDuration), boost
-                );
-            }
-            if (dep.lockupDuration == 0 && now_ < dep.timestamp + EARLY_EXIT_WINDOW) {
-                totalEarlyFee += (uint256(dep.amount) * EARLY_EXIT_FEE_BPS) / BASIS_POINTS;
-            }
-        }
-
-        if (_dailyWithdrawalAmount[msg.sender] + principal > DAILY_WITHDRAWAL_LIMIT)
-            revert DailyWithdrawalLimitExceeded(DAILY_WITHDRAWAL_LIMIT - _dailyWithdrawalAmount[msg.sender]);
-        _dailyWithdrawalAmount[msg.sender] += principal;
-
-        uint256 rewardComm = (totalRewards_ * COMMISSION_PERCENTAGE) / BASIS_POINTS;
-        netRewards = totalRewards_ - rewardComm;
-        uint256 totalFees = rewardComm + totalEarlyFee;
-        uint256 payout    = principal + netRewards - totalEarlyFee;
-
-        if (address(this).balance < payout + totalFees) revert InsufficientBalance();
-
-        // Remove deposits (caller passes descending-sorted indices)
-        for (uint256 i; i < indices.length; i++) {
-            uint256 idx = indices[i];
-            uint256 last_ = user.deposits.length - 1;
-            if (idx != last_) user.deposits[idx] = user.deposits[last_];
-            user.deposits.pop();
-        }
-
-        user.totalDeposited -= uint128(principal);
-        user.lastWithdrawTime = now_;
-        totalPoolBalance -= principal;
-
-        if (user.deposits.length == 0) {
-            if (uniqueUsersCount > 0) { unchecked { --uniqueUsersCount; } }
-            if (address(rewardsModule) != address(0)) {
-                try ISmartStakingRewardsExtended(address(rewardsModule)).clearStakingSince(msg.sender) {} catch {}
-            }
-        }
-
-        _syncTVLToRewards();
-        if (totalFees > 0) _transferCommission(totalFees);
-        if (totalEarlyFee > 0) emit EarlyExitFeePaid(msg.sender, totalEarlyFee);
-        totalRewardsClaimed[msg.sender] += netRewards;
-        payable(msg.sender).sendValue(payout);
+        totalPoolBalance = newTotalPoolBalance;
+        uniqueUsersCount = newUniqueUsersCount;
     }
 
     /**
@@ -1076,22 +868,7 @@ contract SmartStakingCore is
      * @param newLockupDays  Target lockup in days: 30, 90, 180, or 365.
      */
     function migrateLockup(uint256 depositIndex, uint64 newLockupDays) external nonReentrant whenNotPaused notMigrated {
-        if (newLockupDays != 30 && newLockupDays != 90 && newLockupDays != 180 && newLockupDays != 365)
-            revert InvalidLockupDuration();
-
-        User storage user = users[msg.sender];
-        if (depositIndex >= user.deposits.length)
-            revert DepositIndexOutOfBounds(depositIndex, user.deposits.length);
-
-        Deposit storage dep = user.deposits[depositIndex];
-        // Only flexible deposits can be migrated to locked
-        if (dep.lockupDuration != 0) revert MigrationNotAllowed();
-
-        uint64 newDuration = newLockupDays * 1 days;
-        dep.lockupDuration = newDuration;
-        dep.timestamp      = uint64(block.timestamp); // lockup starts now
-        dep.lastClaimTime  = uint64(block.timestamp); // snapshot rewards at migration
-
+        uint64 newDuration = SmartStakingCoreLib.migrateLockup(users, depositIndex, newLockupDays, msg.sender);
         emit LockupMigrated(msg.sender, depositIndex, newDuration);
     }
     

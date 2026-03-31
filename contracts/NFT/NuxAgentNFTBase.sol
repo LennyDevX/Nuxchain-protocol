@@ -9,8 +9,11 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "../interfaces/ITreasuryManager.sol";
 import "../interfaces/INuxAgentNFT.sol";
+
+interface IAgentRevenueTreasury {
+    function depositRevenue(string calldata revenueType) external payable;
+}
 
 /**
  * @title NuxAgentNFTBase
@@ -23,8 +26,8 @@ import "../interfaces/INuxAgentNFT.sol";
  * - The TBA is the agent's on-chain wallet — it can hold funds, pay APIs, execute transactions
  * - Prompts stored as encrypted IPFS URIs (ERC-7662 specification)
  * - agentURI points to ERC-8004 registration file (services, endpoints, trust models)
- * - 6% minting revenue routed to TreasuryManager
- * - 50 XP awarded to creator via LevelingSystem on mint
+ * - Minting revenue routed to the dedicated NuxTap treasury
+ * - Optional progression hooks may still award XP to the creator on mint
  *
  * SECURITY:
  * - UUPS upgradeable proxies (only UPGRADER_ROLE can upgrade)
@@ -70,7 +73,7 @@ abstract contract NuxAgentNFTBase is
     uint256 public mintingFee;             // Native token fee per mint (in wei)
     uint96  public defaultRoyaltyBps;      // Default royalty for secondary sales (e.g. 500 = 5%)
 
-    ITreasuryManager public treasuryManager;
+    IAgentRevenueTreasury public agentTreasury;
     address public levelingSystemAddress;
     address public agentRegistryAddress;   // NuxAgentRegistry (ERC-8004)
 
@@ -136,7 +139,7 @@ abstract contract NuxAgentNFTBase is
         _grantRole(ADMIN_ROLE, admin_);
         _grantRole(UPGRADER_ROLE, admin_);
 
-        treasuryManager      = ITreasuryManager(treasuryManager_);
+        agentTreasury         = IAgentRevenueTreasury(treasuryManager_);
         levelingSystemAddress = levelingSystem_;
         erc6551Implementation = erc6551Impl_;
         mintingFee            = mintingFee_;
@@ -246,15 +249,15 @@ abstract contract NuxAgentNFTBase is
     // ============================================
 
     /**
-     * @notice Collects minting fee and forwards to TreasuryManager
+    * @notice Collects minting fee and forwards to the NuxTap revenue treasury
      * @dev Refunds excess payment automatically
      */
     function _collectMintingFee() internal {
         require(msg.value >= mintingFee, "NuxBase: insufficient minting fee");
 
         if (mintingFee > 0) {
-            (bool ok,) = address(treasuryManager).call{value: mintingFee}(
-                abi.encodeWithSignature("receiveRevenue(string)", "nft_agent_mint")
+            (bool ok,) = address(agentTreasury).call{value: mintingFee}(
+                abi.encodeWithSignature("depositRevenue(string)", "nuxtap_agent_mint")
             );
             require(ok, "NuxBase: treasury transfer failed");
         }
@@ -430,7 +433,7 @@ abstract contract NuxAgentNFTBase is
 
     function setTreasuryManager(address treasury_) external onlyRole(ADMIN_ROLE) {
         require(treasury_ != address(0), "NuxBase: invalid address");
-        treasuryManager = ITreasuryManager(treasury_);
+        agentTreasury = IAgentRevenueTreasury(treasury_);
     }
 
     function setLevelingSystem(address leveling_) external onlyRole(ADMIN_ROLE) {

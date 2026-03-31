@@ -36,6 +36,34 @@ Marketplace feature implementation analysis:
 
 ---
 
+### [Test_Status_2026-03.md](./Test_Status_2026-03.md)
+**Status**: ✅ Current
+
+Repository-wide test status after reactivating Marketplace and NuxPower coverage:
+- Full Hardhat suite: 650 passing, 2 pending, 0 failing
+- Marketplace suite: 173 passing, 0 pending, 0 failing
+- Remaining pending tests are isolated to SmartStaking deposit-above-maximum checks
+- Root cause is the local Hardhat account balance cap, not a known functional regression
+
+**When**: March 2026  
+**Result**: Marketplace pending debt removed; only 2 environment-limited pending tests remain
+
+---
+
+### [Production_Readiness_2026-03.md](./Production_Readiness_2026-03.md)
+**Status**: ✅ Current
+
+Production-readiness assessment of the repo split into:
+- `NuxTap + AI Agent NFTs` as a standalone ecosystem
+- the rest of the contracts as the broader NuxChain gamification/orchestration layer
+- confirmed deploy blocker in `SmartStakingCore` due to EIP-170 bytecode size
+- concrete path from current state to production candidate
+
+**When**: March 2026  
+**Result**: Clear module matrix, ecosystem boundary recommendation, and prioritized production hardening steps
+
+---
+
 ## Archive
 
 These documents contain historical analysis. Original implementations may be in these reports:
@@ -66,6 +94,6 @@ These documents contain historical analysis. Original implementations may be in 
 
 ---
 
-**Last Updated**: February 14, 2026  
+**Last Updated**: March 30, 2026  
 **Status**: Archived documentation  
 **For current features**: See [doc/ARCHITECTURE.md](../doc/ARCHITECTURE.md)

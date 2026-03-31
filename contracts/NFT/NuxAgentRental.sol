@@ -13,7 +13,11 @@ interface INFTRentalHook {
 }
 
 interface IRentalTreasury {
-    function receiveRevenue(string calldata revenueType) external payable;
+    function depositRevenue(string calldata revenueType) external payable;
+}
+
+interface IRentalAgentRegistry {
+    function registeredNFTContracts(address nftContract) external view returns (bool);
 }
 
 /**
@@ -109,6 +113,7 @@ contract NuxAgentRental is
     }
 
     IRentalTreasury public treasuryManager;
+    address public agentRegistry;
 
     uint256 public offerCounter;
     uint256 public rentalCounter;
@@ -126,6 +131,7 @@ contract NuxAgentRental is
     uint256 public platformBps;      // default  600 ( 6%)
 
     bool public paused;
+    mapping(address => bool) public supportedNFTContracts;
 
     // ============================================
     // EVENTS
@@ -136,6 +142,8 @@ contract NuxAgentRental is
     event RentalExtended(uint256 indexed rentalId, uint256 newEndTime, uint256 extraPaid);
     event RentalEnded(uint256 indexed rentalId);
     event RevenueDistributed(uint256 indexed rentalId, address owner, uint256 ownerAmount, uint256 treasuryAmount);
+    event AgentRegistryUpdated(address indexed agentRegistry);
+    event SupportedNFTContractUpdated(address indexed nftContract, bool supported);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -184,6 +192,7 @@ contract NuxAgentRental is
         require(pricePerDay > 0, "Rental: price must be > 0");
         require(minDays >= 1 && minDays <= maxDays, "Rental: invalid duration range");
         require(maxDays <= 365, "Rental: max 365 days");
+        require(_isSupportedNFTContract(nftContract), "Rental: unsupported NFT contract");
         require(
             INFTRentalHook(nftContract).ownerOf(tokenId) == msg.sender,
             "Rental: not token owner"
@@ -368,7 +377,7 @@ contract NuxAgentRental is
         // Pay treasury: combines owner-share (14%) + platform fee (6%) in a single call to save gas
         uint256 totalFees = treasuryAmount + platformAmount;
         if (totalFees > 0) {
-            try treasuryManager.receiveRevenue{value: totalFees}("rental_fee") {} catch {}
+            try treasuryManager.depositRevenue{value: totalFees}("nuxtap_agent_rental_fee") {} catch {}
         }
 
         emit RevenueDistributed(rentalId, owner_, ownerAmount, totalFees);
@@ -389,12 +398,39 @@ contract NuxAgentRental is
         paused = paused_;
     }
 
+    function setAgentRegistry(address registry_) external onlyRole(ADMIN_ROLE) {
+        agentRegistry = registry_;
+        emit AgentRegistryUpdated(registry_);
+    }
+
+    function setSupportedNFTContract(address nftContract, bool supported) external onlyRole(ADMIN_ROLE) {
+        require(nftContract != address(0), "Rental: invalid contract");
+        supportedNFTContracts[nftContract] = supported;
+        emit SupportedNFTContractUpdated(nftContract, supported);
+    }
+
     function setTreasuryManager(address tm_) external onlyRole(ADMIN_ROLE) {
         require(tm_ != address(0), "Rental: invalid address");
         treasuryManager = IRentalTreasury(tm_);
     }
 
     function _authorizeUpgrade(address) internal override onlyRole(UPGRADER_ROLE) {}
+
+    function _isSupportedNFTContract(address nftContract) internal view returns (bool) {
+        if (supportedNFTContracts[nftContract]) {
+            return true;
+        }
+
+        if (agentRegistry == address(0)) {
+            return false;
+        }
+
+        try IRentalAgentRegistry(agentRegistry).registeredNFTContracts(nftContract) returns (bool supported) {
+            return supported;
+        } catch {
+            return false;
+        }
+    }
 
     // ============================================
     // VIEW

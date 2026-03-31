@@ -14,6 +14,8 @@ import "../interfaces/ITreasuryManager.sol";
 import "../interfaces/IMarketplaceStatistics.sol";
 import "../interfaces/IMarketplaceView.sol";
 import "../interfaces/IMarketplaceSocial.sol";
+import { NFTMetadata, Offer, UserProfile, SaleSettlement } from "./MarketplaceCoreTypes.sol";
+import { MarketplaceCoreLib } from "./MarketplaceCoreLib.sol";
 
 contract MarketplaceCore is
     Initializable,
@@ -46,39 +48,6 @@ contract MarketplaceCore is
     uint8 private constant MAX_LEVEL = 50;
     uint256 private constant MAX_XP = 5000;
     uint256 public constant MAX_OFFERS_PER_TOKEN = 50;
-    
-    struct NFTMetadata {
-        address creator;
-        string uri;
-        string category;
-        uint256 createdAt;
-        uint96 royaltyPercentage;
-    }
-    
-    struct Offer {
-        address offeror;
-        uint256 amount;
-        uint8 expiresInDays;
-        uint256 timestamp;
-    }
-    
-    struct UserProfile {
-        uint256 totalXP;
-        uint8 level;
-        uint256 nftsCreated;
-        uint256 nftsOwned;
-        uint32 nftsSold;
-        uint32 nftsBought;
-    }
-
-    struct SaleSettlement {
-        address seller;
-        address buyer;
-        uint256 grossAmount;
-        uint256 platformFee;
-        uint256 royaltyAmount;
-        uint256 sellerAmount;
-    }
     
     mapping(uint256 => NFTMetadata) public nftMetadata;
     mapping(uint256 => bool) public isListed;
@@ -319,13 +288,30 @@ contract MarketplaceCore is
         address seller = ownerOf(_tokenId);
         uint256 price = listedPrice[_tokenId];
         NFTMetadata memory meta = nftMetadata[_tokenId];
-        SaleSettlement memory settlement = _buildSaleSettlement(seller, msg.sender, price, meta);
+        SaleSettlement memory settlement = MarketplaceCoreLib.buildSaleSettlement(
+            seller,
+            msg.sender,
+            price,
+            meta,
+            PLATFORM_FEE_PERCENTAGE
+        );
         
         _transfer(seller, msg.sender, _tokenId);
 
-        _recordSale(_tokenId, settlement, meta);
-        _clearListingAndRefundOffers(_tokenId, type(uint256).max);
-        _payoutSale(settlement, meta);
+        MarketplaceCoreLib.finalizeSale(
+            userProfiles,
+            isListed,
+            listedPrice,
+            nftOffers,
+            _listedTokenIds,
+            address(statisticsModule),
+            address(treasuryManager),
+            platformTreasury,
+            _tokenId,
+            type(uint256).max,
+            settlement,
+            meta
+        );
         
         if (msg.value > price) {
             (bool e,) = payable(msg.sender).call{value: msg.value - price}("");
@@ -367,13 +353,30 @@ contract MarketplaceCore is
         address buyer = offer.offeror;
         uint256 amount = offer.amount;
         NFTMetadata memory meta = nftMetadata[_tokenId];
-        SaleSettlement memory settlement = _buildSaleSettlement(msg.sender, buyer, amount, meta);
+        SaleSettlement memory settlement = MarketplaceCoreLib.buildSaleSettlement(
+            msg.sender,
+            buyer,
+            amount,
+            meta,
+            PLATFORM_FEE_PERCENTAGE
+        );
         
         _transfer(msg.sender, buyer, _tokenId);
 
-        _recordSale(_tokenId, settlement, meta);
-        _clearListingAndRefundOffers(_tokenId, _offerIndex);
-        _payoutSale(settlement, meta);
+        MarketplaceCoreLib.finalizeSale(
+            userProfiles,
+            isListed,
+            listedPrice,
+            nftOffers,
+            _listedTokenIds,
+            address(statisticsModule),
+            address(treasuryManager),
+            platformTreasury,
+            _tokenId,
+            _offerIndex,
+            settlement,
+            meta
+        );
         
         emit PlatformFeeTransferred(buyer, settlement.platformFee, platformTreasury, "OFFER_ACCEPTED");
         emit OfferAccepted(msg.sender, buyer, _tokenId, amount);
@@ -561,95 +564,6 @@ contract MarketplaceCore is
         result = new uint256[](count);
         for (uint256 i = 0; i < count; i++) {
             result[i] = tokenSet.at(i);
-        }
-    }
-
-    function _buildSaleSettlement(
-        address seller,
-        address buyer,
-        uint256 grossAmount,
-        NFTMetadata memory meta
-    ) private pure returns (SaleSettlement memory settlement) {
-        settlement.seller = seller;
-        settlement.buyer = buyer;
-        settlement.grossAmount = grossAmount;
-        settlement.platformFee = (grossAmount * PLATFORM_FEE_PERCENTAGE) / 100;
-
-        if (meta.creator != seller && meta.royaltyPercentage > 0) {
-            settlement.royaltyAmount = (grossAmount * meta.royaltyPercentage) / 10000;
-            if (settlement.platformFee + settlement.royaltyAmount > grossAmount) {
-                settlement.royaltyAmount = grossAmount - settlement.platformFee;
-            }
-        }
-
-        settlement.sellerAmount = grossAmount - settlement.platformFee - settlement.royaltyAmount;
-    }
-    function _recordSale(
-        uint256 tokenId,
-        SaleSettlement memory settlement,
-        NFTMetadata memory meta
-    ) private {
-        userProfiles[settlement.seller].nftsSold++;
-        userProfiles[settlement.buyer].nftsBought++;
-        _addXP(settlement.seller, 20);
-        _addXP(settlement.buyer, 15);
-
-        if (address(statisticsModule) != address(0)) {
-            statisticsModule.recordSale(
-                settlement.seller,
-                settlement.buyer,
-                tokenId,
-                settlement.grossAmount,
-                meta.category
-            );
-            if (settlement.royaltyAmount > 0) {
-                statisticsModule.recordRoyaltyPayment(meta.creator, tokenId, settlement.royaltyAmount);
-            }
-        }
-    }
-
-    function _clearListingAndRefundOffers(uint256 tokenId, uint256 skipOfferIndex) private {
-        isListed[tokenId] = false;
-        listedPrice[tokenId] = 0;
-        _listedTokenIds.remove(tokenId);
-
-        uint256 offerCount = nftOffers[tokenId].length;
-        for (uint256 i = 0; i < offerCount; i++) {
-            if (i == skipOfferIndex) continue;
-
-            Offer memory offer = nftOffers[tokenId][i];
-            if (offer.amount > 0) {
-                (bool refunded,) = payable(offer.offeror).call{value: offer.amount}("");
-                if (!refunded) revert RefundFailed();
-            }
-        }
-
-        delete nftOffers[tokenId];
-    }
-
-    function _payoutSale(SaleSettlement memory settlement, NFTMetadata memory meta) private {
-        _distributeFee(settlement.platformFee);
-
-        if (settlement.royaltyAmount > 0) {
-            (bool royaltyPaid,) = payable(meta.creator).call{value: settlement.royaltyAmount}("");
-            if (!royaltyPaid) revert RefundFailed();
-        }
-
-        (bool sellerPaid,) = payable(settlement.seller).call{value: settlement.sellerAmount}("");
-        if (!sellerPaid) revert SellerFailed();
-    }
-
-    /// @dev Internal fee distribution (100% to TreasuryManager integrated model)
-    function _distributeFee(uint256 platformFee) internal {
-        if (address(treasuryManager) != address(0)) {
-            try treasuryManager.receiveRevenue{value: platformFee}("marketplace_fee") {
-            } catch {
-                (bool t,) = payable(platformTreasury).call{value: platformFee}("");
-                if (!t) revert TreasuryFailed();
-            }
-        } else {
-            (bool t,) = payable(platformTreasury).call{value: platformFee}("");
-            if (!t) revert TreasuryFailed();
         }
     }
 

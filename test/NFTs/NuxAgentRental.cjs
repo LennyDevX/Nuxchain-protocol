@@ -23,6 +23,7 @@ describe("NuxAgentRental", function () {
 
     // Mint token 1 to owner
     await mockNFT.setOwner(1, owner.address);
+    await rental.connect(admin).setSupportedNFTContract(await mockNFT.getAddress(), true);
 
     const ADMIN_ROLE  = await rental.ADMIN_ROLE();
     const PAUSER_ROLE = await rental.PAUSER_ROLE();

@@ -11,6 +11,7 @@ export const DynamicAPYCalculator = abiCatalog["DynamicAPYCalculator"].abi;
 export const FinanceAgentNFT = abiCatalog["FinanceAgentNFT"].abi;
 export const Gamification = abiCatalog["Gamification"].abi;
 export const IAPYCalculator = abiCatalog["IAPYCalculator"].abi;
+export const IAgentRevenueTreasury = abiCatalog["IAgentRevenueTreasury"].abi;
 export const IAuctionTreasury = abiCatalog["IAuctionTreasury"].abi;
 export const IBadgeManager = abiCatalog["IBadgeManager"].abi;
 export const ICategoryNFT = abiCatalog["ICategoryNFT"].abi;
@@ -20,20 +21,27 @@ export const IMarketplaceCore = abiCatalog["IMarketplaceCore"].abi;
 export const IMarketplaceSocial = abiCatalog["IMarketplaceSocial"].abi;
 export const IMarketplaceStatistics = abiCatalog["IMarketplaceStatistics"].abi;
 export const IMarketplaceView = abiCatalog["IMarketplaceView"].abi;
-export const IMiniGameLeveling = abiCatalog["IMiniGameLeveling"].abi;
 export const IMiniGameNFT = abiCatalog["IMiniGameNFT"].abi;
-export const IMiniGameQuestCore = abiCatalog["IMiniGameQuestCore"].abi;
-export const IMiniGameQuestPool = abiCatalog["IMiniGameQuestPool"].abi;
 export const IMiniGameRegistry = abiCatalog["IMiniGameRegistry"].abi;
 export const IMiniGameTreasury = abiCatalog["IMiniGameTreasury"].abi;
 export const INFTOwnerQuery = abiCatalog["INFTOwnerQuery"].abi;
 export const INFTRentalHook = abiCatalog["INFTRentalHook"].abi;
 export const INuxAgentNFT = abiCatalog["INuxAgentNFT"].abi;
 export const INuxPower = abiCatalog["INuxPower"].abi;
+export const INuxTapAgentMarketRegistry = abiCatalog["INuxTapAgentMarketRegistry"].abi;
+export const INuxTapAgentMarketTreasury = abiCatalog["INuxTapAgentMarketTreasury"].abi;
+export const INuxTapAgentRegistry = abiCatalog["INuxTapAgentRegistry"].abi;
+export const INuxTapControllableNFT = abiCatalog["INuxTapControllableNFT"].abi;
+export const INuxTapGameStore = abiCatalog["INuxTapGameStore"].abi;
+export const INuxTapMarketNFT = abiCatalog["INuxTapMarketNFT"].abi;
+export const INuxTapOwnerNFT = abiCatalog["INuxTapOwnerNFT"].abi;
+export const INuxTapStoreTreasury = abiCatalog["INuxTapStoreTreasury"].abi;
+export const INuxTapTreasuryGame = abiCatalog["INuxTapTreasuryGame"].abi;
 export const IQuestCore = abiCatalog["IQuestCore"].abi;
 export const IQuestPoolCaller = abiCatalog["IQuestPoolCaller"].abi;
 export const IQuestRewardsPool = abiCatalog["IQuestRewardsPool"].abi;
 export const IQuestTreasury = abiCatalog["IQuestTreasury"].abi;
+export const IRentalAgentRegistry = abiCatalog["IRentalAgentRegistry"].abi;
 export const IRentalTreasury = abiCatalog["IRentalTreasury"].abi;
 export const ISmartStaking = abiCatalog["ISmartStaking"].abi;
 export const ISmartStakingGamification = abiCatalog["ISmartStakingGamification"].abi;
@@ -60,7 +68,10 @@ export const MockCore = abiCatalog["MockCore"].abi;
 export const MockGameNFT = abiCatalog["MockGameNFT"].abi;
 export const MockLeveling = abiCatalog["MockLeveling"].abi;
 export const MockNFTRentalHook = abiCatalog["MockNFTRentalHook"].abi;
+export const MockQuestLeveling = abiCatalog["MockQuestLeveling"].abi;
+export const MockQuestRewardsPool = abiCatalog["MockQuestRewardsPool"].abi;
 export const MockStaking = abiCatalog["MockStaking"].abi;
+export const MockTapAgentNFT = abiCatalog["MockTapAgentNFT"].abi;
 export const MockTreasury = abiCatalog["MockTreasury"].abi;
 export const NuxAgentFactory = abiCatalog["NuxAgentFactory"].abi;
 export const NuxAgentMiniGame = abiCatalog["NuxAgentMiniGame"].abi;
@@ -72,14 +83,16 @@ export const NuxAuctionMarketplace = abiCatalog["NuxAuctionMarketplace"].abi;
 export const NuxPowerMarketplace = abiCatalog["NuxPowerMarketplace"].abi;
 export const NuxPowerMarketplaceImpl = abiCatalog["NuxPowerMarketplaceImpl"].abi;
 export const NuxPowerNft = abiCatalog["NuxPowerNft"].abi;
+export const NuxTapAgentMarketplace = abiCatalog["NuxTapAgentMarketplace"].abi;
+export const NuxTapGame = abiCatalog["NuxTapGame"].abi;
+export const NuxTapItemStore = abiCatalog["NuxTapItemStore"].abi;
+export const NuxTapTreasury = abiCatalog["NuxTapTreasury"].abi;
 export const QuestCore = abiCatalog["QuestCore"].abi;
+export const QuestCoreV2Mock = abiCatalog["QuestCoreV2Mock"].abi;
 export const QuestRewardsPool = abiCatalog["QuestRewardsPool"].abi;
 export const ReferralSystem = abiCatalog["ReferralSystem"].abi;
 export const SkillViewLib = abiCatalog["SkillViewLib"].abi;
-const smartStakingCoreEntry = abiCatalog["SmartStakingCore"] ?? abiCatalog["SmartStakingCoreV2"];
-export const SmartStakingCore = smartStakingCoreEntry.abi;
-export const SmartStakingCoreV2 = SmartStakingCore;
-export const EnhancedSmartStakingCoreV2 = SmartStakingCore;
+export const SmartStakingCore = abiCatalog["SmartStakingCore"].abi;
 export const SmartStakingGamification = abiCatalog["SmartStakingGamification"].abi;
 export const SmartStakingPower = abiCatalog["SmartStakingPower"].abi;
 export const SmartStakingRewards = abiCatalog["SmartStakingRewards"].abi;
@@ -89,24 +102,13 @@ export const SmartStakingViewCore = abiCatalog["SmartStakingViewCore"].abi;
 export const SmartStakingViewDashboard = abiCatalog["SmartStakingViewDashboard"].abi;
 export const SmartStakingViewSkills = abiCatalog["SmartStakingViewSkills"].abi;
 export const SmartStakingViewStats = abiCatalog["SmartStakingViewStats"].abi;
-export const EnhancedSmartStakingViewCore = SmartStakingViewCore;
-export const EnhancedSmartStakingViewStats = SmartStakingViewStats;
-export const EnhancedSmartStakingViewSkills = SmartStakingViewSkills;
 export const SocialAgentNFT = abiCatalog["SocialAgentNFT"].abi;
 export const TechAgentNFT = abiCatalog["TechAgentNFT"].abi;
 export const TreasuryManager = abiCatalog["TreasuryManager"].abi;
 export const XPSourceMetadata = abiCatalog["XPSourceMetadata"].abi;
-export const GameifiedMarketplaceCoreV1 = MarketplaceCore;
 
-export const AllABIs = {
-  ...Object.fromEntries(Object.entries(abiCatalog).map(([name, value]) => [name, value.abi])),
-  SmartStakingCore,
-  SmartStakingCoreV2,
-  EnhancedSmartStakingCoreV2,
-  EnhancedSmartStakingViewCore,
-  EnhancedSmartStakingViewStats,
-  EnhancedSmartStakingViewSkills,
-  GameifiedMarketplaceCoreV1,
-};
+export const AllABIs = Object.fromEntries(
+  Object.entries(abiCatalog).map(([name, value]) => [name, value.abi])
+);
 
 export default AllABIs;

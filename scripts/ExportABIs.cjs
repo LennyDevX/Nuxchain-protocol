@@ -7,8 +7,8 @@
  *   npx hardhat run scripts/ExportABIs.cjs
  * 
  * Output:
- *   frontend/abis/all-abis.json        - Todos los ABIs en un solo archivo
- *   frontend/abis/abis-by-category.json - ABIs organizados por categoría
+ *   export/abis/all-abis.json        - Todos los ABIs en un solo archivo
+ *   export/abis/abis-by-category.json - ABIs organizados por categoría
  */
 
 const fs = require('fs');
@@ -19,7 +19,7 @@ const path = require('path');
 // ════════════════════════════════════════════════════════════════════════════════════════
 
 const ARTIFACTS_DIR = path.join(__dirname, '..', 'artifacts', 'contracts');
-const ABIS_OUTPUT_DIR = path.join(__dirname, '..', 'frontend', 'abis');
+const ABIS_OUTPUT_DIR = path.join(__dirname, '..', 'export', 'abis');
 
 // ════════════════════════════════════════════════════════════════════════════════════════
 // UTILIDADES

@@ -30,6 +30,7 @@ class AddressManager {
             staking: {},
             marketplace: {},
             treasury: {},
+            nuxtap: {},
             other: {}
         };
 
@@ -71,6 +72,16 @@ class AddressManager {
                     });
                 }
 
+                if (contractGroups.nuxtap) {
+                    Object.entries(contractGroups.nuxtap).forEach(([key, value]) => {
+                        if (typeof value === 'object' && value.address) {
+                            addresses.nuxtap[key] = value.address;
+                        } else if (typeof value === 'string' && value.startsWith('0x')) {
+                            addresses.nuxtap[key] = value;
+                        }
+                    });
+                }
+
                 if (contractGroups.other) {
                     Object.entries(contractGroups.other).forEach(([key, value]) => {
                         if (typeof value === 'object' && value.address) {
@@ -100,7 +111,7 @@ class AddressManager {
     /**
      * Normalizar archivos de deployment antiguos y nuevos a la misma forma.
      * @param {Object} deployment
-     * @returns {{staking?: Object, marketplace?: Object, treasury?: Object, other?: Object}}
+     * @returns {{staking?: Object, marketplace?: Object, treasury?: Object, nuxtap?: Object, other?: Object}}
      */
     getContractGroups(deployment) {
         if (deployment.contracts && typeof deployment.contracts === 'object') {
@@ -111,6 +122,7 @@ class AddressManager {
             staking: deployment.staking,
             marketplace: deployment.marketplace,
             treasury: deployment.treasury,
+            nuxtap: deployment.nuxtap,
             other: deployment.other
         };
     }
@@ -124,6 +136,7 @@ class AddressManager {
             staking: {},
             marketplace: {},
             treasury: {},
+            nuxtap: {},
             other: {}
         };
 
@@ -153,6 +166,9 @@ class AddressManager {
                     addresses.marketplace[contractKey] = value;
                 } else if (key.includes('TREASURY')) {
                     addresses.treasury.manager = value;
+                } else if (key.includes('NUXTAP')) {
+                    const contractKey = this.envKeyToContractKey(key);
+                    addresses.nuxtap[contractKey] = value;
                 } else if (key.includes('COLLABORATOR') || key.includes('BADGE')) {
                     addresses.other.collaboratorBadges = value;
                 } else if (key.includes('DYNAMIC_APY')) {
@@ -185,7 +201,10 @@ class AddressManager {
             'VITE_INDIVIDUAL_SKILLS': 'nuxPowers',
             'VITE_QUEST_CORE_ADDRESS': 'questCore',
             'VITE_LEVELING_SYSTEM': 'leveling',
-            'VITE_REFERRAL_SYSTEM': 'referral'
+            'VITE_REFERRAL_SYSTEM': 'referral',
+            'VITE_NUXTAP_GAME_ADDRESS': 'game',
+            'VITE_NUXTAP_STORE_ADDRESS': 'store',
+            'VITE_NUXTAP_TREASURY_ADDRESS': 'treasury'
         };
 
         return mapping[envKey] || envKey.toLowerCase().replace(/vite_|_address/g, '');
@@ -310,6 +329,7 @@ class AddressManager {
         deploymentData.contracts.staking = deploymentData.contracts.staking || {};
         deploymentData.contracts.marketplace = deploymentData.contracts.marketplace || {};
         deploymentData.contracts.treasury = deploymentData.contracts.treasury || {};
+        deploymentData.contracts.nuxtap = deploymentData.contracts.nuxtap || {};
         deploymentData.contracts.other = deploymentData.contracts.other || {};
 
         if (addresses.staking) {
@@ -342,6 +362,16 @@ class AddressManager {
             });
         }
 
+        if (addresses.nuxtap) {
+            Object.entries(addresses.nuxtap).forEach(([key, value]) => {
+                if (typeof deploymentData.contracts.nuxtap[key] === 'object') {
+                    deploymentData.contracts.nuxtap[key].address = value;
+                } else {
+                    deploymentData.contracts.nuxtap[key] = value;
+                }
+            });
+        }
+
         if (addresses.other) {
             Object.entries(addresses.other).forEach(([key, value]) => {
                 if (typeof deploymentData.contracts.other[key] === 'object') {
@@ -365,7 +395,7 @@ class AddressManager {
     flattenAddresses(addresses) {
         const flat = {};
 
-        ['staking', 'marketplace', 'treasury', 'other'].forEach((category) => {
+        ['staking', 'marketplace', 'treasury', 'nuxtap', 'other'].forEach((category) => {
             if (!addresses[category]) {
                 return;
             }
@@ -462,6 +492,17 @@ class AddressManager {
             updates.push({ key: 'VITE_TREASURY_MANAGER_ADDRESS', value: addresses.treasury.manager });
         }
 
+        // NuxTap
+        if (addresses.nuxtap?.game) {
+            updates.push({ key: 'VITE_NUXTAP_GAME_ADDRESS', value: addresses.nuxtap.game });
+        }
+        if (addresses.nuxtap?.store) {
+            updates.push({ key: 'VITE_NUXTAP_STORE_ADDRESS', value: addresses.nuxtap.store });
+        }
+        if (addresses.nuxtap?.treasury) {
+            updates.push({ key: 'VITE_NUXTAP_TREASURY_ADDRESS', value: addresses.nuxtap.treasury });
+        }
+
         // Other
         if (addresses.other?.collaboratorBadges) {
             updates.push({ key: 'VITE_COLLABORATOR_BADGE_REWARDS_ADDRESS', value: addresses.other.collaboratorBadges });
@@ -482,7 +523,7 @@ class AddressManager {
     mergeAddresses(target, source) {
         const merged = JSON.parse(JSON.stringify(target)); // Deep clone
 
-        ['staking', 'marketplace', 'treasury', 'other'].forEach(category => {
+        ['staking', 'marketplace', 'treasury', 'nuxtap', 'other'].forEach(category => {
             if (source[category]) {
                 merged[category] = { ...merged[category], ...source[category] };
             }
@@ -498,7 +539,7 @@ class AddressManager {
      */
     countAddresses(addresses) {
         let count = 0;
-        ['staking', 'marketplace', 'treasury', 'other'].forEach(category => {
+        ['staking', 'marketplace', 'treasury', 'nuxtap', 'other'].forEach(category => {
             if (addresses[category]) {
                 count += Object.keys(addresses[category]).length;
             }
@@ -535,6 +576,14 @@ class AddressManager {
         if (addresses.treasury && Object.keys(addresses.treasury).length > 0) {
             report += "🔷 TREASURY:\n";
             Object.entries(addresses.treasury).forEach(([key, addr]) => {
+                report += `   ${key.padEnd(20)}: ${addr}\n`;
+            });
+            report += "\n";
+        }
+
+        if (addresses.nuxtap && Object.keys(addresses.nuxtap).length > 0) {
+            report += "🔷 NUXTAP:\n";
+            Object.entries(addresses.nuxtap).forEach(([key, addr]) => {
                 report += `   ${key.padEnd(20)}: ${addr}\n`;
             });
             report += "\n";

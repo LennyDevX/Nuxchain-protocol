@@ -23,9 +23,10 @@
     "clean": "rm -rf node_modules package-lock.json",
     "setup": "npm run clean && npm install",
     "check:contract-sizes": "node scripts/CheckContractSizes.cjs",
+    "deploy:nuxtap": "npx hardhat run scripts/deploy-nuxtap.cjs",
     "export:abis": "npx hardhat run scripts/ExportABIs.cjs",
-    "export:frontend": "node scripts/ExportFrontendPackage.cjs",
-    "build:frontend": "npm run export:abis && npm run export:frontend"
+    "export:package": "node scripts/ExportFrontendPackage.cjs",
+    "build:export": "npm run export:abis && npm run export:package"
   },
   "dependencies": {
     "@nomicfoundation/edr-win32-x64-msvc": "^0.11.3",

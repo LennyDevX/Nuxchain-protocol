@@ -1,7 +1,7 @@
 {
-  "name": "@nuxchain/protocol-frontend",
+  "name": "@nuxchain/protocol-export",
   "version": "0.1.0",
-  "description": "Shared Nuxchain Protocol frontend package with ABIs, addresses, types, and ethers helpers.",
+  "description": "Shared Nuxchain Protocol export package with ABIs, addresses, types, and ethers helpers.",
   "private": true,
   "type": "module",
   "sideEffects": false,

@@ -7,7 +7,10 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 interface IMiniGameRegistry {
+    function registeredNFTContracts(address nftContract) external view returns (bool);
+
     function recordTaskExecution(uint256 agentId, address executor, uint256 rewardPaid) external;
+
     function validationRequest(
         address validatorAddress,
         uint256 agentId,
@@ -16,41 +19,28 @@ interface IMiniGameRegistry {
     ) external returns (bytes32);
 }
 
-interface IMiniGameLeveling {
-    function addXP(address user, uint256 amount) external;
-    function recordAgentTask(address user) external;
-}
-
 interface IMiniGameNFT {
     function ownerOf(uint256 tokenId) external view returns (address);
+    function effectiveController(uint256 tokenId) external view returns (address);
 }
 
 interface IMiniGameTreasury {
-    function receiveRevenue(string calldata revenueType) external payable;
-}
-
-interface IMiniGameQuestPool {
-    function requestPayout(address recipient, uint256 amount, string calldata source) external;
-}
-
-interface IMiniGameQuestCore {
-    enum QuestType { PURCHASE, CREATE, SOCIAL, LEVEL_UP, TRADING, STAKE, COMPOUND, AGENT_TASK }
-    function notifyAction(address user, QuestType questType, uint256 value) external;
+    function depositRevenue(string calldata revenueType) external payable;
 }
 
 /**
  * @title NuxAgentMiniGame
- * @notice Task-based mini-game system for AI Agent NFTs
+ * @notice Task-based mission system for AI Agent NFTs inside the NuxTap economy
  * @dev
- *   Agents complete tasks to earn XP and ETH rewards. Tasks can be:
+ *   Agents complete tasks to earn mission XP and native-token rewards. Tasks can be:
  *
  *   TASK LIFECYCLE:
  *     1. Admin creates a Task with rewards, requirements, and optional validation
  *     2. User submits task result (resultURI = IPFS/Arweave CID of agent output)
  *     3. If validationRequired=false → auto-approval after cooldown
  *        If validationRequired=true → validator calls validateSubmission()
- *     4. After approval, user claims ETH reward (if any)
- *     5. XP is awarded immediately on approval, recorded on-chain
+ *     4. After approval, user claims the mission reward (if any)
+ *     5. Mission XP is awarded immediately on approval, recorded on-chain
  *
  *   DAILY CHALLENGES:
  *     One (or more) tasks per day are flagged DAILY_CHALLENGE. Completing one
@@ -69,14 +59,14 @@ interface IMiniGameQuestCore {
  *       (if validationRequired=true), creating an on-chain audit trail
  *     - On task completion, NuxAgentRegistry.recordTaskExecution() is called
  *
- *   CATEGORY INTEGRATION:
- *     After validating a task, the game calls the category-specific
- *     record* function on the NFT contract (via REGISTRY_ROLE).
- *
  *   REWARD ESCROW:
  *     Admin deposits ETH into the contract's reward pool. Each task
  *     has a tokenReward. Rewards are held in escrow per submission and
  *     released on approval.
+ *
+ *   NUXTAP SCOPE:
+ *     This contract is dedicated to the AI Agent NFT economy used by NuxTap.
+ *     It does not depend on QuestCore or QuestRewardsPool.
  */
 contract NuxAgentMiniGame is
     Initializable,
@@ -184,9 +174,8 @@ contract NuxAgentMiniGame is
     // STATE
     // ============================================
 
-    IMiniGameRegistry  public agentRegistry;
-    IMiniGameLeveling public levelingSystem;
-    address         public defaultValidator;
+    IMiniGameRegistry public agentRegistry;
+    address public defaultValidator;
 
     uint256 public taskCounter;
     uint256 public submissionCounter;
@@ -200,6 +189,7 @@ contract NuxAgentMiniGame is
 
     // Per-agent total XP from this game
     mapping(address => mapping(uint256 => uint256)) public agentGameXP;
+    mapping(address => uint256) public userMissionXP;
 
     // Daily challenge streak tracking: owner → last day completed, streak count
     mapping(address => uint256) public lastDailyDay;
@@ -211,12 +201,7 @@ contract NuxAgentMiniGame is
 
     IMiniGameTreasury public treasuryManager;
     uint256 public miniGameFeeBps; // Protocol fee on claimed rewards (default 0; set via setMiniGameFee)
-
-    /// @notice Optional central quest rewards pool. When set, rewards are paid from the pool.
-    IMiniGameQuestPool public questRewardsPool;
-
-    /// @notice Optional QuestCore integration — notified when a task submission is approved.
-    IMiniGameQuestCore public questCore;
+    mapping(address => bool) public supportedNFTContracts;
 
     // ============================================
     // EVENTS
@@ -233,6 +218,7 @@ contract NuxAgentMiniGame is
     event RewardPoolDeposited(uint256 amount, address depositor);
     event RewardPoolWithdrawn(uint256 amount, address recipient);
     event MiniGameFeeCollected(uint256 indexed submissionId, uint256 feeAmount);
+    event SupportedNFTContractUpdated(address indexed nftContract, bool supported);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -242,7 +228,6 @@ contract NuxAgentMiniGame is
     function initialize(
         address admin_,
         address agentRegistry_,
-        address levelingSystem_,
         address defaultValidator_
     ) public initializer {
         __AccessControl_init();
@@ -256,7 +241,6 @@ contract NuxAgentMiniGame is
         _grantRole(DEPOSITOR_ROLE, admin_);
 
         agentRegistry    = IMiniGameRegistry(agentRegistry_);
-        levelingSystem   = IMiniGameLeveling(levelingSystem_);
         defaultValidator = defaultValidator_;
     }
 
@@ -338,15 +322,16 @@ contract NuxAgentMiniGame is
         bytes32 resultHash
     ) external nonReentrant returns (uint256 submissionId) {
         require(!paused, "Game: paused");
+        require(_isSupportedNFTContract(nftContract), "Game: unsupported NFT contract");
 
         Task storage task = tasks[taskId];
         require(task.active, "Game: task not active");
         require(block.timestamp >= task.startTime, "Game: task not started");
         require(task.deadline == 0 || block.timestamp < task.deadline, "Game: task deadline passed");
 
-        // Verify caller owns the agent
-        address agentOwner = IMiniGameNFT(nftContract).ownerOf(tokenId);
-        require(agentOwner == msg.sender, "Game: not agent owner");
+        // Verify caller controls the agent (owner or active renter)
+        address agentController = _effectiveController(nftContract, tokenId);
+        require(agentController == msg.sender, "Game: not agent controller");
 
         // Check per-agent completions
         if (task.maxCompletionsPerAgent > 0) {
@@ -449,10 +434,8 @@ contract NuxAgentMiniGame is
             xpReward += _processDailyStreak(sub.submitter, xpReward);
         }
 
-        // Award XP
-        _awardXP(sub.submitter, xpReward);
-        try levelingSystem.recordAgentTask(sub.submitter) {} catch {}
         agentGameXP[sub.nftContract][sub.tokenId] += xpReward;
+        userMissionXP[sub.submitter] += xpReward;
 
         // Escrow token reward
         uint256 escrowed;
@@ -464,11 +447,6 @@ contract NuxAgentMiniGame is
         // Notify ERC-8004 registry
         if (address(agentRegistry) != address(0)) {
             try agentRegistry.recordTaskExecution(sub.tokenId, sub.submitter, escrowed) {} catch {}
-        }
-
-        // Notify QuestCore for AGENT_TASK quest tracking
-        if (address(questCore) != address(0)) {
-            try questCore.notifyAction(sub.submitter, IMiniGameQuestCore.QuestType.AGENT_TASK, 1) {} catch {}
         }
 
         // Emit leaderboard event — off-chain indexers build the sorted top-20
@@ -521,18 +499,12 @@ contract NuxAgentMiniGame is
             : 0;
         uint256 netReward = reward - fee;
 
-        if (fee > 0) {
-            try treasuryManager.receiveRevenue{value: fee}("minigame_fee") {} catch {}
+        if (fee > 0 && address(treasuryManager) != address(0)) {
+            try treasuryManager.depositRevenue{value: fee}("nuxtap_agent_minigame_fee") {} catch {}
         }
 
-        // Primary: use central QuestRewardsPool when configured.
-        // Fallback: pay user directly from the local reward pool balance.
-        if (address(questRewardsPool) != address(0)) {
-            questRewardsPool.requestPayout(msg.sender, netReward, "minigame_quest");
-        } else {
-            (bool ok, ) = payable(msg.sender).call{value: netReward}("");
-            require(ok, "Game: reward transfer failed");
-        }
+        (bool ok, ) = payable(msg.sender).call{value: netReward}("");
+        require(ok, "Game: reward transfer failed");
 
         emit RewardClaimed(submissionId, msg.sender, netReward);
         if (fee > 0) emit MiniGameFeeCollected(submissionId, fee);
@@ -542,8 +514,28 @@ contract NuxAgentMiniGame is
     // HELPERS
     // ============================================
 
-    function _awardXP(address user, uint256 amount) internal {
-        try levelingSystem.addXP(user, amount) {} catch {}
+    function _isSupportedNFTContract(address nftContract) internal view returns (bool) {
+        if (supportedNFTContracts[nftContract]) {
+            return true;
+        }
+
+        if (address(agentRegistry) == address(0)) {
+            return false;
+        }
+
+        try agentRegistry.registeredNFTContracts(nftContract) returns (bool supported) {
+            return supported;
+        } catch {
+            return false;
+        }
+    }
+
+    function _effectiveController(address nftContract, uint256 tokenId) internal view returns (address controller) {
+        try IMiniGameNFT(nftContract).effectiveController(tokenId) returns (address effectiveController_) {
+            return effectiveController_;
+        } catch {
+            return IMiniGameNFT(nftContract).ownerOf(tokenId);
+        }
     }
 
     // ============================================
@@ -552,10 +544,6 @@ contract NuxAgentMiniGame is
 
     function setAgentRegistry(address registry_) external onlyRole(ADMIN_ROLE) {
         agentRegistry = IMiniGameRegistry(registry_);
-    }
-
-    function setLevelingSystem(address ls_) external onlyRole(ADMIN_ROLE) {
-        levelingSystem = IMiniGameLeveling(ls_);
     }
 
     function setDefaultValidator(address validator_) external onlyRole(ADMIN_ROLE) {
@@ -572,18 +560,15 @@ contract NuxAgentMiniGame is
         treasuryManager = IMiniGameTreasury(tm_);
     }
 
+    function setSupportedNFTContract(address nftContract, bool supported) external onlyRole(ADMIN_ROLE) {
+        require(nftContract != address(0), "Game: invalid NFT contract");
+        supportedNFTContracts[nftContract] = supported;
+        emit SupportedNFTContractUpdated(nftContract, supported);
+    }
+
     function setMiniGameFee(uint256 feeBps_) external onlyRole(ADMIN_ROLE) {
-        require(feeBps_ <= 500, "Game: fee too high"); // max 5%
+        require(feeBps_ <= 1_000, "Game: fee too high"); // max 10%
         miniGameFeeBps = feeBps_;
-    }
-
-    function setQuestRewardsPool(address pool_) external onlyRole(ADMIN_ROLE) {
-        require(pool_ != address(0), "Game: invalid address");
-        questRewardsPool = IMiniGameQuestPool(pool_);
-    }
-
-    function setQuestCore(address questCore_) external onlyRole(ADMIN_ROLE) {
-        questCore = IMiniGameQuestCore(questCore_);
     }
 
     function _authorizeUpgrade(address) internal override onlyRole(UPGRADER_ROLE) {}

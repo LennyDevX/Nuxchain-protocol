@@ -52,6 +52,7 @@ async function deployUUPS(factory, initArgs, label) {
     const c = await upgrades.deployProxy(factory, initArgs, {
         initializer: "initialize",
         kind: "uups",
+        unsafeAllowLinkedLibraries: true,
     });
     await c.waitForDeployment();
     const addr = await c.getAddress();
@@ -152,14 +153,21 @@ async function main() {
     const { address: apyAddr } = await deployPlain(APYF, [], "DynamicAPYCalculator");
     d.contracts.staking.dynamicAPY = apyAddr;
 
-    // 1.2 Deploy SkillViewLib (external library — required by Core)
+    // 1.2 Deploy external libraries required by Core
     const LibF = await ethers.getContractFactory("SkillViewLib");
     const { address: skillViewLibAddr } = await deployPlain(LibF, [], "SkillViewLib");
     d.contracts.staking.skillViewLib = skillViewLibAddr;
 
+    const CoreLibF = await ethers.getContractFactory("SmartStakingCoreLib");
+    const { address: coreLibAddr } = await deployPlain(CoreLibF, [], "SmartStakingCoreLib");
+    d.contracts.staking.coreLib = coreLibAddr;
+
     // 1.3 Deploy Core (UUPS proxy — links to library)
     const CoreF = await ethers.getContractFactory("SmartStakingCore", {
-        libraries: { SkillViewLib: skillViewLibAddr },
+        libraries: {
+            SkillViewLib: skillViewLibAddr,
+            SmartStakingCoreLib: coreLibAddr,
+        },
     });
     const { contract: stakingCore, address: stakingCoreAddr } =
         await deployUUPS(CoreF, [TREASURY_ADDRESS], "SmartStakingCore");
@@ -244,7 +252,13 @@ async function main() {
     d.contracts.marketplace.referral = referralAddr;
 
     // 2.2 MarketplaceCore (UUPS proxy)
-    const MktCoreF = await ethers.getContractFactory("MarketplaceCore");
+    const MktCoreLibF = await ethers.getContractFactory("MarketplaceCoreLib");
+    const { address: marketplaceCoreLibAddr } = await deployPlain(MktCoreLibF, [], "MarketplaceCoreLib");
+    d.contracts.marketplace.coreLib = marketplaceCoreLibAddr;
+
+    const MktCoreF = await ethers.getContractFactory("MarketplaceCore", {
+        libraries: { MarketplaceCoreLib: marketplaceCoreLibAddr },
+    });
     const { contract: mktCore, address: mktCoreAddr } =
         await deployUUPS(MktCoreF, [TREASURY_ADDRESS], "MarketplaceCore");
     d.contracts.marketplace.core = mktCoreAddr;

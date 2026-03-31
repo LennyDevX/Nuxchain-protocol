@@ -30,6 +30,12 @@ export {
   type UserProfile,
   type NFTMetadata,
   type ReferralInfo,
+  NuxTapItemKind,
+  type NuxTapPlayerProfile,
+  type NuxTapLevelConfig,
+  type NuxTapLinkedAgent,
+  type NuxTapTreasuryStats,
+  type NuxTapItemConfig,
   type TransactionOptions,
   type TransactionReceipt
 } from "./contracts.config";

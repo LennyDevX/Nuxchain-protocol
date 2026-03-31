@@ -27,43 +27,43 @@ The recommended workflow is:
 After compiling or deploying contracts, regenerate the shared frontend artifacts:
 
 ```bash
-npm run build:frontend
+npm run build:export
 ```
 
 This produces or refreshes:
 
-- `frontend/abis/all-abis.json`
-- `frontend/abis/runtime.js`
-- `frontend/config/contracts.generated.json`
-- `frontend/config/contracts.generated.ts`
-- `frontend/config/contracts.generated.js`
+- `export/abis/all-abis.json`
+- `export/abis/runtime.js`
+- `export/config/contracts.generated.json`
+- `export/config/contracts.generated.ts`
+- `export/config/contracts.generated.js`
 
 If `deployments/complete-deployment.json` exists, generated addresses come from deployment output.
-If it does not exist, the generator falls back to `frontend/config/contracts.config.ts`.
+If it does not exist, the generator falls back to `export/config/contracts.config.ts`.
 
 ---
 
 ## Package Entry Points
 
-The shared package is defined in `frontend/package.json` and exposes:
+The shared package is defined in `export/package.json` and exposes:
 
-- `@nuxchain/protocol-frontend`
-- `@nuxchain/protocol-frontend/abis`
-- `@nuxchain/protocol-frontend/config`
-- `@nuxchain/protocol-frontend/clients`
+- `@nuxchain/protocol-export`
+- `@nuxchain/protocol-export/abis`
+- `@nuxchain/protocol-export/config`
+- `@nuxchain/protocol-export/clients`
 
 Current runtime entrypoints in this repo are:
 
-- `frontend/index.js`
-- `frontend/abis/runtime.js`
-- `frontend/config/index.js`
-- `frontend/clients/index.js`
+- `export/index.js`
+- `export/abis/runtime.js`
+- `export/config/index.js`
+- `export/clients/index.js`
 
 Current TypeScript entrypoints are:
 
-- `frontend/index.ts`
-- `frontend/config/index.ts`
-- `frontend/clients/index.ts`
+- `export/index.ts`
+- `export/config/index.ts`
+- `export/clients/index.ts`
 
 ---
 
@@ -76,7 +76,7 @@ Example local file dependency:
 ```json
 {
   "dependencies": {
-    "@nuxchain/protocol-frontend": "file:../nuxchain-protocol/frontend"
+    "@nuxchain/protocol-export": "file:../nuxchain-protocol/export"
   }
 }
 ```
@@ -93,7 +93,7 @@ import {
   CONTRACT_ADDRESSES,
   POLYGON_MAINNET,
   createNuxchainClients
-} from "@nuxchain/protocol-frontend";
+} from "@nuxchain/protocol-export";
 
 const provider = new BrowserProvider(window.ethereum);
 const signer = await provider.getSigner();
@@ -115,7 +115,7 @@ console.log(stakingSummary, treasuryStats);
 
 ```ts
 import { BrowserProvider } from "ethers";
-import { createTreasuryClient } from "@nuxchain/protocol-frontend/clients";
+import { createTreasuryClient } from "@nuxchain/protocol-export/clients";
 
 const provider = new BrowserProvider(window.ethereum);
 const treasury = createTreasuryClient(provider);
@@ -128,7 +128,7 @@ const reserve = await treasury.getReserveStats();
 
 ```ts
 import { JsonRpcProvider } from "ethers";
-import { createStakingClients } from "@nuxchain/protocol-frontend/clients";
+import { createStakingClients } from "@nuxchain/protocol-export/clients";
 
 const provider = new JsonRpcProvider("https://polygon-rpc.com");
 const staking = createStakingClients(provider);
@@ -141,7 +141,7 @@ const user = await staking.stakingViewCore.getUserDeposits("0xYourWallet");
 
 ```ts
 import { JsonRpcProvider } from "ethers";
-import { createMarketplaceClients } from "@nuxchain/protocol-frontend/clients";
+import { createMarketplaceClients } from "@nuxchain/protocol-export/clients";
 
 const provider = new JsonRpcProvider("https://polygon-rpc.com");
 const marketplace = createMarketplaceClients(provider);
@@ -158,8 +158,8 @@ If you need direct ABI control instead of client helpers:
 
 ```ts
 import { Contract, JsonRpcProvider } from "ethers";
-import { TreasuryManager } from "@nuxchain/protocol-frontend/abis";
-import { CONTRACT_ADDRESSES } from "@nuxchain/protocol-frontend/config";
+import { TreasuryManager } from "@nuxchain/protocol-export/abis";
+import { CONTRACT_ADDRESSES } from "@nuxchain/protocol-export/config";
 
 const provider = new JsonRpcProvider("https://polygon-rpc.com");
 
@@ -183,7 +183,7 @@ import {
   CONTRACT_ADDRESSES,
   WALLET_ADDRESSES,
   GENERATED_METADATA
-} from "@nuxchain/protocol-frontend/config";
+} from "@nuxchain/protocol-export/config";
 
 console.log(GENERATED_METADATA.network);
 console.log(CONTRACT_ADDRESSES.StakingCore);
@@ -206,7 +206,7 @@ import {
   ProtocolStatus,
   SKILL_TYPE_NAMES,
   type UserStakingInfo
-} from "@nuxchain/protocol-frontend/config";
+} from "@nuxchain/protocol-export/config";
 
 const label = SKILL_TYPE_NAMES[SkillType.AUTO_COMPOUND];
 ```
@@ -227,7 +227,7 @@ Initial shared package support is focused on Polygon mainnet.
 
 ```ts
 // src/lib/nuxchain.ts
-import { createNuxchainClients } from "@nuxchain/protocol-frontend/clients";
+import { createNuxchainClients } from "@nuxchain/protocol-export/clients";
 import { BrowserProvider } from "ethers";
 
 export async function getNuxchainClients() {
@@ -247,7 +247,7 @@ Run this whenever contracts or addresses change:
 
 ```bash
 npx hardhat compile
-npm run build:frontend
+npm run build:export
 ```
 
 For a deployment flow, prefer:
@@ -257,7 +257,7 @@ npx hardhat run scripts/deploy.cjs --network polygon
 npx hardhat run scripts/configure.cjs --network polygon
 npx hardhat run scripts/fund.cjs --network polygon
 npx hardhat run scripts/verify.cjs --network polygon
-npm run build:frontend
+npm run build:export
 ```
 
 ---

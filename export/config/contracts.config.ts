@@ -32,6 +32,12 @@ export interface ContractAddresses {
   // --- Treasury ---
   TreasuryManager:       string;  // TreasuryManager
 
+  // --- NuxTap ---
+  NuxTapGame?:           string;  // NuxTapGame
+  NuxTapAgentMarketplace?: string;  // NuxTapAgentMarketplace
+  NuxTapStore?:          string;  // NuxTapItemStore
+  NuxTapTreasury?:       string;  // NuxTapTreasury
+
   // Power aliases kept in frontend for the renamed product language.
   StakingPowers?:        string;
   StakingViewPowers?:    string;
@@ -272,6 +278,69 @@ export interface ReferralInfo {
   referrer: string;
   totalReferrals: bigint;
   rewardsEarned: bigint;
+}
+
+// ============================================
+// TypeScript Interfaces — NuxTap
+// ============================================
+
+export interface NuxTapPlayerProfile {
+  totalScore: bigint;
+  lifetimeTaps: bigint;
+  totalSessions: bigint;
+  unclaimedRewards: bigint;
+  claimedRewards: bigint;
+  currentLevel: bigint;
+  currentStreak: bigint;
+  bestStreak: bigint;
+  autoTapRate: bigint;
+  boosterMultiplierBps: bigint;
+  boosterExpiresAt: bigint;
+  lastSettlementAt: bigint;
+  lastActiveDay: bigint;
+  dailyTapCount: bigint;
+  linkedNftContract: string;
+  linkedTokenId: bigint;
+}
+
+export interface NuxTapLevelConfig {
+  scoreRequired: bigint;
+  dailyTapCap: bigint;
+  rewardMultiplierBps: bigint;
+}
+
+export interface NuxTapLinkedAgent {
+  nftContract: string;
+  tokenId: bigint;
+}
+
+export interface NuxTapTreasuryStats {
+  balance: bigint;
+  rewardBalance: bigint;
+  available: bigint;
+  reserved: bigint;
+  distributed: bigint;
+  feesRetained: bigint;
+  revenueReceived: bigint;
+}
+
+export enum NuxTapItemKind {
+  NONE = 0,
+  AUTO_TAP = 1,
+  BOOSTER = 2,
+  WITHDRAW_PASS = 3,
+  AGENT_NFT = 4
+}
+
+export interface NuxTapItemConfig {
+  kind: NuxTapItemKind;
+  price: bigint;
+  value: bigint;
+  duration: bigint;
+  stock: bigint;
+  active: boolean;
+  soulbound: boolean;
+  nftContract: string;
 }
 
 // ============================================

@@ -578,7 +578,7 @@ contract AgentNuxPower is
         powers[47] = PowerDefinition(INuxAgentNFT.AgentCategory.BUSINESS,   2000,  90 ether, true);
         powers[48] = PowerDefinition(INuxAgentNFT.AgentCategory.BUSINESS,   2500, 100 ether, true);
         powers[49] = PowerDefinition(INuxAgentNFT.AgentCategory.BUSINESS,   4000, 130 ether, true);
-        // Power names/descriptions are in frontend/config/agent-powers-metadata.json
+        // Power names/descriptions are in export/config/agent-powers-metadata.json
     }
 }
 

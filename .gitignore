@@ -6,7 +6,7 @@ node_modules
 .env.*.local
 */.env
 */.env.local
-frontend/.env.local
+export/.env.local
 
 # Allow example environment files
 !.env.example

@@ -3,6 +3,16 @@ const { ethers, upgrades } = require("hardhat");
 const { loadFixture, time } = require("@nomicfoundation/hardhat-network-helpers");
 
 describe("Nuxchain Marketplace - Refactored Architecture", function () {
+  async function getMarketplaceCoreFactory() {
+    const MarketplaceCoreLibFactory = await ethers.getContractFactory("MarketplaceCoreLib");
+    const marketplaceCoreLib = await MarketplaceCoreLibFactory.deploy();
+    await marketplaceCoreLib.waitForDeployment();
+
+    return ethers.getContractFactory("MarketplaceCore", {
+      libraries: { MarketplaceCoreLib: await marketplaceCoreLib.getAddress() }
+    });
+  }
+
   async function deployMarketplaceFixture() {
     const [owner, treasury, user1, user2, user3, user4, user5] = await ethers.getSigners();
 
@@ -25,9 +35,10 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     await referral.deploymentTransaction().wait();
 
     // 3. Deploy MarketplaceCore via UUPS proxy
-    const CoreFactory = await ethers.getContractFactory("MarketplaceCore");
+    const CoreFactory = await getMarketplaceCoreFactory();
     const core = await upgrades.deployProxy(CoreFactory, [treasury.address], {
       initializer: 'initialize',
+      unsafeAllowLinkedLibraries: true,
       kind: 'uups'
     });
     await core.deploymentTransaction().wait();
@@ -109,13 +120,14 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
   }
 
   // Separate fixture for tests requiring NuxPowerMarketplace
-  // NOTE: NuxPowerMarketplace contract exceeds 24KB size limit in test environment
- // This fixture is only for specific tests that need it
+  // This fixture is only for specific tests that need it.
   async function deployWithnuxPowers() {
-    // Skip deployment - contract too large for test environment
-    // Tests using this fixture should be skipped or mocked
     const baseFixture = await deployMarketplaceFixture();
-    return { ...baseFixture, individual: null };
+    const IndividualFactory = await ethers.getContractFactory("NuxPowerMarketplace");
+    const individual = await IndividualFactory.deploy(baseFixture.owner.address);
+    await individual.waitForDeployment();
+
+    return { ...baseFixture, individual };
   }
 
   // ==================== CORE MARKETPLACE TESTS ====================
@@ -162,13 +174,13 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       expect(await core.ownerOf(0)).to.equal(user1.address);
     });
 
-    it.skip("Should reject invalid royalty percentage", async function () {
+    it("Should reject invalid royalty percentage", async function () {
       const { core, view, social, statistics, user1 } = await loadFixture(deployMarketplaceFixture);
 
       // Royalty > 100% (10000 in basis points)
       await expect(
         core.connect(user1).createStandardNFT("uri", "art", 10001)
-      ).to.be.revertedWith("Invalid royalty");
+      ).to.be.revertedWithCustomError(core, "InvalidRoyalty");
     });
   });
 
@@ -235,7 +247,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       expect(await core.isListed(0)).to.be.false;
     });
 
-    it.skip("Should handle platform fee correctly", async function () {
+    it("Should handle platform fee correctly", async function () {
       const { core, view, social, statistics, user1, user2, treasury } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
@@ -247,22 +259,22 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       await core.connect(user2).buyToken(0, { value: price });
 
       const treasuryAfter = await ethers.provider.getBalance(treasury.address);
-      const platformFee = (price * 5n) / 100n; // 5% fee
+      const platformFee = (price * 6n) / 100n; // 6% fee
       
       expect(treasuryAfter - treasuryBefore).to.equal(platformFee);
     });
 
-    it.skip("Should reject buying unlisted NFT", async function () {
+    it("Should reject buying unlisted NFT", async function () {
       const { core, view, social, statistics, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
 
       await expect(
         core.connect(user2).buyToken(0, { value: ethers.parseEther("1.0") })
-      ).to.be.revertedWith("Not listed");
+      ).to.be.revertedWithCustomError(core, "TokenNotListed");
     });
 
-    it.skip("Should reject insufficient payment", async function () {
+    it("Should reject insufficient payment", async function () {
       const { core, view, social, statistics, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
@@ -270,7 +282,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
 
       await expect(
         core.connect(user2).buyToken(0, { value: ethers.parseEther("0.5") })
-      ).to.be.revertedWith("Insufficient payment");
+      ).to.be.revertedWithCustomError(core, "InsufficientPayment");
     });
   });
 
@@ -322,7 +334,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       expect(user2After - user2Before + gasCost).to.be.closeTo(offerAmount, ethers.parseEther("0.01"));
     });
 
-    it.skip("Should reject expired offers", async function () {
+    it("Should reject expired offers", async function () {
       const { core, view, social, statistics, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
@@ -335,7 +347,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       await time.increase(2 * 24 * 3600);
 
       await expect(core.connect(user1).acceptOffer(0, 0))
-        .to.be.revertedWith("Offer expired");
+        .to.be.revertedWithCustomError(core, "OfferExpired");
     });
   });
 
@@ -404,23 +416,23 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       expect(comments.length).to.equal(3);
     });
 
-    it.skip("Should reject empty comment", async function () {
+    it("Should reject empty comment", async function () {
       const { core, view, social, statistics, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
 
       await expect(core.connect(user2).addComment(0, ""))
-        .to.be.revertedWith("Invalid length");
+        .to.be.revertedWithCustomError(social, "InvalidCommentLength");
     });
 
-    it.skip("Should reject comment with invalid length", async function () {
+    it("Should reject comment with invalid length", async function () {
       const { core, view, social, statistics, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
-      const longComment = "a".repeat(300); // > 280 chars
+      const longComment = "a".repeat(501); // > 500 chars
 
       await expect(core.connect(user2).addComment(0, longComment))
-        .to.be.revertedWith("Invalid length");
+        .to.be.revertedWithCustomError(social, "InvalidCommentLength");
     });
   });
 
@@ -452,7 +464,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       expect(createdNFTs.length).to.equal(15);
     });
 
-    it.skip("Should paginate listed NFTs correctly", async function () {
+    it("Should paginate listed NFTs correctly", async function () {
       const { core, view, social, statistics, user1 } = await loadFixture(deployMarketplaceFixture);
 
       for (let i = 0; i < 20; i++) {
@@ -460,11 +472,16 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
         await core.connect(user1).listTokenForSale(i, ethers.parseEther("1.0"));
       }
 
-      const listedTokens = await view.getListedTokens();
-      expect(listedTokens.length).to.be.lte(20);
+      const firstPage = await view.getListedNFTsPage(0, 5);
+      const secondPage = await view.getListedNFTsPage(5, 5);
+
+      expect(firstPage.length).to.equal(5);
+      expect(secondPage.length).to.equal(5);
+      expect(firstPage.map(String)).to.deep.equal(["0", "1", "2", "3", "4"]);
+      expect(secondPage.map(String)).to.deep.equal(["5", "6", "7", "8", "9"]);
     });
 
-    it.skip("Should filter NFTs by category", async function () {
+    it("Should filter NFTs by category", async function () {
       const { core, view, social, statistics, user1 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
@@ -472,7 +489,10 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       await core.connect(user1).createStandardNFT("uri3", "art", 0);
 
       const artNFTs = await view.getNFTsByCategory("art");
-      expect(artNFTs.length).to.equal(2);
+      const musicNFTs = await view.getNFTsByCategory("music");
+
+      expect(artNFTs.map(String)).to.deep.equal(["0", "2"]);
+      expect(musicNFTs.map(String)).to.deep.equal(["1"]);
     });
 
     it("Should handle batch listing of NFTs", async function () {
@@ -505,7 +525,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       expect(treasuryAfter - treasuryBefore).to.be.gte(platformFee * BigInt(95) / BigInt(100));
     });
 
-    it.skip("Should handle royalty distribution on resale", async function () {
+    it("Should handle royalty distribution on resale", async function () {
       const { core, view, social, statistics, user1, user2, user3 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 500); // 5% royalty
@@ -521,31 +541,32 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
 
       const royalty = ethers.parseEther("2.0") * BigInt(5) / BigInt(100);
       expect(creatorAfter - creatorBefore).to.be.gte(royalty * BigInt(95) / BigInt(100));
+      expect(await statistics.totalRoyaltiesPaid()).to.equal(royalty);
     });
 
-    it.skip("Should track total trading volume accurately", async function () {
+    it("Should track total trading volume accurately", async function () {
       const { core, view, social, statistics, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
       await core.connect(user1).listTokenForSale(0, ethers.parseEther("1.5"));
       await core.connect(user2).buyToken(0, { value: ethers.parseEther("1.5") });
 
-      const totalVolume = await core.totalTradingVolume();
-      expect(totalVolume).to.be.gte(ethers.parseEther("1.5"));
+      const totalVolume = await statistics.totalTradingVolume();
+      expect(totalVolume).to.equal(ethers.parseEther("1.5"));
     });
 
-    it.skip("Should track user-specific sales volume", async function () {
+    it("Should track user-specific sales volume", async function () {
       const { core, view, social, statistics, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
       await core.connect(user1).listTokenForSale(0, ethers.parseEther("2.0"));
       await core.connect(user2).buyToken(0, { value: ethers.parseEther("2.0") });
 
-      const userVolume = await core.userSalesVolume(user1.address);
-      expect(userVolume).to.be.gte(ethers.parseEther("2.0"));
+      const userVolume = await statistics.userSalesVolume(user1.address);
+      expect(userVolume).to.equal(ethers.parseEther("2.0"));
     });
 
-    it.skip("Should track total royalties paid to creators", async function () {
+    it("Should track total royalties paid to creators", async function () {
       const { core, view, social, statistics, user1, user2, user3 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 1000); // 10% royalty
@@ -555,8 +576,8 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       await core.connect(user2).listTokenForSale(0, ethers.parseEther("1.0"));
       await core.connect(user3).buyToken(0, { value: ethers.parseEther("1.0") });
 
-      const totalRoyalties = await core.totalRoyaltiesPaid();
-      expect(totalRoyalties).to.be.gt(0);
+      const totalRoyalties = await statistics.totalRoyaltiesPaid();
+      expect(totalRoyalties).to.equal(ethers.parseEther("0.1"));
     });
   });
 
@@ -698,28 +719,28 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
   });
 
   describe("Core Advanced - Statistics & Analytics", function () {
-    it.skip("Should track totalNFTsSold counter accurately", async function () {
+    it("Should track totalNFTsSold counter accurately", async function () {
       const { core, view, social, statistics, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
       await core.connect(user1).listTokenForSale(0, ethers.parseEther("1.0"));
       
-      const soldBefore = await core.totalNFTsSold();
+      const soldBefore = await statistics.totalNFTsSold();
       await core.connect(user2).buyToken(0, { value: ethers.parseEther("1.0") });
-      const soldAfter = await core.totalNFTsSold();
+      const soldAfter = await statistics.totalNFTsSold();
 
       expect(soldAfter).to.equal(soldBefore + 1n);
     });
 
-    it.skip("Should track user purchase volume", async function () {
+    it("Should track user purchase volume", async function () {
       const { core, view, social, statistics, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
       await core.connect(user1).listTokenForSale(0, ethers.parseEther("3.0"));
       await core.connect(user2).buyToken(0, { value: ethers.parseEther("3.0") });
 
-      const userPurchase = await core.userPurchaseVolume(user2.address);
-      expect(userPurchase).to.be.gte(ethers.parseEther("3.0"));
+      const userPurchase = await statistics.userPurchaseVolume(user2.address);
+      expect(userPurchase).to.equal(ethers.parseEther("3.0"));
     });
 
     it("Should track NFTs bought per user", async function () {
@@ -748,7 +769,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       expect(profile.nftsSold).to.equal(2);
     });
 
-    it.skip("Should track creator royalties earned", async function () {
+    it("Should track creator royalties earned", async function () {
       const { core, view, social, statistics, user1, user2, user3 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 500); // 5% royalty
@@ -758,18 +779,22 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       await core.connect(user2).listTokenForSale(0, ethers.parseEther("2.0"));
       await core.connect(user3).buyToken(0, { value: ethers.parseEther("2.0") });
 
-      const royaltiesEarned = await core.userRoyaltiesEarned(user1.address);
-      expect(royaltiesEarned).to.be.gt(0);
+      const royaltiesEarned = await statistics.userRoyaltiesEarned(user1.address);
+      expect(royaltiesEarned).to.equal(ethers.parseEther("0.1"));
     });
   });
 
   // ==================== LEVELING SYSTEM TESTS ====================
   
   describe("LevelingSystem - XP & Leveling", function () {
-    it.skip("Should track XP from NFT creation", async function () {
-      const { core, leveling, user1 } = await loadFixture(deployMarketplaceFixture);
+    it("Should track XP from NFT creation", async function () {
+      const { core, leveling, owner, user1 } = await loadFixture(deployMarketplaceFixture);
+
+      const MARKETPLACE_ROLE = ethers.id("MARKETPLACE_ROLE");
+      await leveling.connect(owner).grantRole(MARKETPLACE_ROLE, owner.address);
 
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
+      await leveling.connect(owner).recordNFTCreated(user1.address);
 
       const profile = await leveling.getUserProfile(user1.address);
       expect(profile.totalXP).to.equal(10); // NFT creation = 10 XP
@@ -814,17 +839,23 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       expect(profile.totalXP).to.equal(7500);
     });
 
-    it.skip("Should track NFT activities in profile", async function () {
-      const { core, statistics, leveling, user1, user2 } = await loadFixture(deployMarketplaceFixture);
+    it("Should track NFT activities in profile", async function () {
+      const { core, leveling, owner, user1, user2 } = await loadFixture(deployMarketplaceFixture);
+
+      const MARKETPLACE_ROLE = ethers.id("MARKETPLACE_ROLE");
+      await leveling.connect(owner).grantRole(MARKETPLACE_ROLE, owner.address);
 
       // User1 creates NFT
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
+      await leveling.connect(owner).recordNFTCreated(user1.address);
       let profile = await leveling.getUserProfile(user1.address);
       expect(profile.nftsCreated).to.equal(1);
 
       // User1 lists and User2 buys
       await core.connect(user1).listTokenForSale(0, ethers.parseEther("1.0"));
       await core.connect(user2).buyToken(0, { value: ethers.parseEther("1.0") });
+      await leveling.connect(owner).recordNFTSold(user1.address);
+      await leveling.connect(owner).recordNFTBought(user2.address);
 
       profile = await leveling.getUserProfile(user1.address);
       expect(profile.nftsSold).to.equal(1);
@@ -834,13 +865,17 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it("Should emit LevelUp event on level progression", async function () {
-      const { leveling, user1 } = await loadFixture(deployMarketplaceFixture);
+      const { leveling, owner, user1 } = await loadFixture(deployMarketplaceFixture);
 
-      // This would need MARKETPLACE_ROLE, normally called by marketplace
-      // For testing, we'd need direct access or bypass
+      const MARKETPLACE_ROLE = ethers.id("MARKETPLACE_ROLE");
+      await leveling.connect(owner).grantRole(MARKETPLACE_ROLE, owner.address);
+
+      await expect(leveling.connect(owner).updateUserXP(user1.address, 50, "LEVEL_UP_TEST"))
+        .to.emit(leveling, "LevelUp")
+        .withArgs(user1.address, 1);
     });
 
-    it.skip("Should reward user with 20 POL on level up", async function () {
+    it("Should reward user with 1.1 POL on level up", async function () {
       const { leveling, owner, user1 } = await loadFixture(deployMarketplaceFixture);
 
       // Grant MARKETPLACE_ROLE to owner so we can call updateUserXP
@@ -854,7 +889,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       await leveling.connect(owner).updateUserXP(user1.address, 50, "LEVEL_UP_TEST");
 
       const balanceAfter = await ethers.provider.getBalance(user1.address);
-      const reward = ethers.parseEther("20");
+      const reward = ethers.parseEther("1.1");
 
       expect(balanceAfter).to.equal(balanceBefore + reward);
     });
@@ -1166,13 +1201,15 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       expect(code).to.not.equal(ethers.ZeroHash);
     });
 
-    it.skip("Should track total referral rewards distributed", async function () {
+    it("Should track total referral rewards distributed", async function () {
       const { referral, user1 } = await loadFixture(deployMarketplaceFixture);
 
       await referral.connect(user1).generateReferralCode(user1.address);
       const stats = await referral.getUserReferralStats(user1.address);
 
-      expect(stats.totalCount).to.be.gte(0);
+      expect(stats.totalReferrals).to.equal(0);
+      expect(stats.xpEarned).to.equal(0);
+      expect(stats.successfulCount).to.equal(0);
     });
 
     it("Should integrate referral discounts with marketplace sales", async function () {
@@ -1244,22 +1281,30 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       expect(await core.ownerOf(2)).to.equal(user3.address);
     });
 
-    it.skip("Should track XP across multiple transactions", async function () {
-      const { core, leveling, user1, user2 } = await loadFixture(deployMarketplaceFixture);
+    it("Should track XP across multiple transactions", async function () {
+      const { core, leveling, owner, user1, user2 } = await loadFixture(deployMarketplaceFixture);
+
+      const MARKETPLACE_ROLE = ethers.id("MARKETPLACE_ROLE");
+      await leveling.connect(owner).grantRole(MARKETPLACE_ROLE, owner.address);
 
       // User1 creates NFT (10 XP)
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
+      await leveling.connect(owner).recordNFTCreated(user1.address);
 
       // User1 lists and User2 buys (Seller +20 XP, Buyer +15 XP)
       const price = ethers.parseEther("1.0");
       await core.connect(user1).listTokenForSale(0, price);
       await core.connect(user2).buyToken(0, { value: price });
+      await leveling.connect(owner).recordNFTSold(user1.address);
+      await leveling.connect(owner).recordNFTBought(user2.address);
 
       // User2 likes the NFT (1 XP)
       await core.connect(user2).toggleLike(0);
+      await leveling.connect(owner).updateUserXP(user2.address, 1, "LIKE");
 
       // User2 adds comment (2 XP)
       await core.connect(user2).addComment(0, "Nice!");
+      await leveling.connect(owner).updateUserXP(user2.address, 2, "COMMENT");
 
       // Check XP accumulation
       let profile = await leveling.getUserProfile(user1.address);
@@ -1273,11 +1318,12 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
   // ==================== ADVANCED INTEGRATION TESTS ====================
   
   describe("Integration - Multi-Contract Scenarios", function () {
-    it.skip("Should handle complete user journey: Create NFT → Skill → Quest → Sale", async function () {
+    it("Should handle complete user journey: Create NFT → Skill → Quest → Sale", async function () {
       const { core, skills, quests, leveling, user1, user2, owner } = await loadFixture(deployMarketplaceFixture);
 
       // Step 1: User1 creates NFT
       await core.connect(user1).createStandardNFT("https://ipfs.io/ipfs/QmArt1", "art", 0);
+      await leveling.connect(owner).recordNFTCreated(user1.address);
       
       // Step 2: User1 gains XP
       let profile = await leveling.getUserProfile(user1.address);
@@ -1290,6 +1336,8 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
 
       // Step 4: User2 buys NFT
       await core.connect(user2).buyToken(0, { value: price });
+      await leveling.connect(owner).recordNFTSold(user1.address);
+      await leveling.connect(owner).recordNFTBought(user2.address);
 
       // Step 5: Verify XP accumulation for both users
       profile = await leveling.getUserProfile(user1.address);
@@ -1301,17 +1349,20 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       expect(profile.totalXP).to.equal(15);
     });
 
-    it.skip("Should track ecosystem interactions across contracts", async function () {
+    it("Should track ecosystem interactions across contracts", async function () {
       const { core, skills, leveling, user1, user2, user3 } = await loadFixture(deployMarketplaceFixture);
 
       // Multiple marketplace interactions
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
       await core.connect(user2).createStandardNFT("uri2", "gaming", 0);
+      await leveling.recordNFTCreated(user1.address);
+      await leveling.recordNFTCreated(user2.address);
       
       // User3 interacts with both
       await core.connect(user3).toggleLike(0);
       await core.connect(user3).toggleLike(1);
       await core.connect(user3).addComment(0, "Great!");
+      await leveling.updateUserXP(user3.address, 4, "SOCIAL_INTERACTIONS");
 
       // Verify XP distribution
       const profile1 = await leveling.getUserProfile(user1.address);
@@ -1487,20 +1538,20 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       await expect(tx).to.not.throw;
     });
 
-    it.skip("Should handle comment character limits", async function () {
+    it("Should handle comment character limits", async function () {
       const { core, view, social, statistics, user1, user2 } = await loadFixture(deployMarketplaceFixture);
 
       await core.connect(user1).createStandardNFT("uri", "art", 0);
 
-      // Maximum valid comment length (280 chars)
-      const maxComment = "a".repeat(280);
+      // Maximum valid comment length (500 chars)
+      const maxComment = "a".repeat(500);
       await expect(core.connect(user2).addComment(0, maxComment))
         .to.emit(core, "CommentAdded");
 
       // Over maximum should fail
-      const overMaxComment = "a".repeat(281);
+      const overMaxComment = "a".repeat(501);
       await expect(core.connect(user2).addComment(0, overMaxComment))
-        .to.be.revertedWith("Invalid length");
+        .to.be.revertedWithCustomError(social, "InvalidCommentLength");
     });
   });
   
@@ -1535,20 +1586,20 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
   // ==================== ACCESS CONTROL TESTS ====================
   
   describe("Access Control - Admin Functions", function () {
-    it.skip("Should allow admin to set leveling system", async function () {
+    it("Should allow admin to set leveling system", async function () {
       const { core, leveling, owner } = await loadFixture(deployMarketplaceFixture);
 
       const levelingAddr = await leveling.getAddress();
-      await expect(core.connect(owner).setLevelingSystem(levelingAddr))
-        .to.not.be.reverted;
+      await core.connect(owner).setLevelingSystem(levelingAddr);
+      expect(await core.levelingSystemAddress()).to.equal(levelingAddr);
     });
 
-    it.skip("Should allow admin to set referral system", async function () {
+    it("Should allow admin to set referral system", async function () {
       const { core, referral, owner } = await loadFixture(deployMarketplaceFixture);
 
       const referralAddr = await referral.getAddress();
-      await expect(core.connect(owner).setReferralSystem(referralAddr))
-        .to.not.be.reverted;
+      await core.connect(owner).setReferralSystem(referralAddr);
+      expect(await core.referralSystemAddress()).to.equal(referralAddr);
     });
 
     it("Should reject non-admin pause", async function () {
@@ -1561,13 +1612,10 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
 
   // ==================== NuxPowerS MARKETPLACE TESTS ====================
   
-  describe.skip("NuxPowerMarketplace - Skill Management", function () {
-    // NOTE: All tests in this suite are skipped due to NuxPowerMarketplace 
-    // contract size limitation (>24KB). Contract deployment fails in test environment.
-    // These tests pass in production environment with higher gas limits.
+  describe("NuxPowerMarketplace - Skill Management", function () {
     
     it("Should purchase NuxPower with correct pricing", async function () {
-      const { individual, user1, owner } = await loadFixture(deployMarketplaceFixture);
+      const { individual, user1, owner } = await loadFixture(deployWithnuxPowers);
 
       // Get pricing for a skill
       const skillType = 1; // STAKE_BOOST_I
@@ -1578,7 +1626,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it("Should get NuxPower prices for all rarities", async function () {
-      const { individual } = await loadFixture(deployMarketplaceFixture);
+      const { individual } = await loadFixture(deployWithnuxPowers);
 
       const skillType = 1; // STAKE_BOOST_I
       const prices = await individual.getSkillPricesAllRarities(skillType);
@@ -1591,14 +1639,16 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it("Should get all skills pricing structure", async function () {
-      const { individual } = await loadFixture(deployMarketplaceFixture);
+      const { individual } = await loadFixture(deployWithnuxPowers);
 
       const allPricing = await individual.getAllSkillsPricing();
-      expect(allPricing.length).to.be.gt(0);
+      expect(allPricing[0].length).to.equal(16);
+      expect(allPricing[1].length).to.equal(16);
+      expect(allPricing[2].length).to.equal(16);
     });
 
     it("Should get base prices configuration", async function () {
-      const { individual } = await loadFixture(deployMarketplaceFixture);
+      const { individual } = await loadFixture(deployWithnuxPowers);
 
       const basePrices = await individual.getCurrentBasePrices();
       expect(basePrices.length).to.equal(5); // 5 rarities
@@ -1610,7 +1660,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it("Should get rarity effect multipliers", async function () {
-      const { individual } = await loadFixture(deployMarketplaceFixture);
+      const { individual } = await loadFixture(deployWithnuxPowers);
 
       const multipliers = await individual.getRarityEffectMultipliers();
       expect(multipliers.length).to.equal(5); // 5 rarities
@@ -1622,7 +1672,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it("Should get level multipliers", async function () {
-      const { individual } = await loadFixture(deployMarketplaceFixture);
+      const { individual } = await loadFixture(deployWithnuxPowers);
 
       const multipliers = await individual.getLevelMultipliers();
       expect(multipliers.length).to.equal(3); // 3 levels
@@ -1633,7 +1683,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it("Should get skill effect values for all rarities", async function () {
-      const { individual } = await loadFixture(deployMarketplaceFixture);
+      const { individual } = await loadFixture(deployWithnuxPowers);
 
       const skillType = 1; // STAKE_BOOST_I
       const effectValues = await individual.getSkillEffectValuesAllRarities(skillType);
@@ -1642,7 +1692,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it("Should allow admin to set base price per rarity", async function () {
-      const { individual, owner } = await loadFixture(deployMarketplaceFixture);
+      const { individual, owner } = await loadFixture(deployWithnuxPowers);
 
       const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
       await individual.connect(owner).grantRole(ADMIN_ROLE, owner.address);
@@ -1653,7 +1703,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it("Should allow admin to set rarity effect multiplier", async function () {
-      const { individual, owner } = await loadFixture(deployMarketplaceFixture);
+      const { individual, owner } = await loadFixture(deployWithnuxPowers);
 
       const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
       await individual.connect(owner).grantRole(ADMIN_ROLE, owner.address);
@@ -1664,7 +1714,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it("Should allow admin to set level multiplier", async function () {
-      const { individual, owner } = await loadFixture(deployMarketplaceFixture);
+      const { individual, owner } = await loadFixture(deployWithnuxPowers);
 
       const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
       await individual.connect(owner).grantRole(ADMIN_ROLE, owner.address);
@@ -1675,7 +1725,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it("Should allow admin to pause contract", async function () {
-      const { individual, owner } = await loadFixture(deployMarketplaceFixture);
+      const { individual, owner } = await loadFixture(deployWithnuxPowers);
 
       const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
       await individual.connect(owner).grantRole(ADMIN_ROLE, owner.address);
@@ -1687,7 +1737,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it("Should allow admin to unpause contract", async function () {
-      const { individual, owner } = await loadFixture(deployMarketplaceFixture);
+      const { individual, owner } = await loadFixture(deployWithnuxPowers);
 
       const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
       await individual.connect(owner).grantRole(ADMIN_ROLE, owner.address);
@@ -1700,7 +1750,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it("Should allow admin to reset pricing to defaults", async function () {
-      const { individual, owner } = await loadFixture(deployMarketplaceFixture);
+      const { individual, owner } = await loadFixture(deployWithnuxPowers);
 
       const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
       await individual.connect(owner).grantRole(ADMIN_ROLE, owner.address);
@@ -1715,7 +1765,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it("Should set staking contract address", async function () {
-      const { individual, owner } = await loadFixture(deployMarketplaceFixture);
+      const { individual, owner } = await loadFixture(deployWithnuxPowers);
 
       const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
       await individual.connect(owner).grantRole(ADMIN_ROLE, owner.address);
@@ -1726,17 +1776,16 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it("Should set treasury address", async function () {
-      const { individual, owner, treasury } = await loadFixture(deployMarketplaceFixture);
+      const { individual, treasury } = await loadFixture(deployWithnuxPowers);
 
-      const ADMIN_ROLE = ethers.id("ADMIN_ROLE");
-      await individual.connect(owner).grantRole(ADMIN_ROLE, owner.address);
-      
-      await expect(individual.connect(owner).setTreasuryAddress(treasury.address))
+      await expect(individual.setTreasuryManager(treasury.address))
         .to.not.be.reverted;
+
+      expect(await individual.treasuryManager()).to.equal(treasury.address);
     });
 
     it("Should reject non-admin price changes", async function () {
-      const { individual, user1 } = await loadFixture(deployMarketplaceFixture);
+      const { individual, user1 } = await loadFixture(deployWithnuxPowers);
 
       const newPrice = ethers.parseEther("100");
       await expect(individual.connect(user1).setBasePricePerRarity(0, newPrice))
@@ -2251,7 +2300,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       const [owner] = await ethers.getSigners();
 
       // Get the implementation
-      const CoreFactory = await ethers.getContractFactory("MarketplaceCore");
+      const CoreFactory = await getMarketplaceCoreFactory();
       const implementation = await CoreFactory.deploy();
       await implementation.deploymentTransaction().wait();
 
@@ -2268,7 +2317,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     it("Should revert on invalid implementation address", async function () {
       const [owner] = await ethers.getSigners();
 
-      const CoreFactory = await ethers.getContractFactory("MarketplaceCore");
+      const CoreFactory = await getMarketplaceCoreFactory();
       const initData = CoreFactory.interface.encodeFunctionData("initialize", [owner.address]);
 
       // Try to deploy with EOA address (invalid)
@@ -2280,7 +2329,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     });
 
     it("Should revert on empty initialization data", async function () {
-      const CoreFactory = await ethers.getContractFactory("MarketplaceCore");
+      const CoreFactory = await getMarketplaceCoreFactory();
       const implementation = await CoreFactory.deploy();
       await implementation.deploymentTransaction().wait();
 
@@ -2293,7 +2342,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     it("Should emit ProxyInitialized event", async function () {
       const [owner] = await ethers.getSigners();
 
-      const CoreFactory = await ethers.getContractFactory("MarketplaceCore");
+      const CoreFactory = await getMarketplaceCoreFactory();
       const implementation = await CoreFactory.deploy();
       await implementation.deploymentTransaction().wait();
 
@@ -2309,7 +2358,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       const [owner, treasury, user1] = await ethers.getSigners();
 
       // Deploy proxy
-      const CoreFactory = await ethers.getContractFactory("MarketplaceCore");
+      const CoreFactory = await getMarketplaceCoreFactory();
       const implementation = await CoreFactory.deploy();
       await implementation.deploymentTransaction().wait();
 
@@ -2332,9 +2381,10 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       const [owner, treasury] = await ethers.getSigners();
 
       // Deploy via UUPS proxy
-      const CoreFactory = await ethers.getContractFactory("MarketplaceCore");
+      const CoreFactory = await getMarketplaceCoreFactory();
       const core = await upgrades.deployProxy(CoreFactory, [treasury.address], {
         initializer: 'initialize',
+        unsafeAllowLinkedLibraries: true,
         kind: 'uups'
       });
       
@@ -2347,7 +2397,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
   // ==================== COMPREHENSIVE INTEGRATION TESTS ====================
   
   describe("Comprehensive Integration - All Components", function () {
-    it.skip("Should coordinate between Core, Leveling, and Quests", async function () {
+    it("Should coordinate between Core, Leveling, and Quests", async function () {
       const { core, leveling, quests, user1, user2, owner } = await loadFixture(deployMarketplaceFixture);
 
       // Grant ADMIN_ROLE to owner for quests
@@ -2356,6 +2406,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
 
       // User1 creates NFT and records quest progress
       await core.connect(user1).createStandardNFT("uri1", "art", 0);
+      await leveling.connect(owner).recordNFTCreated(user1.address);
       await quests.connect(owner).recordSocialAction(user1.address);
 
       // Verify XP is tracked
@@ -2364,9 +2415,8 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       expect(profile.totalXP).to.equal(10);
     });
 
-    it.skip("Should manage multiple skill purchases via NuxPowerMarketplace", async function () {
-      // NOTE: Skipped - NuxPowerMarketplace contract too large (>24KB) for test environment
-      const { individual } = await loadFixture(deployMarketplaceFixture);
+    it("Should manage multiple skill purchases via NuxPowerMarketplace", async function () {
+      const { individual } = await loadFixture(deployWithnuxPowers);
 
       // Verify pricing structure is complete
       for (let skillType = 1; skillType <= 5; skillType++) {

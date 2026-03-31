@@ -1,10 +1,10 @@
-# Nuxchain Protocol Frontend Package
+# Nuxchain Protocol Export Package
 
 Shared package for consuming Nuxchain Protocol contracts from external apps such as `nuxchain-app`.
 
 ## Copy into another app
 
-If you want to move this folder directly into `nuxchain-app`, copy the whole `frontend/` directory and keep its internal structure unchanged.
+If you want to move this folder directly into `nuxchain-app`, copy the whole `export/` directory and keep its internal structure unchanged.
 
 Minimum requirements in the target app:
 
@@ -13,7 +13,7 @@ Minimum requirements in the target app:
 
 Recommended flow:
 
-1. Copy `frontend/` into your app, for example as `src/lib/nuxchain-protocol`
+1. Copy `export/` into your app, for example as `src/lib/nuxchain-protocol`
 2. Keep `abis/`, `clients/`, `config/`, `index.js`, `index.ts`, and `package.json` together
 3. Import from the copied folder path
 
@@ -49,24 +49,24 @@ console.log(nuxTapClients.nuxTapGame.target);
 
 ## What it exports
 
-- `@nuxchain/protocol-frontend` for the combined surface
-- `@nuxchain/protocol-frontend/abis` for raw ABIs
-- `@nuxchain/protocol-frontend/config` for generated addresses and shared enums/types
-- `@nuxchain/protocol-frontend/clients` for ethers client helpers
+- `@nuxchain/protocol-export` for the combined surface
+- `@nuxchain/protocol-export/abis` for raw ABIs
+- `@nuxchain/protocol-export/config` for generated addresses and shared enums/types
+- `@nuxchain/protocol-export/clients` for ethers client helpers
 
 ## Regenerate package artifacts
 
 From the repository root:
 
 ```bash
-npm run build:frontend
+npm run build:export
 ```
 
 ## Example usage
 
 ```ts
 import { BrowserProvider } from "ethers";
-import { createNuxchainClients } from "@nuxchain/protocol-frontend";
+import { createNuxchainClients } from "@nuxchain/protocol-export";
 
 const provider = new BrowserProvider(window.ethereum);
 const signer = await provider.getSigner();

@@ -300,7 +300,7 @@ contract Gamification is Ownable, ReentrancyGuard, ISmartStakingGamification {
     }
 
     function performHealthCheck() external override returns (ITreasuryManager.ProtocolStatus newStatus) {
-        uint256 bal     = address(this).balance;
+        uint256 bal = address(this).balance;
         uint256 pending = totalPendingRewards;
         ITreasuryManager.ProtocolStatus prev = _protocolHealth;
         bool emergencyRequested;

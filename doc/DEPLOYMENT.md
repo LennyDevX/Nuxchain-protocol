@@ -111,22 +111,22 @@ npx hardhat run scripts/verify.cjs --network polygon
 ### Step 5 — Generate frontend integration package
 
 ```bash
-npm run build:frontend
+npm run build:export
 ```
 
 **What it does:**
 - Regenerates ABI exports from compiled artifacts
-- Generates `frontend/abis/runtime.js` for runtime imports
-- Generates `frontend/config/contracts.generated.*` from deployment output when available
+- Generates `export/abis/runtime.js` for runtime imports
+- Generates `export/config/contracts.generated.*` from deployment output when available
 - Refreshes the shared frontend package consumed by external apps such as `nuxchain-app`
 
 **Output:**
-- `frontend/abis/all-abis.json`
-- `frontend/abis/runtime.js`
-- `frontend/config/contracts.generated.json`
-- `frontend/config/contracts.generated.ts`
-- `frontend/config/contracts.generated.js`
-- `frontend/package.json` package exports remain the stable consumer boundary
+- `export/abis/all-abis.json`
+- `export/abis/runtime.js`
+- `export/config/contracts.generated.json`
+- `export/config/contracts.generated.ts`
+- `export/config/contracts.generated.js`
+- `export/package.json` package exports remain the stable consumer boundary
 
 ---
 
@@ -139,7 +139,7 @@ npx hardhat run scripts/deploy.cjs --network amoy
 npx hardhat run scripts/configure.cjs --network amoy
 npx hardhat run scripts/fund.cjs --network amoy
 npx hardhat run scripts/verify.cjs --network amoy
-npm run build:frontend
+npm run build:export
 ```
 
 ---
@@ -150,8 +150,8 @@ After all 5 steps complete, verify:
 
 - [ ] `deployments/complete-deployment.json` exists with all addresses
 - [ ] `deployments/addresses.json` exists with the flat address map
-- [ ] `frontend/config/contracts.generated.json` exists and matches the deployed network
-- [ ] `frontend/abis/runtime.js` exists and exports the latest ABI catalog
+- [ ] `export/config/contracts.generated.json` exists and matches the deployed network
+- [ ] `export/abis/runtime.js` exists and exports the latest ABI catalog
 - [ ] `TreasuryManager.authorizedSources` — SmartStakingCore and MarketplaceCore are both `true`
 - [ ] `SmartStakingCore.rewardsModule()` → SmartStakingRewards address
 - [ ] `SmartStakingCore.powerModule()` → SmartStakingPower address
@@ -205,8 +205,8 @@ For plain contracts (`SmartStakingRewards`, `SmartStakingPower`, etc.):
 |---|---|
 | `deployments/complete-deployment.json` | All addresses grouped by section; network + timestamp |
 | `deployments/addresses.json` | Flat map: `"staking.core" → "0x..."` |
-| `frontend/config/contracts.generated.json` | Frontend-safe address manifest used by the shared package |
-| `frontend/abis/runtime.js` | Runtime ABI entrypoint for external apps |
+| `export/config/contracts.generated.json` | Frontend-safe address manifest used by the shared package |
+| `export/abis/runtime.js` | Runtime ABI entrypoint for external apps |
 
 Example `addresses.json`:
 ```json

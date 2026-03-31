@@ -17,7 +17,7 @@ npx hardhat run scripts/DeploySmartV2.cjs --network polygon
 
 ## Frontend Package
 
-El repo ahora incluye una frontera compartida en `frontend/` para exponer ABIs, direcciones y helpers reutilizables.
+El repo ahora incluye una frontera compartida en `export/` para exponer ABIs, direcciones y helpers reutilizables.
 
 Comandos principales:
 
@@ -25,19 +25,19 @@ Comandos principales:
 # Exportar solo ABIs
 npm run export:abis
 
-# Generar config y runtime del paquete frontend
-npm run export:frontend
+# Generar config y runtime del paquete export
+npm run export:package
 
 # Recomendado: regenerar todo el paquete compartido
-npm run build:frontend
+npm run build:export
 ```
 
 Outputs principales:
 
-- `frontend/abis/runtime.js`
-- `frontend/config/contracts.generated.json`
-- `frontend/config/contracts.generated.ts`
-- `frontend/config/contracts.generated.js`
+- `export/abis/runtime.js`
+- `export/config/contracts.generated.json`
+- `export/config/contracts.generated.ts`
+- `export/config/contracts.generated.js`
 
 Usa estos artefactos como base para `nuxchain-app` en vez de copiar archivos sueltos de deploy o ABIs manuales.
 

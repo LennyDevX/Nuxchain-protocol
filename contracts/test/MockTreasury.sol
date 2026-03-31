@@ -10,4 +10,8 @@ contract MockTreasury {
     function receiveRevenue(string calldata revenueType) external payable {
         emit RevenueReceived(revenueType, msg.value);
     }
+
+    function depositRevenue(string calldata revenueType) external payable {
+        emit RevenueReceived(revenueType, msg.value);
+    }
 }

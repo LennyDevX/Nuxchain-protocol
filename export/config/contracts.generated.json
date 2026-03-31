@@ -3,7 +3,7 @@
     "source": "contracts.config.ts",
     "network": "polygon",
     "chainId": 137,
-    "generatedAt": "2026-03-29T16:02:57.102Z",
+    "generatedAt": "2026-03-31T13:00:40.786Z",
     "deploymentTimestamp": null,
     "deployer": "0x581A41c663223bAE563134C67151CdC2C274f06A"
   },

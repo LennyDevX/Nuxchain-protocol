@@ -5,14 +5,14 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
-const FRONTEND_DIR = path.join(ROOT, "frontend");
-const ABI_JSON_PATH = path.join(FRONTEND_DIR, "abis", "all-abis.json");
-const ABI_RUNTIME_PATH = path.join(FRONTEND_DIR, "abis", "runtime.js");
-const CONFIG_TS_PATH = path.join(FRONTEND_DIR, "config", "contracts.config.ts");
+const EXPORT_DIR = path.join(ROOT, "export");
+const ABI_JSON_PATH = path.join(EXPORT_DIR, "abis", "all-abis.json");
+const ABI_RUNTIME_PATH = path.join(EXPORT_DIR, "abis", "runtime.js");
+const CONFIG_TS_PATH = path.join(EXPORT_DIR, "config", "contracts.config.ts");
 const DEPLOYMENT_PATH = path.join(ROOT, "deployments", "complete-deployment.json");
-const GENERATED_JSON_PATH = path.join(FRONTEND_DIR, "config", "contracts.generated.json");
-const GENERATED_TS_PATH = path.join(FRONTEND_DIR, "config", "contracts.generated.ts");
-const GENERATED_JS_PATH = path.join(FRONTEND_DIR, "config", "contracts.generated.js");
+const GENERATED_JSON_PATH = path.join(EXPORT_DIR, "config", "contracts.generated.json");
+const GENERATED_TS_PATH = path.join(EXPORT_DIR, "config", "contracts.generated.ts");
+const GENERATED_JS_PATH = path.join(EXPORT_DIR, "config", "contracts.generated.js");
 
 const FRONTEND_ADDRESS_MAP = {
     StakingCore: ["staking", "core"],
@@ -36,8 +36,19 @@ const FRONTEND_ADDRESS_MAP = {
     MarketplaceStatistics: ["marketplace", "statistics"],
     MarketplaceSocial: ["marketplace", "social"],
     TreasuryManager: ["treasury", "manager"],
-    QuestRewardsPool: ["treasury", "questRewardsPool"]
+    QuestRewardsPool: ["treasury", "questRewardsPool"],
+    NuxTapGame: ["nuxtap", "game"],
+    NuxTapAgentMarketplace: ["nuxtap", "agentMarketplace"],
+    NuxTapStore: ["nuxtap", "store"],
+    NuxTapTreasury: ["nuxtap", "treasury"]
 };
+
+const OPTIONAL_GENERATED_ADDRESS_KEYS = [
+    "NuxTapGame",
+    "NuxTapAgentMarketplace",
+    "NuxTapStore",
+    "NuxTapTreasury"
+];
 
 function fileExists(filePath) {
     return fs.existsSync(filePath);
@@ -111,6 +122,9 @@ function normalizeManualConfig() {
 }
 
 function buildGeneratedTs(data) {
+    const requiredKeys = Object.keys(data.addresses);
+    const optionalKeys = OPTIONAL_GENERATED_ADDRESS_KEYS.filter((key) => !requiredKeys.includes(key));
+
     return `/**
  * Auto-generated frontend contract config.
  * Source: ${data.meta.source}
@@ -118,7 +132,8 @@ function buildGeneratedTs(data) {
  */
 
 export interface GeneratedContractAddresses {
-${Object.keys(data.addresses).map((key) => `  ${key}: string;`).join("\n")}
+${requiredKeys.map((key) => `  ${key}: string;`).join("\n")}
+${optionalKeys.map((key) => `  ${key}?: string;`).join("\n")}
 }
 
 export interface GeneratedWalletAddresses {

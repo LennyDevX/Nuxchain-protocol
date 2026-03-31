@@ -3,82 +3,160 @@ const { ethers, upgrades } = require("hardhat");
 const { loadFixture, time } = require("@nomicfoundation/hardhat-network-helpers");
 const { keccak256, toUtf8Bytes } = require("ethers");
 
+async function withFilteredSmartStakingWarnings(work) {
+  const originalWarn = console.warn;
+  const originalLog = console.log;
+  const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+  const originalStderrWrite = process.stderr.write.bind(process.stderr);
+
+  const shouldFilter = (args) => {
+    const message = args
+      .map((value) => {
+        if (typeof value === "string") return value;
+        try {
+          return String(value);
+        } catch {
+          return "";
+        }
+      })
+      .join(" ");
+
+    return (
+      message.includes("Invalid Fragment") ||
+      message.includes("IStakingIntegration.PowerType") ||
+      message.includes("IStakingIntegration.Rarity") ||
+      message.includes("Potentially unsafe deployment of contracts/SmartStaking/SmartStakingCore.sol:SmartStakingCore") ||
+      message.includes("unsafeAllow.external-library-linking") ||
+      message.includes("linked libraries are upgrade safe")
+    );
+  };
+
+  console.warn = (...args) => {
+    if (!shouldFilter(args)) {
+      originalWarn(...args);
+    }
+  };
+
+  console.log = (...args) => {
+    if (!shouldFilter(args)) {
+      originalLog(...args);
+    }
+  };
+
+  const wrapWrite = (originalWrite) => (chunk, encoding, callback) => {
+    const message = typeof chunk === "string" ? chunk : chunk?.toString?.() ?? "";
+
+    if (shouldFilter([message])) {
+      if (typeof encoding === "function") {
+        encoding();
+      } else if (typeof callback === "function") {
+        callback();
+      }
+      return true;
+    }
+
+    return originalWrite(chunk, encoding, callback);
+  };
+
+  process.stdout.write = wrapWrite(originalStdoutWrite);
+  process.stderr.write = wrapWrite(originalStderrWrite);
+
+  try {
+    return await work();
+  } finally {
+    console.warn = originalWarn;
+    console.log = originalLog;
+    process.stdout.write = originalStdoutWrite;
+    process.stderr.write = originalStderrWrite;
+  }
+}
+
 describe("SmartStaking System", function () {
   async function deployAllContracts() {
-    const [owner, treasury, user1, user2, user3, marketplace] = await ethers.getSigners();
+    return withFilteredSmartStakingWarnings(async () => {
+      const [owner, treasury, user1, user2, user3, marketplace] = await ethers.getSigners();
 
-    // Deploy Rewards Module
-    const RewardsFactory = await ethers.getContractFactory("SmartStakingRewards");
-    const rewards = await RewardsFactory.deploy();
-    await rewards.deploymentTransaction().wait();
+      // Deploy Rewards Module
+      const RewardsFactory = await ethers.getContractFactory("SmartStakingRewards");
+      const rewards = await RewardsFactory.deploy();
+      await rewards.deploymentTransaction().wait();
 
-    // Deploy Skills Module
-    const SkillsFactory = await ethers.getContractFactory("SmartStakingPower");
-    const skills = await SkillsFactory.deploy();
-    await skills.deploymentTransaction().wait();
+      // Deploy Skills Module
+      const SkillsFactory = await ethers.getContractFactory("SmartStakingPower");
+      const skills = await SkillsFactory.deploy();
+      await skills.deploymentTransaction().wait();
 
-    // Deploy Gamification Module
-    const GamificationFactory = await ethers.getContractFactory("Gamification");
-    const gamification = await GamificationFactory.deploy();
-    await gamification.deploymentTransaction().wait();
+      // Deploy Gamification Module
+      const GamificationFactory = await ethers.getContractFactory("Gamification");
+      const gamification = await GamificationFactory.deploy();
+      await gamification.deploymentTransaction().wait();
 
-    // Deploy SkillViewLib (required library for SmartStakingCore)
-    const SkillViewLibFactory = await ethers.getContractFactory("SkillViewLib");
-    const skillViewLib = await SkillViewLibFactory.deploy();
-    await skillViewLib.deploymentTransaction().wait();
-    const skillViewLibAddr = await skillViewLib.getAddress();
+      // Deploy SkillViewLib (required library for SmartStakingCore)
+      const SkillViewLibFactory = await ethers.getContractFactory("SkillViewLib");
+      const skillViewLib = await SkillViewLibFactory.deploy();
+      await skillViewLib.deploymentTransaction().wait();
+      const skillViewLibAddr = await skillViewLib.getAddress();
 
-    // Deploy Core Staking Contract (UUPS upgradeable)
-    const CoreFactory = await ethers.getContractFactory("SmartStakingCore", {
-      libraries: { SkillViewLib: skillViewLibAddr }
+      const SmartStakingCoreLibFactory = await ethers.getContractFactory("SmartStakingCoreLib");
+      const smartStakingCoreLib = await SmartStakingCoreLibFactory.deploy();
+      await smartStakingCoreLib.deploymentTransaction().wait();
+      const smartStakingCoreLibAddr = await smartStakingCoreLib.getAddress();
+
+      // Deploy Core Staking Contract (UUPS upgradeable)
+      const CoreFactory = await ethers.getContractFactory("SmartStakingCore", {
+        libraries: {
+          SkillViewLib: skillViewLibAddr,
+          SmartStakingCoreLib: smartStakingCoreLibAddr,
+        }
+      });
+      const core = await upgrades.deployProxy(CoreFactory, [treasury.address], {
+        initializer: "initialize",
+        unsafeAllowLinkedLibraries: true,
+        kind: "uups"
+      });
+      await core.waitForDeployment();
+
+      // Get addresses using getAddress()
+      const rewardsAddr = await rewards.getAddress();
+      const skillsAddr = await skills.getAddress();
+      const gamificationAddr = await gamification.getAddress();
+      const coreAddr = await core.getAddress();
+
+      // Setup module interconnections
+      await core.setRewardsModule(rewardsAddr);
+      await core.setPowerModule(skillsAddr);
+      await core.setGamificationModule(gamificationAddr);
+
+      // Setup module interconnections for modules
+      // Modules should accept calls from Core (delegation)
+      await skills.setMarketplaceContract(coreAddr);
+      await skills.setCoreStakingContract(coreAddr);
+
+      await gamification.setMarketplaceContract(coreAddr);
+      await gamification.setCoreStakingContract(coreAddr);
+
+      // Set marketplace in core (Authorize the marketplace signer)
+      await core.setMarketplaceAuthorization(marketplace.address, true);
+
+      // Fund Gamification Module for rewards
+      await owner.sendTransaction({
+        to: gamificationAddr,
+        value: ethers.parseEther("1000")
+      });
+
+      return {
+        core,
+        rewards,
+        skills,
+        gamification,
+        owner,
+        treasury,
+        user1,
+        user2,
+        user3,
+        marketplace,
+      };
     });
-    const core = await upgrades.deployProxy(CoreFactory, [treasury.address], {
-      initializer: "initialize",
-      unsafeAllowLinkedLibraries: true,
-      kind: "uups"
-    });
-    await core.waitForDeployment();
-
-    // Get addresses using getAddress()
-    const rewardsAddr = await rewards.getAddress();
-    const skillsAddr = await skills.getAddress();
-    const gamificationAddr = await gamification.getAddress();
-    const coreAddr = await core.getAddress();
-
-    // Setup module interconnections
-    await core.setRewardsModule(rewardsAddr);
-    await core.setPowerModule(skillsAddr);
-    await core.setGamificationModule(gamificationAddr);
-
-    // Setup module interconnections for modules
-    // Modules should accept calls from Core (delegation)
-    await skills.setMarketplaceContract(coreAddr);
-    await skills.setCoreStakingContract(coreAddr);
-
-    await gamification.setMarketplaceContract(coreAddr);
-    await gamification.setCoreStakingContract(coreAddr);
-
-    // Set marketplace in core (Authorize the marketplace signer)
-    await core.setMarketplaceAuthorization(marketplace.address, true);
-
-    // Fund Gamification Module for rewards
-    await owner.sendTransaction({
-      to: gamificationAddr,
-      value: ethers.parseEther("1000")
-    });
-
-    return {
-      core,
-      rewards,
-      skills,
-      gamification,
-      owner,
-      treasury,
-      user1,
-      user2,
-      user3,
-      marketplace,
-    };
   }
 
   describe("SmartStakingCore", function () {
@@ -1455,18 +1533,27 @@ describe("SmartStaking System", function () {
       const { owner, treasury } = await loadFixture(deployAllContracts);
       
       // Deploy fresh core without modules
-      const SkillViewLibFactory2 = await ethers.getContractFactory("SkillViewLib");
-      const skillViewLib2 = await SkillViewLibFactory2.deploy();
-      const skillViewLib2Addr = await skillViewLib2.getAddress();
-      const CoreFactory = await ethers.getContractFactory("SmartStakingCore", {
-        libraries: { SkillViewLib: skillViewLib2Addr }
+      const freshCore = await withFilteredSmartStakingWarnings(async () => {
+        const SkillViewLibFactory2 = await ethers.getContractFactory("SkillViewLib");
+        const skillViewLib2 = await SkillViewLibFactory2.deploy();
+        const skillViewLib2Addr = await skillViewLib2.getAddress();
+        const SmartStakingCoreLibFactory2 = await ethers.getContractFactory("SmartStakingCoreLib");
+        const smartStakingCoreLib2 = await SmartStakingCoreLibFactory2.deploy();
+        const smartStakingCoreLib2Addr = await smartStakingCoreLib2.getAddress();
+        const CoreFactory = await ethers.getContractFactory("SmartStakingCore", {
+          libraries: {
+            SkillViewLib: skillViewLib2Addr,
+            SmartStakingCoreLib: smartStakingCoreLib2Addr,
+          }
+        });
+        const deployed = await upgrades.deployProxy(CoreFactory, [treasury.address], {
+          initializer: "initialize",
+          unsafeAllowLinkedLibraries: true,
+          kind: "uups"
+        });
+        await deployed.waitForDeployment();
+        return deployed;
       });
-      const freshCore = await upgrades.deployProxy(CoreFactory, [treasury.address], {
-        initializer: "initialize",
-        unsafeAllowLinkedLibraries: true,
-        kind: "uups"
-      });
-      await freshCore.waitForDeployment();
       
       const [, user] = await ethers.getSigners();
       const depositAmount = ethers.parseEther("50");

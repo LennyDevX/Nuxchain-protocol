@@ -8,7 +8,11 @@ import {
   MarketplaceCore,
   MarketplaceView,
   MarketplaceStatistics,
-  TreasuryManager
+  TreasuryManager,
+  NuxTapGame,
+  NuxTapAgentMarketplace,
+  NuxTapItemStore,
+  NuxTapTreasury
 } from "../abis";
 import {
   CONTRACT_ADDRESSES,
@@ -24,6 +28,21 @@ export interface NuxchainCoreClients {
   marketplaceView: Contract;
   marketplaceStatistics: Contract;
   treasuryManager: Contract;
+}
+
+export interface NuxTapClients {
+  nuxTapGame: Contract;
+  nuxTapAgentMarketplace: Contract;
+  nuxTapStore: Contract;
+  nuxTapTreasury: Contract;
+}
+
+function requireAddress(value: string | undefined, label: string): string {
+  if (!value) {
+    throw new Error(`Missing ${label} address in contract config`);
+  }
+
+  return value;
 }
 
 export function createTreasuryClient(
@@ -53,6 +72,23 @@ export function createMarketplaceClients(
     marketplaceCore: new Contract(addresses.MarketplaceProxy, MarketplaceCore, runner),
     marketplaceView: new Contract(addresses.MarketplaceView, MarketplaceView, runner),
     marketplaceStatistics: new Contract(addresses.MarketplaceStatistics, MarketplaceStatistics, runner)
+  };
+}
+
+export function createNuxTapClients(
+  runner: ContractRunner,
+  addresses: GeneratedContractAddresses = CONTRACT_ADDRESSES
+): NuxTapClients {
+  const nuxTapGameAddress = requireAddress(addresses.NuxTapGame, "NuxTapGame");
+  const nuxTapAgentMarketplaceAddress = requireAddress(addresses.NuxTapAgentMarketplace, "NuxTapAgentMarketplace");
+  const nuxTapStoreAddress = requireAddress(addresses.NuxTapStore, "NuxTapStore");
+  const nuxTapTreasuryAddress = requireAddress(addresses.NuxTapTreasury, "NuxTapTreasury");
+
+  return {
+    nuxTapGame: new Contract(nuxTapGameAddress, NuxTapGame, runner),
+    nuxTapAgentMarketplace: new Contract(nuxTapAgentMarketplaceAddress, NuxTapAgentMarketplace, runner),
+    nuxTapStore: new Contract(nuxTapStoreAddress, NuxTapItemStore, runner),
+    nuxTapTreasury: new Contract(nuxTapTreasuryAddress, NuxTapTreasury, runner)
   };
 }
 

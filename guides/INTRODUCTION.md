@@ -158,6 +158,8 @@ Long-term Protocol Viability ✅
 ## 📚 Learn More
 
 - **[Quick Visual Guide](./QUICK_REFERENCE.md)** - Charts, diagrams, visuals
+- **[NuxTap User Guide](./NUXTAP_USER_GUIDE.md)** - Step-by-step guide for the tap game, store, rewards and NFT agents
+- **[NuxTap Agent NFT Guide](./NUXTAP_AGENT_NFT_GUIDE.md)** - Buy, sell, rent and monetize AI agent NFTs inside NuxTap
 - **[Marketing Guide](./MARKETING.md)** - Community messaging
 - **[Technology Deep Dive](./TECHNOLOGY.md)** - For developers
 - **[Technical Docs](../doc/)** - Smart contract reference

@@ -1,50 +1,19 @@
 /**
  * Auto-generated frontend contract config.
  * Source: contracts.config.ts
- * Generated: 2026-03-29T16:02:57.102Z
+ * Generated: 2026-03-31T13:00:40.786Z
  */
-
-export interface GeneratedContractAddresses {
-  StakingCore: string;
-  StakingRewards: string;
-  StakingSkills: string;
-  StakingGamification: string;
-  StakingViewCore: string;
-  StakingViewStats: string;
-  StakingViewSkills: string;
-  DynamicAPYCalculator: string;
-  MarketplaceProxy: string;
-  MarketplaceLeveling: string;
-  MarketplaceReferral: string;
-  MarketplaceSkillsNFT: string;
-  IndividualSkills: string;
-  QuestCore: string;
-  CollaboratorBadges: string;
-  MarketplaceView: string;
-  MarketplaceStatistics: string;
-  MarketplaceSocial: string;
-  TreasuryManager: string;
-  StakingPowers: string;
-  StakingViewPowers: string;
-  MarketplacePowerNFT: string;
-  IndividualPowers: string;
-}
-
-export interface GeneratedWalletAddresses {
-  deployer: string;
-  treasury: string;
-}
 
 export const GENERATED_METADATA = {
   "source": "contracts.config.ts",
   "network": "polygon",
   "chainId": 137,
-  "generatedAt": "2026-03-29T16:02:57.102Z",
+  "generatedAt": "2026-03-31T13:00:40.786Z",
   "deploymentTimestamp": null,
   "deployer": "0x581A41c663223bAE563134C67151CdC2C274f06A"
-} as const;
+};
 
-export const CONTRACT_ADDRESSES: GeneratedContractAddresses = {
+export const CONTRACT_ADDRESSES = {
   "StakingCore": "0x2cda88046543be25a3EC4eA2d86dBe975Fda0028",
   "StakingRewards": "0xEa481FB987d95F8a58730bBd89a91ef733f8C128",
   "StakingSkills": "0x4cF5F1eDfACC19E2FABC1Ec2955A0de4b222025d",
@@ -70,7 +39,7 @@ export const CONTRACT_ADDRESSES: GeneratedContractAddresses = {
   "IndividualPowers": "0x2248e909EC9E122D1D7206E86D2061681EfCC49B"
 };
 
-export const WALLET_ADDRESSES: GeneratedWalletAddresses = {
+export const WALLET_ADDRESSES = {
   "deployer": "0x581A41c663223bAE563134C67151CdC2C274f06A",
   "treasury": "0xe67cbb6c94353903ddbb15fd376e0967bdef13b1"
 };
