@@ -1,340 +1,258 @@
-# 📜 Scripts de Deploy - Nuxchain Protocol
+# � Nuxchain Protocol
 
-Este directorio contiene todos los scripts de despliegue para los contratos del protocolo Nuxchain.
-
-## 🚀 Scripts Principales de Deploy
-
-### ✅ Scripts Funcionales (Actualizados con Verificación Automática)
-
-| Script | Contrato(s) | Red Sugerida | Descripción |
-|--------|-------------|--------------|-------------|
-| `DeployAirdropFactory.cjs` | AirdropFactory | Polygon | Despliega el factory para crear múltiples airdrops |
-| `DeployAirdrop.cjs` | Airdrop | Polygon | Despliega un contrato Airdrop individual |
-| `DeploySmartStaking.cjs` | SmartStaking | Polygon | Despliega el sistema de staking inteligente |
-| `DeployMinerBot.cjs` | MinerBot (5 contratos) | Polygon/ETH | Despliega el ecosistema completo MinerBot Empire |
-| `DeployTokenizationApp.cjs` | Marketplace | Polygon/ETH | Despliega el marketplace de NFTs |
-
-### ⚠️ Scripts Obsoletos (Requieren Actualización)
-
-| Script | Estado | Acción Requerida |
-|--------|--------|------------------|
-| `DeployGame.cjs` | ❌ Obsoleto | Contratos referenciados no existen en el proyecto |
-| `DeployToken.cjs` | ❌ Obsoleto | Contrato NUVOToken no existe en el proyecto |
+**A unified DeFi ecosystem combining staking, gaming, NFTs, and sustainable treasury management on Polygon.**
 
 ---
 
-## 📖 Cómo Usar los Scripts
+## 🎯 Choose Your Path
 
-### Requisitos Previos
+| Who You Are | Start Here | Time |
+|---|---|---|
+| **User / Community** | [guides/INTRODUCTION.md](./guides/INTRODUCTION.md) | 15 min |
+| **Marketing / Social** | [guides/MARKETING.md](./guides/MARKETING.md) | 20 min |
+| **Designer / Visual** | [guides/QUICK_REFERENCE.md](./guides/QUICK_REFERENCE.md) | 10 min |
+| **Developer** | [doc/ARCHITECTURE.md](./doc/ARCHITECTURE.md) | 30 min |
+| **DevOps** | [doc/DEPLOYMENT.md](./doc/DEPLOYMENT.md) | 20 min |
+| **API Reference** | [doc/SMART_CONTRACTS_REFERENCE.md](./doc/SMART_CONTRACTS_REFERENCE.md) | 45 min |
 
-1. **Configurar `.env` con tus claves:**
-```env
-PRIVATE_KEY=tu_private_key_aqui
-POLYGONSCAN_API_KEY=tu_api_key_polygonscan
-ETHERSCAN_API_KEY=tu_api_key_etherscan
+---
+
+## � What is Nuxchain?
+
+Four integrated components:
+
+- **💰 Smart Staking**: 43.8% - 250% APY with skill boosts
+- **🎮 Gameified Marketplace**: Trade NFTs + earn XP
+- **🏅 Skill NFTs**: 7 collectible skills with 5 rarity tiers
+- **🏦 Treasury**: Automated distribution for sustainability
+
+---
+
+## 📊 Key Metrics
+
+| Metric | Value |
+|---|---|
+| Network | Polygon (Chain 137) |
+| Base APY | 43.8% |
+| Max APY | 250%+ |
+| Min Deposit | 10 POL |
+| Max Deposit | 10,000 POL |
+| Commission | 6% (staking), 5% (trades) |
+
+---
+
+## 📚 Documentation Structure
+
+```
+guides/                              ← For End Users
+├── INTRODUCTION.md                  (Getting started)
+├── QUICK_REFERENCE.md               (Visual guide)
+├── TECHNOLOGY.md                    (Deep dive)
+└── MARKETING.md                     (Community messaging)
+
+doc/                                 ← For Developers
+├── README.md                        (Tech doc navigation)
+├── ARCHITECTURE.md                  (Complete design)
+├── SMART_CONTRACTS_REFERENCE.md     (API reference)
+├── DEPLOYMENT.md                    (Setup & devops)
+├── IMPLEMENTATION_GUIDES/
+│   ├── DynamicAPYCalculator.md
+│   └── EmergencyFundSystem.md
+└── FEATURES/
+    └── CollaboratorBadgeRewards.md
+
+reports/                             ← Implementation Reports
+├── DynamicAPY_Implementation.md
+└── Marketplace_Features.md
+
+contracts/                           ← Smart Contract Source Code
 ```
 
-2. **Instalar dependencias:**
+---
+
+## 🚀 Quick Start (5 minutes)
+
+### Setup Wallet
+1. Get MetaMask or similar
+2. Add Polygon (ChainID: 137)
+3. Fund with 1-2 POL for gas
+4. Buy 10+ POL
+
+### Deposit & Earn
+1. Visit Nuxchain interface
+2. Connect wallet
+3. Deposit 10-10,000 POL
+4. Select lock-up (optional)
+5. Watch it compound 24/7
+
+### Maximize Returns
+1. Create NFTs on marketplace (+10 XP per NFT)
+2. Buy skill NFTs (+5-20% APY boost)
+3. Collect rarity tiers (up to 1.8x multiplier)
+4. Level up to unlock features
+
+**Full guide**: [guides/INTRODUCTION.md](./guides/INTRODUCTION.md)
+
+---
+
+## 🛠️ For Developers
+
+### Requirements
+```bash
+node >= 16.0.0
+npm >= 8.0.0
+```
+
+### Setup Repository
+```bash
+git clone https://github.com/LennyDevX/Nuxchain-protocol.git
+cd Nuxchain-protocol
+npm install
+npm test
+```
+
+### Deploy Contracts
+```bash
+# Configure environment
+cp .env.example .env
+# Edit .env with your private key and RPC URL
+
+# Deploy to Polygon
+npx hardhat run scripts/DeploySmartV2.cjs --network polygon
+```
+
+**Detailed guide**: [doc/DEPLOYMENT.md](./doc/DEPLOYMENT.md)
+
+---
+
+## 📖 Documentation by Use Case
+
+### I'm a User
+Start with [guides/INTRODUCTION.md](./guides/INTRODUCTION.md) (15 min)
+- What is Nuxchain
+- How to get started
+- How rewards work
+- Security features
+
+### I'm Creating Marketing Content
+Start with [guides/MARKETING.md](./guides/MARKETING.md) (20 min)
+- Brand messaging
+- Social media templates
+- Target audiences
+- Crisis management
+
+### I'm a Developer
+Start with [doc/ARCHITECTURE.md](./doc/ARCHITECTURE.md) (30 min)
+- System design
+- Smart contract stack
+- Data flows
+- Integration patterns
+
+Then check [doc/SMART_CONTRACTS_REFERENCE.md](./doc/SMART_CONTRACTS_REFERENCE.md) (45 min)
+- Function signatures
+- Event definitions
+- State variables
+
+### I'm Deploying
+Start with [doc/DEPLOYMENT.md](./doc/DEPLOYMENT.md) (20 min)
+- Requirements
+- Configuration
+- Deployment modes
+- Troubleshooting
+
+### I Want to Understand Everything
+Read in order:
+1. [guides/INTRODUCTION.md](./guides/INTRODUCTION.md) - Overview
+2. [doc/ARCHITECTURE.md](./doc/ARCHITECTURE.md) - Technical design
+3. [doc/SMART_CONTRACTS_REFERENCE.md](./doc/SMART_CONTRACTS_REFERENCE.md) - API
+4. [contracts/](./contracts/) - Source code
+
+---
+
+## 🔗 Key Resources
+
+- **[Full Guides](./guides/)** - For end users & content creators
+- **[Technical Docs](./doc/)** - For developers & auditors
+- **[Smart Contracts](./contracts/)** - Source code
+- **[Tests](./test/)** - Test suite
+
+---
+
+## ✅ Status
+
+- ✅ Smart Staking deployed
+- ✅ Gameified Marketplace live
+- ✅ Skill NFT system active
+- ✅ Treasury management operational
+- ✅ All contracts verified on PolygonScan
+- ✅ Documentation complete
+
+---
+
+## 📝 License
+
+Licensed under MIT License
+
+---
+
+**Last Updated**: February 14, 2026  
+**Version**: 5.0+ (Modular)  
+**Network**: Polygon (Production) ✅  
+**Status**: Fully Operational
+
+For questions or contributions, see [guides/MARKETING.md](./guides/MARKETING.md#-contact--resources)
+hardhat
+@openzeppelin/contracts-upgradeable
+```
+
+### Setup
 ```bash
 npm install
+npx hardhat compile
 ```
 
-3. **Verificar configuración de red en `hardhat.config.cjs`:**
-```javascript
-networks: {
-  polygon: {
-    url: "https://polygon-rpc.com",
-    accounts: [process.env.PRIVATE_KEY]
-  }
-}
+### Testing
+```bash
+npx hardhat test
 ```
 
-### Ejecutar un Deploy
-
-#### Sintaxis Básica
-```powershell
-npx hardhat run scripts/<NombreScript>.cjs --network <nombre-red>
-```
-
-#### Ejemplos
-
-**Deploy AirdropFactory en Polygon:**
-```powershell
-npx hardhat run scripts/DeployAirdropFactory.cjs --network polygon
-```
-
-**Deploy SmartStaking en Polygon:**
-```powershell
-npx hardhat run scripts/DeploySmartStaking.cjs --network polygon
-```
-
-**Deploy MinerBot Empire (todos los contratos):**
-```powershell
-npx hardhat run scripts/DeployMinerBot.cjs --network polygon
-```
-
-**Deploy en localhost para testing:**
-```powershell
-# Terminal 1: Iniciar nodo local
-npx hardhat node
-
-# Terminal 2: Desplegar
-npx hardhat run scripts/DeployAirdropFactory.cjs --network localhost
-```
+### Deployment
+See `scripts/` directory for deployment scripts.
 
 ---
 
-## ✨ Características de los Scripts Actualizados
+## 🔒 Security
 
-### 🔄 Verificación Automática con Reintentos
+All smart contracts include:
+- ✅ ReentrancyGuard protection
+- ✅ AccessControl permissions
+- ✅ Pausable emergency mechanism
+- ✅ Parameter validation
+- ✅ Event logging for transparency
 
-Todos los scripts de deploy funcionales incluyen verificación automática en el explorador de bloques:
-
-- ✅ **Hasta 3 intentos automáticos** por defecto
-- ✅ **Detección de "already verified"** - No falla si el contrato ya está verificado
-- ✅ **Retraso configurable** entre intentos (7 segundos por defecto)
-- ✅ **Manejo inteligente de errores** - Distingue entre errores recuperables y no recuperables
-- ✅ **Mensajes informativos** - Feedback claro en cada paso
-
-### 📁 Gestión de Archivos
-
-- ✅ **Guarda direcciones** en `deployments/<network>.json`
-- ✅ **No crea carpeta frontend** si no existe (evita errores ENOENT)
-- ✅ **Actualiza .env.local** solo si la carpeta frontend existe
-- ✅ **Logging detallado** de todas las operaciones
-
-### ⛽ Optimización de Gas
-
-Scripts como `DeploySmartStaking.cjs` y `DeployAirdropFactory.cjs` incluyen:
-
-- 📊 Estimación de gas antes del deploy
-- 💰 Cálculo de costo estimado
-- ⚡ Buffer de gas configurable (20% por defecto)
-- 📈 Display de gas usado y costo real post-deploy
+See [TECHNOLOGY_DEEP_DIVE.md](./TECHNOLOGY_DEEP_DIVE.md) for security details.
 
 ---
 
-## 🛠️ Verificación Manual
+## 📞 Support
 
-Si la verificación automática falla, puedes verificar manualmente:
-
-### Contrato sin argumentos constructor
-```powershell
-npx hardhat verify --network polygon \
-  --contract contracts/Airdrop/AirdropFactory.sol:AirdropFactory \
-  0xDIRECCION_CONTRATO
-```
-
-### Contrato con argumentos constructor
-```powershell
-npx hardhat verify --network polygon \
-  --contract contracts/SmartStaking/SmartStaking.sol:SmartStaking \
-  0xDIRECCION_CONTRATO \
-  0xTREASURY_ADDRESS
-```
-
-### Contrato con múltiples argumentos
-```powershell
-npx hardhat verify --network polygon \
-  --contract contracts/Airdrop/Airdrops.sol:Airdrop \
-  0xDIRECCION_CONTRATO \
-  0xTOKEN_ADDRESS \
-  604800 \
-  86400 \
-  2592000
-```
+**Need help?**
+1. Check the relevant documentation above
+2. Review [EXECUTIVE_SUMMARY.md](./EXECUTIVE_SUMMARY.md) FAQ section
+3. Check smart contract comments in `contracts/` directory
+4. Review test files in `test/` directory
 
 ---
 
-## 📋 Estructura de Archivos Generados
+## 📄 License
 
-### deployments/
-```
-deployments/
-├── polygon.json          # Direcciones en Polygon mainnet
-├── mumbai.json          # Direcciones en testnet Mumbai
-├── sepolia.json         # Direcciones en testnet Sepolia
-└── localhost.json       # Direcciones en red local
-```
-
-**Formato de archivo:**
-```json
-{
-  "AirdropFactory": "0x123...",
-  "SmartStaking": "0x456...",
-  "MinerBotToken": "0x789..."
-}
-```
-
-### frontend/.env.local (si existe carpeta frontend)
-```env
-# Ejemplo para AirdropFactory
-NEXT_PUBLIC_AIRDROP_FACTORY_ADDRESS=0x123...
-NEXT_PUBLIC_FACTORY_CHAIN_ID=137
-NEXT_PUBLIC_FACTORY_NETWORK=polygon
-
-# Ejemplo para MinerBot
-NEXT_PUBLIC_MINERBOT_TOKEN_ADDRESS=0x123...
-NEXT_PUBLIC_MINERBOT_NFT_ADDRESS=0x456...
-NEXT_PUBLIC_MINERBOT_GAME_ADDRESS=0x789...
-```
+MIT
 
 ---
 
-## 🔧 Utilidades y Helpers
-
-### verifyHelper.cjs
-
-Módulo centralizado para verificación de contratos con reintentos.
-
-**Uso básico:**
-```javascript
-const { verifyContract } = require("./utils/verifyHelper.cjs");
-
-// Verificar un contrato
-await verifyContract(
-  "0x123...",                                    // address
-  "contracts/Token.sol:Token",                   // fully qualified name
-  []                                             // constructor args
-);
-
-// Verificar con más intentos
-await verifyContract(
-  "0x123...",
-  "contracts/Token.sol:Token",
-  [],
-  5,      // maxAttempts
-  10000   // delayMs
-);
-```
-
-**Verificar múltiples contratos:**
-```javascript
-const { verifyMultipleContracts } = require("./utils/verifyHelper.cjs");
-
-const results = await verifyMultipleContracts([
-  {
-    address: tokenAddress,
-    name: "Token",
-    fullyQualifiedName: "contracts/Token.sol:Token",
-    constructorArgs: []
-  },
-  {
-    address: nftAddress,
-    name: "NFT",
-    fullyQualifiedName: "contracts/NFT.sol:NFT",
-    constructorArgs: [tokenAddress]
-  }
-]);
-
-// results: { Token: true, NFT: true }
-```
-
-### gasHelper.cjs
-
-Helper para cálculos y estimaciones de gas (ya existente).
-
----
-
-## 🐛 Troubleshooting
-
-### Error: "Contract not present in your project"
-
-**Causa:** El nombre fully-qualified del contrato no coincide con la estructura del proyecto.
-
-**Solución:** Verificar que la ruta incluya las subcarpetas correctas:
-```javascript
-// ❌ Incorrecto
-"contracts/Token.sol:Token"
-
-// ✅ Correcto
-"contracts/MinerBotGame/Token.sol:Token"
-```
-
-### Error: "Invalid API Key"
-
-**Causa:** No hay API key configurada para el explorador de bloques.
-
-**Solución:** Añadir en `.env`:
-```env
-POLYGONSCAN_API_KEY=tu_api_key_aqui
-```
-
-Y en `hardhat.config.cjs`:
-```javascript
-etherscan: {
-  apiKey: {
-    polygon: process.env.POLYGONSCAN_API_KEY
-  }
-}
-```
-
-### Error: ENOENT (frontend/.env.local)
-
-**Causa:** Script antiguo intentaba crear la carpeta frontend.
-
-**Solución:** Los scripts actualizados ya NO crean la carpeta. Si ves este error, actualiza el script según el patrón de los scripts corregidos.
-
-### Error: "Already Verified"
-
-**No es un error:** Los scripts actualizados detectan esto y lo tratan como éxito. Si ves este mensaje, el contrato está correctamente verificado.
-
-### Verificación falla después de 3 intentos
-
-**Posibles causas:**
-1. Red lenta o inestable
-2. Explorador de bloques saturado
-3. Contrato muy grande
-4. Rate limit del API
-
-**Soluciones:**
-1. Esperar unos minutos y verificar manualmente
-2. Aumentar `maxAttempts` en el código
-3. Aumentar `delayMs` entre intentos
-4. Usar script de verificación manual: `Verify.cjs` o `VerifyContractPolygonscan.cjs`
-
----
-
-## 📊 Resumen de Mejoras Aplicadas
-
-### Antes ❌
-- Sin reintentos en verificación
-- Creaba carpeta `frontend/` sin verificar existencia
-- Errores mal manejados
-- Sin logging detallado
-- "Already verified" tratado como error
-
-### Después ✅
-- Hasta 3 reintentos automáticos
-- Verifica existencia antes de escribir archivos
-- Manejo robusto de errores
-- Logging informativo en cada paso
-- "Already verified" tratado como éxito
-- Helper centralizado reutilizable
-
----
-
-## 🔗 Enlaces Útiles
-
-- [Hardhat Documentation](https://hardhat.org/hardhat-runner/docs/getting-started)
-- [Hardhat Verify Plugin](https://hardhat.org/hardhat-runner/plugins/nomicfoundation-hardhat-verify)
-- [Polygonscan API](https://polygonscan.com/apis)
-- [Etherscan API](https://docs.etherscan.io/)
-
----
-
-## 📝 Notas Adicionales
-
-### Scripts NO de Deploy (Utilitarios)
-
-Los siguientes scripts NO despliegan contratos, son para gestión:
-
-- `AirdropFunds.cjs` - Fondear airdrops
-- `ConfigureAirdrop.cjs` - Configurar airdrops
-- `CreateAirdrop.cjs` - Crear airdrop desde factory
-- `FundSmartStaking.cjs` - Fondear staking
-- `ManageAirdrops.cjs` - Gestionar airdrops
-- `UnpauseSmartStaking.cjs` - Despausar contratos
+**Last Updated**: February 13, 2026  
+**Repository**: [github.com/LennyDevX/Nuxchain-protocol](https://github.com/LennyDevX/Nuxchain-protocol)  
+**Network**: Polygon (Chain 137)
 - `WithdrawFromSmartStaking.cjs` - Retirar fondos
 - `CheckPoolBalance.cjs` - Verificar balances
 - `CancelPendingTx.cjs` - Cancelar transacciones

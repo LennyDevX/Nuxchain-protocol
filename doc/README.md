@@ -1,214 +1,102 @@
-# 🔗 Quick Reference - Nuxchain Protocol
+# Nuxchain Protocol — Technical Documentation
 
-## 📍 Contract Addresses (Polygon Mainnet)
-
-```
-Staking:      0xae57acBf4efE2F6536D992F86145a20e11DB8C3D
-Marketplace:  0xB948cC766CBE97Ce822bF4c915D2319fbc48Ad38
-Treasury:     0xad14c117b51735c072d42571e30bf2c729cd9593
-POL Token:    0x455e53cbb86018ac2b8092fdcd39d8444aff00ef
-```
+**Version 7.0 · Solidity 0.8.28 · Polygon (chainId 137)**
 
 ---
 
-## ⚡ Quick Commands
+## What is Nuxchain Protocol?
 
-### Deploy
-```bash
-npx hardhat run scripts/DeployAllContracts.cjs --network polygon
-```
+Nuxchain is an on-chain DeFi + NFT ecosystem built on Polygon. It combines three interconnected pillars:
 
-### Verify Status
-```bash
-npx hardhat run scripts/ManageContracts.cjs --network polygon -- verify
-```
+| Pillar | What it does |
+|---|---|
+| **Smart Staking** | Users deposit POL and earn dynamic APY rewards. NFT Powers boost yields. |
+| **NFT Marketplace** | Users mint, trade, and collect NFTs. Trading earns XP and levels up user profiles. |
+| **NuxPower System** | Special NFTs that grant permanent on-chain powers (APY boosts, fee reductions, access rights). |
 
-### Fund Staking
-```bash
-npx hardhat run scripts/StakingManagement.cjs --network polygon -- fund 100
-```
-
-### Configure
-```bash
-npx hardhat run scripts/ManageContracts.cjs --network polygon -- configure
-```
+All revenue flows through a central **TreasuryManager** that distributes funds weekly to staking rewards, collaborators, and development.
 
 ---
 
-## 💰 Staking Rewards
+## Documentation Index
 
-```
-Deposit: 50 ETH for 365 days
-├─ Base ROI: 0.021% per hour
-├─ Annual: ~183.6% APY
-├─ 1 Year Reward: 91.8 ETH
-└─ After 6% commission: 86.29 ETH
-```
-
----
-
-## 🎮 Gamification Quick Start
-
-### Skill Types
-```
-1 = STAKE_BOOST_I      (+5%)
-2 = STAKE_BOOST_II     (+10%)
-3 = STAKE_BOOST_III    (+20%)
-4 = AUTO_COMPOUND      (24h)
-5 = LOCK_REDUCER       (-25%)
-6 = FEE_REDUCER_I      (-10%)
-7 = FEE_REDUCER_II     (-25%)
-```
-
-### User Levels
-```
-Lvl 1: 100 XP  → 1 skill
-Lvl 2: 300 XP  → 2 skills
-Lvl 3: 700 XP  → 3 skills
-Lvl 4: 1500 XP → 4 skills
-Lvl 5: 3000 XP → 5 skills
-```
-
-### XP Rewards
-```
-Create NFT: +10 XP
-Sell NFT:   +20 XP
-Buy NFT:    +15 XP
-Like:       +1 XP
-Comment:    +2 XP
-Referral:   +50 XP
-```
+| File | Description |
+|---|---|
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Full system overview, contract map, data flows |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | Deploy workflow: 4-step process from zero to live |
+| [contracts/SmartStaking.md](./contracts/SmartStaking.md) | All 12 staking contracts: core, modules, views |
+| [contracts/Marketplace.md](./contracts/Marketplace.md) | All 10 marketplace contracts: core, modules, social |
+| [contracts/Treasury.md](./contracts/Treasury.md) | TreasuryManager + QuestRewardsPool |
+| [contracts/NuxPower.md](./contracts/NuxPower.md) | NuxPowerNFT + PowerType enum + SmartStakingPower |
+| [contracts/Gamification.md](./contracts/Gamification.md) | LevelingSystem, QuestCore, CollaboratorBadgeRewards |
+| [integration/FRONTEND.md](./integration/FRONTEND.md) | ABI usage, key read calls, ethers.js patterns |
+| [integration/REWARDS.md](./integration/REWARDS.md) | APY formula, XP system, treasury flow details |
 
 ---
 
-## 📊 Key Parameters
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- A `.env` file with:
+
+```env
+PRIVATE_KEY=0x...          # Deployer wallet private key
+TREASURY_ADDRESS=0x...     # Address to receive dev/owner fees
+POLYGONSCAN_API_KEY=...    # For contract verification
+```
+
+### Install & Test
+
+```bash
+npm install
+npx hardhat compile
+npx hardhat test           # 623 tests — all must pass
+```
+
+### Deploy (4 steps)
+
+```bash
+# 1. Deploy all ~23 contracts
+npx hardhat run scripts/deploy.cjs --network polygon
+
+# 2. Post-deploy wiring and configuration
+npx hardhat run scripts/configure.cjs --network polygon
+
+# 3. Fund reward contracts with POL
+npx hardhat run scripts/fund.cjs --network polygon
+
+# 4. Verify on Polygonscan
+npx hardhat run scripts/verify.cjs --network polygon
+```
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for full details.
+
+---
+
+## Contract Count
+
+| System | Deployable contracts |
+|---|---|
+| Treasury | 2 |
+| Smart Staking | 12 (1 library + 11 deployable) |
+| Marketplace | 10 |
+| **Total** | **24** |
+
+---
+
+## Key Numbers
 
 | Parameter | Value |
-|-----------|-------|
-| Min Deposit | 10 ETH |
-| Max Deposit | 10,000 ETH |
-| Daily Limit | 1,000 ETH |
-| Commission | 6% |
-| Platform Fee | 5% |
-| Min POL for Skills | 200 POL |
-| Skill Cooldown | 7 days |
-
----
-
-## 🔐 Access Control
-
-```
-Staking:
-├─ Owner: Contract owner
-└─ Marketplace: Only marketplace contract
-
-Marketplace:
-├─ ADMIN_ROLE: Contract admins
-├─ MODERATOR_ROLE: Moderators
-└─ PUBLIC: All users
-```
-
----
-
-## 📈 Rarity Multipliers
-
-```
-COMMON:    1.0x
-UNCOMMON:  1.1x
-RARE:      1.2x
-EPIC:      1.4x
-LEGENDARY: 1.8x
-```
-
----
-
-## 🧪 Test Commands
-
-```bash
-# Run all tests
-npx hardhat test
-
-# Run specific test file
-npx hardhat test test/EnhancedSmartStaking.cjs
-
-# With coverage report
-npx hardhat coverage
-
-# On polygon network
-npx hardhat test test/EnhancedSmartStaking.cjs --network polygon
-```
-
----
-
-## 🔗 External Links
-
-**PolygonScan**:
-- Staking: https://polygonscan.com/address/0xae57acBf4efE2F6536D992F86145a20e11DB8C3D
-- Marketplace: https://polygonscan.com/address/0xB948cC766CBE97Ce822bF4c915D2319fbc48Ad38
-
-**GitHub**:
-- Repository: github.com/nuxchain/protocol
-- Issues: github.com/nuxchain/protocol/issues
-
-**Documentation**:
-- See `/doc` folder for detailed guides
-
----
-
-## 🚨 Emergency Procedures
-
-### Pause Contract
-```javascript
-await staking.pause();
-await marketplace.pause();
-```
-
-### Resume Contract
-```javascript
-await staking.unpause();
-await marketplace.unpause();
-```
-
-### Emergency Withdrawal
-```javascript
-// User can still withdraw even if paused
-await staking.withdraw();
-```
-
----
-
-## 💡 Development Setup
-
-```bash
-# Install dependencies
-npm install
-
-# Compile contracts
-npx hardhat compile
-
-# Run local network
-npx hardhat node
-
-# Deploy to local
-npx hardhat run scripts/DeployAllContracts.cjs --network localhost
-
-# Deploy to polygon
-npx hardhat run scripts/DeployAllContracts.cjs --network polygon
-```
-
----
-
-## 📞 Support Resources
-
-| Type | Resource |
-|------|----------|
-| **Contracts** | See `/contracts` folder |
-| **Tests** | See `/test` folder |
-| **Scripts** | See `/scripts` folder |
-| **Docs** | See `/doc` folder |
-| **Config** | `hardhat.config.cjs` |
-
----
-
-Last Updated: 2025-11-03  
-Version: 2.0.0
+|---|---|
+| Platform fee (staking & marketplace) | 6% |
+| Max marketplace offers per NFT | 50 |
+| Max NFT level (marketplace XP) | 50 |
+| Max staking deposits per user | 400 |
+| Min deposit | 10 POL |
+| Max deposit | 100,000 POL |
+| Base APY (no lock) | 8.60% |
+| Base APY (365-day lock) | 25.50% |
+| Treasury reserve allocation | 20% of all revenue |
+| Treasury distribution interval | Every 7 days |

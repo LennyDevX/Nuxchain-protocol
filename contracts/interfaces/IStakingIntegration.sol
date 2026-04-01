@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 /**
  * @title IStakingIntegration
- * @dev Interface for communication between GameifiedMarketplace and EnhancedSmartStaking
+ * @dev Interface for communication between GameifiedMarketplace and SmartStaking
  * @notice This interface enables NFT skills to affect staking rewards and behavior
  * @custom:security-contact security@nuvo.com
  */
@@ -14,10 +14,12 @@ interface IStakingIntegration {
     // ════════════════════════════════════════════════════════════════════════════════════════
     
     /**
-     * @dev Enum representing different types of NFT skills
+     * @dev Enum representing different types of NFT powers
+     * @notice Total: 17 powers × 5 rarities = 85 combinations
+     * REMOVED: ROYALTY_BOOSTER (old #9) and AIRDROP_MAGNET (old #18)
      */
-    enum SkillType {
-        NONE,                   // No skill
+    enum PowerType {
+        NONE,                   // No power
         STAKE_BOOST_I,         // +5% APY
         STAKE_BOOST_II,        // +10% APY
         STAKE_BOOST_III,       // +20% APY
@@ -26,7 +28,6 @@ interface IStakingIntegration {
         FEE_REDUCER_I,         // -10% platform fees
         FEE_REDUCER_II,        // -25% platform fees
         PRIORITY_LISTING,      // Featured on homepage
-        ROYALTY_BOOSTER,       // +5% on received royalties
         BATCH_MINTER,          // Mint multiple NFTs
         VERIFIED_CREATOR,      // Verified badge
         INFLUENCER,            // 2x weight on likes/comments
@@ -34,9 +35,12 @@ interface IStakingIntegration {
         AMBASSADOR,            // 2x referral bonus
         VIP_ACCESS,            // Access to exclusive drops
         EARLY_ACCESS,          // 24h early access
-        PRIVATE_AUCTIONS,      // Access to private auctions
-        AIRDROP_MAGNET         // 3x airdrop probability
+        PRIVATE_AUCTIONS,       // Access to private auctions
+        MODERATOR,             // Community moderator
+        BETA_TESTER,           // Beta testing access
+        VIP_PARTNER            // VIP partnership rewards
     }
+
     
     /**
      * @dev Enum representing skill rarity tiers
@@ -50,28 +54,28 @@ interface IStakingIntegration {
     }
     
     /**
-     * @dev Structure representing an NFT skill
+     * @dev Structure representing an NFT power
      */
-    struct NFTSkill {
-        SkillType skillType;     // Type of skill
+    struct NFTPower {
+        PowerType powerType;     // Type of power
         uint16 effectValue;      // Effect magnitude (in basis points, 500 = 5%)
-        Rarity rarity;           // Skill rarity
+        Rarity rarity;           // Power rarity
         uint64 activatedAt;      // Timestamp when activated
         uint64 cooldownEnds;     // Cooldown expiration timestamp
-        bool isActive;           // Whether skill is currently active
+        bool isActive;           // Whether power is currently active
     }
     
     /**
-     * @dev Structure representing a user's skill profile
+     * @dev Structure representing a user's power profile
      */
-    struct UserSkillProfile {
-        uint256[] activeNFTIds;           // NFT token IDs with active skills
+    struct UserPowerProfile {
+        uint256[] activeNFTIds;           // NFT token IDs with active powers
         uint256 totalXP;                  // Total experience points
-        uint8 level;                      // User level
-        uint8 maxActiveSkills;            // Maximum skills that can be active
+        uint16 level;                     // User level (changed from uint8 to uint16 to support up to level 1000; all related code now uses uint16 consistently)
+        uint8 maxActiveSkills;            // Maximum powers that can be active
         uint16 stakingBoostTotal;         // Total staking boost percentage
         uint16 feeDiscountTotal;          // Total fee discount percentage
-        bool hasAutoCompound;             // Auto-compound skill active
+        bool hasAutoCompound;             // Auto-compound power active
     }
     
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -79,31 +83,31 @@ interface IStakingIntegration {
     // ════════════════════════════════════════════════════════════════════════════════════════
     
     /**
-     * @dev Emitted when a skill is activated
+     * @dev Emitted when a power is activated
      */
-    event SkillActivated(
+    event PowerActivated(
         address indexed user,
         uint256 indexed nftId,
-        SkillType skillType,
+        PowerType powerType,
         uint16 effectValue
     );
     
     /**
-     * @dev Emitted when a skill is deactivated
+     * @dev Emitted when a power is deactivated
      */
-    event SkillDeactivated(
+    event PowerDeactivated(
         address indexed user,
         uint256 indexed nftId,
-        SkillType skillType
+        PowerType powerType
     );
     
     /**
-     * @dev Emitted when user's skill profile is updated
+     * @dev Emitted when user's power profile is updated
      */
-    event SkillProfileUpdated(
+    event PowerProfileUpdated(
         address indexed user,
-        uint8 level,
-        uint8 maxActiveSkills,
+        uint16 level,
+        uint8 maxActivePowers,
         uint16 stakingBoostTotal
     );
     
@@ -120,25 +124,25 @@ interface IStakingIntegration {
     // ════════════════════════════════════════════════════════════════════════════════════════
     
     /**
-     * @dev Notifies staking contract that a skill has been activated
+     * @dev Notifies staking contract that a power has been activated
      * @param user Address of the user
-     * @param nftId Token ID of the NFT with the skill
-     * @param skillType Type of skill being activated
+     * @param nftId Token ID of the NFT with the power
+     * @param powerType Type of power being activated
      * @param effectValue Magnitude of the effect (in basis points)
      */
-    function notifySkillActivation(
+    function notifyPowerActivation(
         address user,
         uint256 nftId,
-        SkillType skillType,
+        PowerType powerType,
         uint16 effectValue
     ) external;
     
     /**
-     * @dev Notifies staking contract that a skill has been deactivated
+     * @dev Notifies staking contract that a power has been deactivated
      * @param user Address of the user
-     * @param nftId Token ID of the NFT with the skill
+     * @param nftId Token ID of the NFT with the power
      */
-    function notifySkillDeactivation(address user, uint256 nftId) external;
+    function notifyPowerDeactivation(address user, uint256 nftId) external;
     
     /**
      * @dev Updates user's XP and level, potentially unlocking new skill slots
@@ -147,23 +151,39 @@ interface IStakingIntegration {
      */
     function updateUserXP(address user, uint256 xpGained) external;
     
+    /**
+     * @dev Notifies staking contract that a quest has been completed
+     * @param user Address of the user who completed the quest
+     * @param questId ID of the completed quest
+     * @param rewardAmount Amount of rewards earned
+     */
+    function notifyQuestCompletion(address user, uint256 questId, uint256 rewardAmount) external;
+    
+    /**
+     * @dev Notifies staking contract that an achievement has been unlocked
+     * @param user Address of the user who unlocked the achievement
+     * @param achievementId ID of the unlocked achievement
+     * @param rewardAmount Amount of rewards earned
+     */
+    function notifyAchievementUnlocked(address user, uint256 achievementId, uint256 rewardAmount) external;
+    
     // ════════════════════════════════════════════════════════════════════════════════════════
     // STAKING → MARKETPLACE QUERY FUNCTIONS
     // ════════════════════════════════════════════════════════════════════════════════════════
     
     /**
-     * @dev Retrieves all active skills for a user
+     * @dev Retrieves all active powers for a user
      * @param user Address of the user
-     * @return Array of active NFT skills
+     * @return Array of active NFT powers
      */
-    function getActiveSkills(address user) external view returns (NFTSkill[] memory);
+    function getActivePowers(address user) external view returns (NFTPower[] memory);
     
     /**
-     * @dev Gets user's complete skill profile
+     * @dev Gets user's complete power profile
      * @param user Address of the user
-     * @return User's skill profile
+     * @return User's power profile
      */
-    function getUserSkillProfile(address user) external view returns (UserSkillProfile memory);
+    function getUserPowerProfile(address user) external view returns (UserPowerProfile memory);
     
     /**
      * @dev Calculates boosted APY based on active skills
@@ -214,6 +234,11 @@ interface IStakingIntegration {
      */
     function performAutoCompound(bytes calldata performData) external;
     
+    /**
+     * @dev Allows user to withdraw their staked capital even when paused, forfeiting rewards
+     */
+    function emergencyWithdrawStake() external;
+
     // ════════════════════════════════════════════════════════════════════════════════════════
     // ADMIN FUNCTIONS
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -231,16 +256,16 @@ interface IStakingIntegration {
     function setStakingAddress(address stakingAddress) external;
     
     /**
-     * @dev Enables or disables a specific skill type
-     * @param skillType Type of skill to enable/disable
+     * @dev Enables or disables a specific power type
+     * @param powerType Type of power to enable/disable
      * @param enabled True to enable, false to disable
      */
-    function setSkillEnabled(SkillType skillType, bool enabled) external;
+    function setPowerEnabled(PowerType powerType, bool enabled) external;
     
     /**
-     * @dev Updates the effect value for a skill type
-     * @param skillType Type of skill to update
+     * @dev Updates the effect value for a power type
+     * @param powerType Type of power to update
      * @param newEffectValue New effect value (in basis points)
      */
-    function updateSkillEffect(SkillType skillType, uint16 newEffectValue) external;
+    function updatePowerEffect(PowerType powerType, uint16 newEffectValue) external;
 }
