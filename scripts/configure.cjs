@@ -19,7 +19,7 @@
 const { ethers } = require("hardhat");
 const fs   = require("fs");
 const path = require("path");
-require("dotenv").config();
+require("dotenv").config({ override: true });
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -31,7 +31,8 @@ function loadDeployment() {
     return JSON.parse(fs.readFileSync(file, "utf8"));
 }
 
-async function send(tx, label) {
+async function send(txPromise, label) {
+    const tx = await txPromise;
     const r = await tx.wait(1);
     console.log(`   ✅ ${label} (gas: ${r.gasUsed})`);
 }
@@ -39,24 +40,37 @@ async function send(tx, label) {
 // ─── ABIs (minimal) ─────────────────────────────────────────────────────────
 
 const TREASURY_ABI = [
-    "function setSubTreasury(uint8, address) external",
+    "function setTreasury(uint8, address) external",
     "function setAllocation(uint8, uint256) external",
     "function authorizeSource(address) external",
-    "function distributeRevenue() external",
+    "function authorizeRequester(address) external",
 ];
 
 const COLLAB_ABI = [
     "function setTreasuryManager(address) external",
+    "function setQuestRewardsPool(address) external",
 ];
 
 const QUEST_REWARDS_ABI = [
-    "function setStakingContract(address) external",
-    "function setMarketplaceContract(address) external",
+    "function setTreasuryManager(address) external",
+    "function grantRole(bytes32,address) external",
 ];
 
-const STAKING_CORE_ABI = [
-    "function setRewardsModule(address) external",
-    "function setDynamicAPYCalculator(address) external",
+const STAKING_REWARDS_ABI = [
+    "function setQuestRewardsPool(address) external",
+    "function setTreasuryManager(address) external",
+    "function setAPYCalculator(address) external",
+];
+
+const QUEST_CORE_ABI = [
+    "function setLevelingContract(address) external",
+    "function setQuestRewardsPool(address) external",
+    "function grantRole(bytes32,address) external",
+];
+
+const NUXPOWER_MARKETPLACE_ABI = [
+    "function setTreasuryManager(address) external",
+    "function setStakingContract(address) external",
 ];
 
 // ─── main ───────────────────────────────────────────────────────────────────
@@ -74,6 +88,9 @@ async function main() {
     console.log("╚══════════════════════════════════════════════════════════════════════════════╝");
     console.log(`\n   Deployer : ${deployer.address}`);
     console.log(`   Loaded   : ${data.deployment.timestamp}\n`);
+
+    const moduleRole = ethers.id("MODULE_ROLE");
+    const reporterRole = ethers.id("REPORTER_ROLE");
 
     const treasury = new ethers.Contract(tm.manager, TREASURY_ABI, deployer);
 
@@ -102,7 +119,7 @@ async function main() {
     const allocations = [3000, 2000, 2000, 1500, 1500];
 
     for (const sub of subTreasuries) {
-        await send(treasury.setSubTreasury(sub.idx, sub.address), `SubTreasury[${sub.idx}] = ${sub.name}`);
+        await send(treasury.setTreasury(sub.idx, sub.address), `SubTreasury[${sub.idx}] = ${sub.name}`);
         await send(treasury.setAllocation(sub.idx, allocations[sub.idx]), `Allocation[${sub.idx}] = ${allocations[sub.idx] / 100}%`);
     }
     console.log("");
@@ -113,32 +130,49 @@ async function main() {
     console.log("2️⃣  Configuring CollaboratorBadgeRewards...");
     const collab = new ethers.Contract(mp.collaboratorRewards, COLLAB_ABI, deployer);
     await send(collab.setTreasuryManager(tm.manager), "CollaboratorBadgeRewards → TreasuryManager");
+    await send(collab.setQuestRewardsPool(tm.questRewardsPool), "CollaboratorBadgeRewards → QuestRewardsPool");
     console.log("");
 
     // ──────────────────────────────────────────────────────────────────────────
-    // 3. QuestRewardsPool — link to Staking + Marketplace Core
+    // 3. QuestRewardsPool — set treasury + authorize payout modules
     // ──────────────────────────────────────────────────────────────────────────
     console.log("3️⃣  Configuring QuestRewardsPool...");
     const qrp = new ethers.Contract(tm.questRewardsPool, QUEST_REWARDS_ABI, deployer);
-    await send(qrp.setStakingContract(st.core),      "QuestRewardsPool → StakingCore");
-    await send(qrp.setMarketplaceContract(mp.core),  "QuestRewardsPool → MarketplaceCore");
+    await send(qrp.setTreasuryManager(tm.manager), "QuestRewardsPool → TreasuryManager");
+    await send(qrp.grantRole(moduleRole, st.rewards), "QuestRewardsPool: MODULE_ROLE → SmartStakingRewards");
+    await send(qrp.grantRole(moduleRole, mp.questCore), "QuestRewardsPool: MODULE_ROLE → QuestCore");
+    await send(qrp.grantRole(moduleRole, mp.collaboratorRewards), "QuestRewardsPool: MODULE_ROLE → CollaboratorBadgeRewards");
     console.log("");
 
     // ──────────────────────────────────────────────────────────────────────────
-    // 4. SmartStakingCore — set DynamicAPYCalculator
+    // 4. SmartStakingRewards + QuestCore + NuxPowerMarketplace extras
     // ──────────────────────────────────────────────────────────────────────────
-    console.log("4️⃣  Configuring SmartStakingCore extras...");
-    const stakingCore = new ethers.Contract(st.core, STAKING_CORE_ABI, deployer);
-    await send(stakingCore.setDynamicAPYCalculator(st.dynamicAPY), "StakingCore → DynamicAPYCalculator");
+    console.log("4️⃣  Configuring protocol modules...");
+    const stakingRewards = new ethers.Contract(st.rewards, STAKING_REWARDS_ABI, deployer);
+    const questCore = new ethers.Contract(mp.questCore, QUEST_CORE_ABI, deployer);
+    const nuxPowerMarketplace = new ethers.Contract(mp.nuxPowerMarketplace, NUXPOWER_MARKETPLACE_ABI, deployer);
+
+    await send(stakingRewards.setQuestRewardsPool(tm.questRewardsPool), "SmartStakingRewards → QuestRewardsPool");
+    await send(stakingRewards.setTreasuryManager(tm.manager), "SmartStakingRewards → TreasuryManager");
+    await send(stakingRewards.setAPYCalculator(st.dynamicAPY), "SmartStakingRewards → DynamicAPYCalculator");
+    await send(questCore.setLevelingContract(mp.leveling), "QuestCore → LevelingSystem");
+    await send(questCore.setQuestRewardsPool(tm.questRewardsPool), "QuestCore → QuestRewardsPool");
+    await send(questCore.grantRole(reporterRole, st.core), "QuestCore: REPORTER_ROLE → SmartStakingCore");
+    await send(questCore.grantRole(reporterRole, mp.social), "QuestCore: REPORTER_ROLE → MarketplaceSocial");
+    await send(nuxPowerMarketplace.setTreasuryManager(tm.manager), "NuxPowerMarketplace → TreasuryManager");
+    await send(nuxPowerMarketplace.setStakingContract(st.core), "NuxPowerMarketplace → StakingCore");
     console.log("");
 
     // ──────────────────────────────────────────────────────────────────────────
-    // 5. TreasuryManager — authorize QuestRewardsPool as revenue source
+    // 5. TreasuryManager — authorize revenue sources and emergency requesters
     // ──────────────────────────────────────────────────────────────────────────
-    console.log("5️⃣  Authorizing additional revenue sources in TreasuryManager...");
+    console.log("5️⃣  Authorizing TreasuryManager integrations...");
     await send(treasury.authorizeSource(tm.questRewardsPool),   "TreasuryManager: QuestRewardsPool authorized");
     await send(treasury.authorizeSource(mp.nuxPowerNft),        "TreasuryManager: NuxPowerNft authorized");
     await send(treasury.authorizeSource(mp.nuxPowerMarketplace),"TreasuryManager: NuxPowerMarketplace authorized");
+    await send(treasury.authorizeRequester(tm.questRewardsPool), "TreasuryManager: QuestRewardsPool requester authorized");
+    await send(treasury.authorizeRequester(st.rewards),          "TreasuryManager: SmartStakingRewards requester authorized");
+    await send(treasury.authorizeRequester(mp.collaboratorRewards), "TreasuryManager: CollaboratorBadgeRewards requester authorized");
     console.log("");
 
     console.log("╔══════════════════════════════════════════════════════════════════════════════╗");

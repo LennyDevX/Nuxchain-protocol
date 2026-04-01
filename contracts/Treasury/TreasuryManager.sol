@@ -139,6 +139,7 @@ contract TreasuryManager is Ownable, ReentrancyGuard {
     
     event RevenueReceived(address indexed source, uint256 amount, string revenueType);
     event RevenueDistributed(TreasuryType indexed treasuryType, address indexed treasuryAddress, uint256 amount);
+    event RevenueDistributionFailed(TreasuryType indexed treasuryType, address indexed treasuryAddress, uint256 amount);
     event RewardFundsRequested(address indexed requester, uint256 amount, bool success);
     event TreasuryUpdated(TreasuryType indexed treasuryType, address indexed oldAddress, address indexed newAddress);
     event AllocationUpdated(TreasuryType indexed treasuryType, uint256 oldPercentage, uint256 newPercentage);
@@ -331,13 +332,23 @@ contract TreasuryManager is Ownable, ReentrancyGuard {
             
             uint256 amount = (totalBalance * allocation) / BASIS_POINTS;
             if (amount == 0) continue;
-            
-            totalDistributed += amount;
-            
+
             (bool success, ) = payable(treasuryAddr).call{value: amount}("");
-            require(success, "Transfer failed");
-            
-            emit RevenueDistributed(treasuryType, treasuryAddr, amount);
+            if (success) {
+                totalDistributed += amount;
+
+                uint256 deficit = protocolDeficit[treasuryType];
+                if (deficit > 0) {
+                    protocolDeficit[treasuryType] = deficit > amount ? deficit - amount : 0;
+                }
+
+                emit RevenueDistributed(treasuryType, treasuryAddr, amount);
+                continue;
+            }
+
+            protocolDeficit[treasuryType] += amount;
+            emit DeficitAccumulated(treasuryType, amount, protocolDeficit[treasuryType]);
+            emit RevenueDistributionFailed(treasuryType, treasuryAddr, amount);
         }
     }
     
@@ -390,10 +401,7 @@ contract TreasuryManager is Ownable, ReentrancyGuard {
      * @param authorized True to authorize, false to revoke
      */
     function setAuthorizedSource(address source, bool authorized) external onlyOwner {
-        require(source != address(0), "Invalid address");
-        authorizedSources[source] = authorized;
-        
-        emit SourceAuthorized(source, authorized);
+        _setAuthorizedSource(source, authorized);
     }
     
     /**
@@ -402,10 +410,15 @@ contract TreasuryManager is Ownable, ReentrancyGuard {
      * @param authorized True to authorize, false to revoke
      */
     function setAuthorizedRequester(address requester, bool authorized) external onlyOwner {
-        require(requester != address(0), "Invalid address");
-        authorizedRequester[requester] = authorized;
-        
-        emit RequesterAuthorized(requester, authorized);
+        _setAuthorizedRequester(requester, authorized);
+    }
+
+    function authorizeSource(address source) external onlyOwner {
+        _setAuthorizedSource(source, true);
+    }
+
+    function authorizeRequester(address requester) external onlyOwner {
+        _setAuthorizedRequester(requester, true);
     }
     
     /**
@@ -724,6 +737,20 @@ contract TreasuryManager is Ownable, ReentrancyGuard {
         require(success, "Transfer failed");
         
         emit EmergencyWithdrawal(to, amount);
+    }
+
+    function _setAuthorizedSource(address source, bool authorized) internal {
+        require(source != address(0), "Invalid address");
+        authorizedSources[source] = authorized;
+
+        emit SourceAuthorized(source, authorized);
+    }
+
+    function _setAuthorizedRequester(address requester, bool authorized) internal {
+        require(requester != address(0), "Invalid address");
+        authorizedRequester[requester] = authorized;
+
+        emit RequesterAuthorized(requester, authorized);
     }
     
     // ============================================

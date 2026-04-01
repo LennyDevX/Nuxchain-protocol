@@ -40,6 +40,7 @@ library MarketplaceCoreLib {
 
     function finalizeSale(
         mapping(address => UserProfile) storage userProfiles,
+        mapping(address => uint256) storage pendingRefunds,
         mapping(uint256 => bool) storage isListed,
         mapping(uint256 => uint256) storage listedPrice,
         mapping(uint256 => Offer[]) storage nftOffers,
@@ -53,7 +54,7 @@ library MarketplaceCoreLib {
         NFTMetadata memory meta
     ) public {
         _recordSale(userProfiles, statisticsModuleAddress, tokenId, settlement, meta);
-        _clearListingAndRefundOffers(isListed, listedPrice, nftOffers, listedTokenIds, tokenId, skipOfferIndex);
+        _clearListingAndRefundOffers(pendingRefunds, isListed, listedPrice, nftOffers, listedTokenIds, tokenId, skipOfferIndex);
         _payoutSale(treasuryManagerAddress, platformTreasury, settlement, meta);
     }
 
@@ -85,6 +86,7 @@ library MarketplaceCoreLib {
     }
 
     function _clearListingAndRefundOffers(
+        mapping(address => uint256) storage pendingRefunds,
         mapping(uint256 => bool) storage isListed,
         mapping(uint256 => uint256) storage listedPrice,
         mapping(uint256 => Offer[]) storage nftOffers,
@@ -104,7 +106,9 @@ library MarketplaceCoreLib {
             Offer memory offer = offers[i];
             if (offer.amount > 0) {
                 (bool refunded,) = payable(offer.offeror).call{value: offer.amount}("");
-                if (!refunded) revert RefundFailed();
+                if (!refunded) {
+                    pendingRefunds[offer.offeror] += offer.amount;
+                }
             }
         }
 

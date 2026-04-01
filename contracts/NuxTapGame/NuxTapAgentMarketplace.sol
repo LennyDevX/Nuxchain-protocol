@@ -186,6 +186,8 @@ contract NuxTapAgentMarketplace is
         (address royaltyRecipient, uint256 royaltyAmount) = _royaltyInfo(listing.nftContract, listing.tokenId, msg.value);
         uint256 sellerProceeds = msg.value - platformFee - royaltyAmount;
 
+        INuxTapMarketNFT(listing.nftContract).safeTransferFrom(listing.seller, msg.sender, listing.tokenId);
+
         if (sellerProceeds > 0) {
             (bool sellerOk, ) = payable(listing.seller).call{value: sellerProceeds}("");
             require(sellerOk, "NuxTapAgentMarketplace: seller payment failed");
@@ -199,8 +201,6 @@ contract NuxTapAgentMarketplace is
         if (platformFee > 0) {
             INuxTapAgentMarketTreasury(treasury).depositRevenue{value: platformFee}("nuxtap_agent_marketplace_sale");
         }
-
-        INuxTapMarketNFT(listing.nftContract).safeTransferFrom(listing.seller, msg.sender, listing.tokenId);
 
         emit AgentSold(
             listingId,

@@ -130,7 +130,8 @@ describe("CollaboratorBadgeRewards V2 - Production Tests", function () {
 
         it("Should enforce maxRewardLimit in createQuest", async function () {
             const excessiveReward = ethers.parseEther("501");
-            const startTime = Math.floor(Date.now() / 1000) + 3600;
+            const latestBlock = await ethers.provider.getBlock("latest");
+            const startTime = latestBlock.timestamp + 3600;
             const endTime = startTime + 86400;
 
             await expect(
@@ -199,7 +200,8 @@ describe("CollaboratorBadgeRewards V2 - Production Tests", function () {
         });
 
         it("Should enforce MAX_QUEST_DURATION", async function () {
-            const startTime = Math.floor(Date.now() / 1000) + 3600;
+            const latestBlock = await ethers.provider.getBlock("latest");
+            const startTime = latestBlock.timestamp + 3600;
             const endTime = startTime + (366 * 24 * 60 * 60); // 366 days
 
             await expect(
@@ -816,6 +818,29 @@ describe("CollaboratorBadgeRewards V2 - Production Tests", function () {
             await expect(
                 collaboratorRewards.setTreasuryManager(ethers.ZeroAddress)
             ).to.be.revertedWithCustomError(collaboratorRewards, "InvalidAddress");
+        });
+
+        it("Should accept direct funding above maxBalanceLimit and emit an alert", async function () {
+            const currentBalance = await ethers.provider.getBalance(collaboratorRewards.target || collaboratorRewards.address);
+            await collaboratorRewards.setLimits(await collaboratorRewards.maxRewardLimit(), currentBalance + ethers.parseEther("0.25"));
+
+            await expect(
+                owner.sendTransaction({
+                    to: collaboratorRewards.target || collaboratorRewards.address,
+                    value: ethers.parseEther("1")
+                })
+            ).to.emit(collaboratorRewards, "BalanceLimitExceeded")
+              .withArgs(currentBalance + ethers.parseEther("1"), currentBalance + ethers.parseEther("0.25"));
+        });
+
+        it("Should accept treasury deposits above maxBalanceLimit and emit an alert", async function () {
+            const currentBalance = await ethers.provider.getBalance(collaboratorRewards.target || collaboratorRewards.address);
+            await collaboratorRewards.setLimits(await collaboratorRewards.maxRewardLimit(), currentBalance + ethers.parseEther("0.1"));
+
+            await expect(
+                collaboratorRewards.depositFromTreasury({ value: ethers.parseEther("1") })
+            ).to.emit(collaboratorRewards, "BalanceLimitExceeded")
+              .withArgs(currentBalance + ethers.parseEther("1"), currentBalance + ethers.parseEther("0.1"));
         });
     });
 

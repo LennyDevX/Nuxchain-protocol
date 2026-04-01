@@ -349,6 +349,34 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       await expect(core.connect(user1).acceptOffer(0, 0))
         .to.be.revertedWithCustomError(core, "OfferExpired");
     });
+
+    it("Should defer failing offer refunds without blocking a direct sale", async function () {
+      const { core, user1, user2, owner } = await loadFixture(deployMarketplaceFixture);
+
+      await core.connect(user1).createStandardNFT("uri1", "art", 0);
+      await core.connect(user1).listTokenForSale(0, ethers.parseEther("1.0"));
+
+      const RejectingWallet = await ethers.getContractFactory("MockRejectingWallet");
+      const rejectingWallet = await RejectingWallet.connect(owner).deploy();
+      await rejectingWallet.waitForDeployment();
+
+      const offerAmount = ethers.parseEther("0.8");
+      await rejectingWallet.connect(owner).makeMarketplaceOffer(await core.getAddress(), 0, 7, { value: offerAmount });
+
+      await expect(core.connect(user2).buyToken(0, { value: ethers.parseEther("1.0") }))
+        .to.emit(core, "TokenSold")
+        .withArgs(user1.address, user2.address, 0n, ethers.parseEther("1.0"));
+
+      expect(await core.ownerOf(0)).to.equal(user2.address);
+      expect(await core.pendingRefunds(await rejectingWallet.getAddress())).to.equal(offerAmount);
+
+      await rejectingWallet.connect(owner).setRejectPayments(false);
+      await expect(rejectingWallet.connect(owner).claimMarketplaceRefund(await core.getAddress()))
+        .to.emit(core, "RefundClaimed")
+        .withArgs(await rejectingWallet.getAddress(), offerAmount);
+
+      expect(await core.pendingRefunds(await rejectingWallet.getAddress())).to.equal(0);
+    });
   });
 
   describe("MarketplaceCore - Social Features", function () {

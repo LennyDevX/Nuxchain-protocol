@@ -3,7 +3,7 @@
 
 const path = require("path");
 const { ethers, upgrades, network } = require("hardhat");
-require("dotenv").config();
+require("dotenv").config({ override: true });
 
 const AddressManager = require("./utils/AddressManager.cjs");
 

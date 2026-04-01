@@ -128,6 +128,7 @@ contract CollaboratorBadgeRewards is Initializable, OwnableUpgradeable, Reentran
     event MaxPendingRewardsUpdated(uint256 newLimit);
     event CommissionTierUpdated(uint256 threshold, uint256 feeRate);
     event ContributionRecorded(address indexed user, uint256 volume);
+    event BalanceLimitExceeded(uint256 currentBalance, uint256 maxBalanceLimit);
 
     // ════════════════════════════════════════════════════════════════════════════════════════
     // ERRORS
@@ -194,8 +195,10 @@ contract CollaboratorBadgeRewards is Initializable, OwnableUpgradeable, Reentran
 
     /// @notice Receive ETH/POL from NFT sales commission or treasury
     receive() external payable {
-        if (maxBalanceLimit > 0 && address(this).balance > maxBalanceLimit) revert ExceedsMaxBalance();
         totalCommissionReceived += msg.value;
+        if (maxBalanceLimit > 0 && address(this).balance > maxBalanceLimit) {
+            emit BalanceLimitExceeded(address(this).balance, maxBalanceLimit);
+        }
         emit CommissionReceived(msg.value);
     }
 
@@ -502,8 +505,10 @@ contract CollaboratorBadgeRewards is Initializable, OwnableUpgradeable, Reentran
      * @notice Record treasury deposit (labeled)
      */
     function depositFromTreasury() external payable {
-        if (maxBalanceLimit > 0 && address(this).balance > maxBalanceLimit) revert ExceedsMaxBalance();
         totalTreasuryReceived += msg.value;
+        if (maxBalanceLimit > 0 && address(this).balance > maxBalanceLimit) {
+            emit BalanceLimitExceeded(address(this).balance, maxBalanceLimit);
+        }
         emit TreasuryReceived(msg.value);
     }
 

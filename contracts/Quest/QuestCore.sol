@@ -99,8 +99,11 @@ contract QuestCore is
     /// @notice Cached leaderboard aggregates updated on quest completion.
     mapping(address => uint256) public userCompletionCounts;
     mapping(address => uint256) public userTotalXPEarned;
+    mapping(address => uint256) public pendingPolRewards;
     mapping(address => bool) private _knownQuestUsers;
     address[] private _questUsers;
+
+    uint256 public totalPendingPolRewards;
 
     // ============================================
     // ADDITIONAL EVENTS
@@ -127,6 +130,8 @@ contract QuestCore is
     error InvalidXPReward();
     error InvalidMetadata();
     error CompletionLimitReached();
+    error NoPendingPolRewards();
+    error RewardPoolUnavailable();
 
     // ============================================
     // CONSTRUCTOR
@@ -250,13 +255,32 @@ contract QuestCore is
 
         // Award POL via QuestRewardsPool
         uint256 polPaid;
-        if (quest.polReward > 0 && address(questRewardsPool) != address(0)) {
-            try questRewardsPool.requestPayout(msg.sender, quest.polReward, "quest_reward") {
-                polPaid = quest.polReward;
-            } catch {}
+        if (quest.polReward > 0) {
+            if (address(questRewardsPool) != address(0)) {
+                try questRewardsPool.requestPayout(msg.sender, quest.polReward, "quest_reward") {
+                    polPaid = quest.polReward;
+                } catch {
+                    _deferPolReward(msg.sender, questId, quest.polReward);
+                }
+            } else {
+                _deferPolReward(msg.sender, questId, quest.polReward);
+            }
         }
 
         emit QuestCompleted(msg.sender, questId, quest.xpReward, polPaid);
+    }
+
+    function claimPendingPolRewards() external whenNotPaused nonReentrant {
+        uint256 amount = pendingPolRewards[msg.sender];
+        if (amount == 0) revert NoPendingPolRewards();
+        if (address(questRewardsPool) == address(0)) revert RewardPoolUnavailable();
+
+        questRewardsPool.requestPayout(msg.sender, amount, "quest_reward_pending");
+
+        pendingPolRewards[msg.sender] = 0;
+        totalPendingPolRewards -= amount;
+
+        emit PendingPolRewardsClaimed(msg.sender, amount);
     }
 
     // ============================================
@@ -667,5 +691,11 @@ contract QuestCore is
         userQuestProgress[user][questId].currentProgress = progress.currentProgress;
 
         emit QuestProgressUpdated(user, questId, progress.currentProgress);
+    }
+
+    function _deferPolReward(address user, uint256 questId, uint256 amount) internal {
+        pendingPolRewards[user] += amount;
+        totalPendingPolRewards += amount;
+        emit QuestRewardDeferred(user, questId, amount);
     }
 }

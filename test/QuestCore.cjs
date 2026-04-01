@@ -216,4 +216,42 @@ describe("QuestCore", function () {
 
     expect(await upgraded.version()).to.equal(2);
   });
+
+  it("difiere rewards POL cuando el pool falla y permite reclamarlos luego", async function () {
+    const { questCore, reporter, user, rewardsPool } = await loadFixture(deployQuestCoreFixture);
+
+    await questCore.createQuest({
+      category: 1,
+      questType: 2,
+      title: "Quest con payout diferido",
+      description: "El pool revierte temporalmente",
+      requirement: 1,
+      xpReward: 25,
+      polReward: ethers.parseEther("2"),
+      startTime: 0,
+      deadline: 0,
+      completionLimit: 0,
+    });
+
+    await rewardsPool.setShouldRevert(true);
+    await questCore.connect(reporter).notifyAction(user.address, 2, 1);
+
+    await expect(questCore.connect(user).completeQuest(1))
+      .to.emit(questCore, "QuestRewardDeferred")
+      .withArgs(user.address, 1n, ethers.parseEther("2"));
+
+    expect(await questCore.pendingPolRewards(user.address)).to.equal(ethers.parseEther("2"));
+    expect(await questCore.totalPendingPolRewards()).to.equal(ethers.parseEther("2"));
+    expect(await rewardsPool.paidTo(user.address)).to.equal(0);
+
+    await rewardsPool.setShouldRevert(false);
+
+    await expect(questCore.connect(user).claimPendingPolRewards())
+      .to.emit(questCore, "PendingPolRewardsClaimed")
+      .withArgs(user.address, ethers.parseEther("2"));
+
+    expect(await questCore.pendingPolRewards(user.address)).to.equal(0);
+    expect(await questCore.totalPendingPolRewards()).to.equal(0);
+    expect(await rewardsPool.paidTo(user.address)).to.equal(ethers.parseEther("2"));
+  });
 });

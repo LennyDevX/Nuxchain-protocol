@@ -19,11 +19,30 @@
 const { ethers, network, upgrades } = require("hardhat");
 const fs   = require("fs");
 const path = require("path");
-require("dotenv").config();
+require("dotenv").config({ override: true });
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function writeJsonSafely(filePath, value) {
+    const json = JSON.stringify(value, null, 2);
+    const tempFile = `${filePath}.tmp`;
+    const backupFile = `${filePath}.bak`;
+
+    fs.writeFileSync(tempFile, json);
+
+    if (fs.existsSync(filePath)) {
+        fs.copyFileSync(filePath, backupFile);
+        fs.rmSync(filePath, { force: true });
+    }
+
+    fs.renameSync(tempFile, filePath);
+
+    if (fs.existsSync(backupFile)) {
+        fs.rmSync(backupFile, { force: true });
+    }
+}
 
 async function waitForCode(address, { name = address, retries = 20, delay = 3000 } = {}) {
     for (let i = 0; i < retries; i++) {
@@ -65,7 +84,7 @@ function saveDeployment(data) {
     const dir = path.join(__dirname, "..", "deployments");
     fs.mkdirSync(dir, { recursive: true });
     const file = path.join(dir, "complete-deployment.json");
-    fs.writeFileSync(file, JSON.stringify(data, null, 2));
+    writeJsonSafely(file, data);
     // Also write flat address file for easy consumption
     const flat = {};
     for (const [section, entries] of Object.entries(data.contracts)) {
@@ -73,7 +92,7 @@ function saveDeployment(data) {
             flat[`${section}.${key}`] = val;
         }
     }
-    fs.writeFileSync(path.join(dir, "addresses.json"), JSON.stringify(flat, null, 2));
+    writeJsonSafely(path.join(dir, "addresses.json"), flat);
     console.log(`\n💾 Deployment data saved to deployments/complete-deployment.json`);
 }
 
@@ -123,7 +142,7 @@ async function main() {
 
     const QuestRewardsF = await ethers.getContractFactory("QuestRewardsPool");
     const { contract: questRewards, address: questRewardsAddr } =
-        await deployPlain(QuestRewardsF, [deployer.address], "QuestRewardsPool");
+        await deployUUPS(QuestRewardsF, [deployer.address, treasuryAddr], "QuestRewardsPool");
     d.contracts.treasury.questRewardsPool = questRewardsAddr;
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -214,7 +233,7 @@ async function main() {
     console.log("   ✅ Core → TreasuryManager");
 
     // Rewards → Core
-    const tx5 = await stakingRewards.setCoreStakingContract(stakingCoreAddr);
+    const tx5 = await stakingRewards.setCoreContract(stakingCoreAddr);
     await tx5.wait(1);
     console.log("   ✅ Rewards → Core");
 
@@ -286,7 +305,7 @@ async function main() {
 
     const NuxPowerMktF = await ethers.getContractFactory("NuxPowerMarketplace");
     const { contract: nuxPowerMkt, address: nuxPowerMktAddr } =
-        await deployPlain(NuxPowerMktF, [mktCoreAddr, deployer.address], "NuxPowerMarketplace");
+        await deployPlain(NuxPowerMktF, [treasuryAddr], "NuxPowerMarketplace");
     d.contracts.marketplace.nuxPowerMarketplace = nuxPowerMktAddr;
 
     // 2.4 QuestCore (UUPS proxy, needs core address)
@@ -298,7 +317,7 @@ async function main() {
     // 2.5 CollaboratorBadgeRewards (UUPS proxy)
     const CollabF = await ethers.getContractFactory("CollaboratorBadgeRewards");
     const { contract: collab, address: collabAddr } =
-        await deployUUPS(CollabF, [deployer.address], "CollaboratorBadgeRewards");
+        await deployUUPS(CollabF, [], "CollaboratorBadgeRewards");
     d.contracts.marketplace.collaboratorRewards = collabAddr;
 
     // ── Marketplace phase wiring ─────────────────────────────────────────────

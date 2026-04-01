@@ -183,6 +183,46 @@ describe("TreasuryManager", function () {
             // Allow for 1-2 second difference due to block timestamp advancement
             expect(secondNext).to.be.closeTo(firstNext + BigInt(DISTRIBUTION_INTERVAL), 2);
         });
+
+        it("Should continue distribution when one treasury rejects ETH", async function () {
+            const [owner, rewards, staking, collaborators, development, marketplace] = await ethers.getSigners();
+
+            const TreasuryManager = await ethers.getContractFactory("TreasuryManager");
+            const treasury = await TreasuryManager.deploy();
+            await treasury.deploymentTransaction().wait();
+
+            const MockQuestLeveling = await ethers.getContractFactory("MockQuestLeveling");
+            const rejectingTreasury = await MockQuestLeveling.deploy();
+            await rejectingTreasury.waitForDeployment();
+
+            await treasury.setTreasury(TreasuryType.REWARDS, rewards.address);
+            await treasury.setTreasury(TreasuryType.STAKING, staking.address);
+            await treasury.setTreasury(TreasuryType.COLLABORATORS, await rejectingTreasury.getAddress());
+            await treasury.setTreasury(TreasuryType.DEVELOPMENT, development.address);
+            await treasury.setTreasury(TreasuryType.MARKETPLACE, marketplace.address);
+
+            await owner.sendTransaction({
+                to: await treasury.getAddress(),
+                value: ethers.parseEther("100")
+            });
+
+            const rewardsBefore = await ethers.provider.getBalance(rewards.address);
+            const stakingBefore = await ethers.provider.getBalance(staking.address);
+            const developmentBefore = await ethers.provider.getBalance(development.address);
+
+            await time.increase(DISTRIBUTION_INTERVAL);
+
+            await expect(treasury.triggerDistribution())
+                .to.emit(treasury, "RevenueDistributionFailed")
+                .withArgs(TreasuryType.COLLABORATORS, await rejectingTreasury.getAddress(), ethers.parseEther("16"));
+
+            expect(await ethers.provider.getBalance(rewards.address)).to.equal(rewardsBefore + ethers.parseEther("24"));
+            expect(await ethers.provider.getBalance(staking.address)).to.equal(stakingBefore + ethers.parseEther("28"));
+            expect(await ethers.provider.getBalance(development.address)).to.equal(developmentBefore + ethers.parseEther("12"));
+            expect(await treasury.totalDistributed()).to.equal(ethers.parseEther("64"));
+            expect(await treasury.protocolDeficit(TreasuryType.COLLABORATORS)).to.equal(ethers.parseEther("16"));
+            expect(await ethers.provider.getBalance(await treasury.getAddress())).to.equal(ethers.parseEther("36"));
+        });
         
         it("getDistributionTimeline should return correct values", async function () {
             const { treasury } = await loadFixture(deployTreasuryWithFunds);

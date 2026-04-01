@@ -54,13 +54,19 @@ contract LevelingSystem is Initializable, AccessControlUpgradeable, UUPSUpgradea
     mapping(address => uint256) public dailyXPGained;
     mapping(address => uint256) public lastXPDay;
     mapping(address => Badge[]) public userBadges;
+    mapping(address => uint256) public deferredRewardAmount;
+    mapping(address => uint256) public deferredRewardTime;
 
     /// @notice Per-user XP breakdown by source (indexed by uint8(IXPHub.XPSource)).
     mapping(address => uint256[15]) private _xpBySource;
 
+    uint256 public totalPendingRewards;
+
     event XPGained(address indexed user, uint256 amount, string reason);  // backward-compat
     event LevelUp(address indexed user, uint8 newLevel);
     event RewardPaid(address indexed user, uint256 amount);
+    event RewardDeferred(address indexed user, uint8 level, uint256 amount, string reason);
+    event DeferredRewardClaimed(address indexed user, uint256 amount);
     event BadgeEarned(address indexed user, uint256 badgeId, string name);
     event NFTCreated(address indexed creator);
     event NFTOwned(address indexed owner);
@@ -212,14 +218,39 @@ contract LevelingSystem is Initializable, AccessControlUpgradeable, UUPSUpgradea
     function _distributeLevelUpReward(address user, uint8 newLevel) internal {
         // Calculate reward based on new level reached
         uint256 levelReward = _calculateLevelUpReward(newLevel);
-        
-        // Only pay if contract has sufficient balance
         if (address(this).balance >= levelReward) {
             (bool success, ) = payable(user).call{value: levelReward}("");
             if (success) {
                 emit RewardPaid(user, levelReward);
+                return;
             }
+
+            _deferLevelUpReward(user, newLevel, levelReward, "Transfer failed");
+            return;
         }
+
+        _deferLevelUpReward(user, newLevel, levelReward, "Insufficient funds");
+    }
+
+    function claimDeferredReward() external {
+        uint256 amount = deferredRewardAmount[msg.sender];
+        require(amount > 0, "LevelingSystem: no deferred reward");
+        require(address(this).balance >= amount, "LevelingSystem: insufficient balance");
+
+        deferredRewardAmount[msg.sender] = 0;
+        deferredRewardTime[msg.sender] = 0;
+        totalPendingRewards -= amount;
+
+        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        if (!success) {
+            deferredRewardAmount[msg.sender] = amount;
+            deferredRewardTime[msg.sender] = block.timestamp;
+            totalPendingRewards += amount;
+            revert("LevelingSystem: reward transfer failed");
+        }
+
+        emit DeferredRewardClaimed(msg.sender, amount);
+        emit RewardPaid(msg.sender, amount);
     }
 
     /**
@@ -579,5 +610,13 @@ contract LevelingSystem is Initializable, AccessControlUpgradeable, UUPSUpgradea
     ) {
         UserProfile memory p = userProfiles[user];
         return (agentsMinted[user], agentTasksDone[user], agentUpgrades[user], p.level, p.totalXP);
+    }
+
+    function _deferLevelUpReward(address user, uint8 newLevel, uint256 amount, string memory reason) internal {
+        deferredRewardAmount[user] += amount;
+        deferredRewardTime[user] = block.timestamp;
+        totalPendingRewards += amount;
+
+        emit RewardDeferred(user, newLevel, amount, reason);
     }
 }

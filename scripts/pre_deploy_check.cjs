@@ -1,5 +1,5 @@
 const { ethers } = require("hardhat");
-require("dotenv").config();
+require("dotenv").config({ override: true });
 
 /**
  * 🔍 PRE-DEPLOYMENT WALLET VERIFICATION
@@ -7,9 +7,10 @@ require("dotenv").config();
  * Verifica que:
  * 1. La PRIVATE_KEY en .env es correcta
  * 2. La wallet tiene suficiente balance
- * 3. El hardhat.config está configurado correctamente
+ * 3. El signer de Hardhat coincide con la wallet esperada
  * 4. El API key de Alchemy funciona
  * 5. Puedes conectar a Polygon mainnet
+ * 6. TREASURY_ADDRESS está configurada para deploy.cjs
  */
 
 async function main() {
@@ -20,6 +21,7 @@ async function main() {
 
     let checksPassed = 0;
     let checksFailed = 0;
+    const burnTreasuryAddress = "0x000000000000000000000000000000000000dead";
 
     // ====================================================
     // CHECK 1: PRIVATE_KEY existe en .env
@@ -115,10 +117,10 @@ async function main() {
                 console.log(`   📡 Network: ${network.name}`);
                 console.log(`   🔗 Chain ID: ${network.chainId}`);
                 
-                if (network.chainId === 137) {
+                if (network.chainId === 137n) {
                     console.log("   ✅ Conectado a Polygon Mainnet\n");
                     checksPassed++;
-                } else if (network.chainId === 80002) {
+                } else if (network.chainId === 80002n) {
                     console.log("   ⚠️  Conectado a Polygon Amoy (testnet)");
                     console.log("       Para mainnet usa: npx hardhat run ... --network polygon\n");
                     checksFailed++;
@@ -160,6 +162,27 @@ async function main() {
                 checksPassed++;
             }
 
+            // ====================================================
+            // CHECK 8: Treasury address requerida por deploy.cjs
+            // ====================================================
+            console.log("8️⃣  Verificando TREASURY_ADDRESS...");
+
+            const treasuryAddress = process.env.TREASURY_ADDRESS;
+            if (!treasuryAddress) {
+                console.log("   ❌ TREASURY_ADDRESS no está definido\n");
+                checksFailed++;
+            } else if (!ethers.isAddress(treasuryAddress) || treasuryAddress === ethers.ZeroAddress) {
+                console.log("   ❌ TREASURY_ADDRESS no es una dirección válida\n");
+                checksFailed++;
+            } else if (treasuryAddress.toLowerCase() === burnTreasuryAddress) {
+                console.log("   ❌ TREASURY_ADDRESS apunta a la burn address placeholder 0x...dEaD");
+                console.log("      Configura la treasury real antes de desplegar en mainnet\n");
+                checksFailed++;
+            } else {
+                console.log(`   ✅ TREASURY_ADDRESS válido: ${treasuryAddress}\n`);
+                checksPassed++;
+            }
+
         } catch (error) {
             console.log(`   ❌ Error conectando a Polygon: ${error.message}\n`);
             console.log("   Posibles causas:");
@@ -191,11 +214,14 @@ async function main() {
 
     if (checksFailed === 0) {
         console.log("🎉 ¡TODO ESTÁ LISTO PARA DEPLOY!\n");
-        console.log("Puedes ejecutar cualquiera de estos comandos:\n");
-        console.log("   Opción 1 (Recomendada - Todo automático):");
-        console.log("   npx hardhat run scripts/updates/staking/deploy_all_updates.cjs --network polygon\n");
-        console.log("   Opción 2 (Manual - Solo Treasury):");
-        console.log("   npx hardhat run scripts/updates/staking/deploy_treasury_manager.cjs --network polygon\n");
+        console.log("Flujo recomendado actual:\n");
+        console.log("   1. npm exec hardhat compile");
+        console.log("   2. npm run check:contract-sizes");
+        console.log("   3. npm exec hardhat test");
+        console.log("   4. npx hardhat run scripts/deploy.cjs --network polygon");
+        console.log("   5. npx hardhat run scripts/configure.cjs --network polygon");
+        console.log("   6. npx hardhat run scripts/fund.cjs --network polygon");
+        console.log("   7. npx hardhat run scripts/verify.cjs --network polygon\n");
         process.exit(0);
     } else if (checksFailed <= 2) {
         console.log("⚠️  Algunos checks fallaron, pero puedes continuar.\n");
@@ -203,6 +229,13 @@ async function main() {
         if (!process.env.POLYGONSCAN_API_KEY) {
             console.log("   • Sin POLYGONSCAN_API_KEY: No podrás verificar contratos automáticamente");
             console.log("     Solución: Agrega POLYGONSCAN_API_KEY a .env\n");
+        }
+        if (!process.env.TREASURY_ADDRESS) {
+            console.log("   • Sin TREASURY_ADDRESS: scripts/deploy.cjs fallará al iniciar");
+            console.log("     Solución: Agrega TREASURY_ADDRESS a .env\n");
+        } else if (process.env.TREASURY_ADDRESS.toLowerCase() === burnTreasuryAddress) {
+            console.log("   • TREASURY_ADDRESS apunta a 0x...dEaD, que solo sirve como placeholder");
+            console.log("     Solución: reemplázala por la treasury real antes del deploy\n");
         }
         console.log("Puedes continuar con el deploy pero con limitaciones.\n");
         process.exit(0);
@@ -217,6 +250,13 @@ async function main() {
         if (!process.env.ALCHEMY_API_KEY) {
             console.log("   2. ALCHEMY_API_KEY no definida");
             console.log("      Obtén en: https://www.alchemy.com/\n");
+        }
+        if (!process.env.TREASURY_ADDRESS) {
+            console.log("   3. TREASURY_ADDRESS no definida");
+            console.log("      Agrega en .env la treasury destino usada por scripts/deploy.cjs\n");
+        } else if (process.env.TREASURY_ADDRESS.toLowerCase() === burnTreasuryAddress) {
+            console.log("   3. TREASURY_ADDRESS sigue apuntando a 0x...dEaD");
+            console.log("      Reemplázala por la treasury real antes del deploy en Polygon\n");
         }
         
         process.exit(1);

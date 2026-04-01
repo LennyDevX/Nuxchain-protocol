@@ -102,6 +102,8 @@ interface IQuestCore {
     event QuestDeactivated(uint256 indexed questId);
     event ActionNotified(address indexed user, QuestType questType, uint256 value);
     event QuestProgressUpdated(address indexed user, uint256 indexed questId, uint256 progress);
+    event QuestRewardDeferred(address indexed user, uint256 indexed questId, uint256 amount);
+    event PendingPolRewardsClaimed(address indexed user, uint256 amount);
 
     // ============================================
     // ADMIN
@@ -118,6 +120,7 @@ interface IQuestCore {
     // ============================================
 
     function completeQuest(uint256 questId) external;
+    function claimPendingPolRewards() external;
 
     /// @notice Called by REPORTER_ROLE contracts to record user activity.
     function notifyAction(address user, QuestType questType, uint256 value) external;

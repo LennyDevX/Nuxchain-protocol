@@ -3,6 +3,15 @@ const { ethers, upgrades } = require("hardhat");
 const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
 
 describe("NuxTapAgentMarketplace", function () {
+  function findLogIndex(receipt, contract, eventName) {
+    const event = contract.interface.getEvent(eventName);
+    return receipt.logs.findIndex(
+      (log) =>
+        log.address.toLowerCase() === contract.target.toLowerCase() &&
+        log.topics[0] === event.topicHash
+    );
+  }
+
   async function deployFixture() {
     const [admin, seller, buyer] = await ethers.getSigners();
 
@@ -56,17 +65,23 @@ describe("NuxTapAgentMarketplace", function () {
     await marketplace.connect(seller).listAgent(await agentNft.getAddress(), 0, ethers.parseEther("1"));
 
     const sellerBalanceBefore = await ethers.provider.getBalance(seller.address);
+    const tx = await marketplace.connect(buyer).buyAgent(1, { value: ethers.parseEther("1") });
 
-    await expect(
-      marketplace.connect(buyer).buyAgent(1, { value: ethers.parseEther("1") })
-    ).to.emit(marketplace, "AgentSold");
+    await expect(tx).to.emit(marketplace, "AgentSold");
+
+    const receipt = await tx.wait();
 
     const sellerBalanceAfter = await ethers.provider.getBalance(seller.address);
+    const transferLogIndex = findLogIndex(receipt, agentNft, "Transfer");
+    const revenueLogIndex = findLogIndex(receipt, treasury, "RevenueReceived");
 
     expect(await agentNft.ownerOf(0)).to.equal(buyer.address);
     expect((await marketplace.listings(1)).active).to.equal(false);
     expect(await ethers.provider.getBalance(await treasury.getAddress())).to.equal(ethers.parseEther("0.05"));
     expect(sellerBalanceAfter - sellerBalanceBefore).to.equal(ethers.parseEther("0.95"));
+    expect(transferLogIndex).to.not.equal(-1);
+    expect(revenueLogIndex).to.not.equal(-1);
+    expect(transferLogIndex).to.be.lessThan(revenueLogIndex);
   });
 
   it("rejects listings for unsupported agent contracts", async function () {

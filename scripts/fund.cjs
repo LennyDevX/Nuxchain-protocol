@@ -27,7 +27,7 @@
 const { ethers, network } = require("hardhat");
 const fs   = require("fs");
 const path = require("path");
-require("dotenv").config();
+require("dotenv").config({ override: true });
 
 const POL = (n) => ethers.parseEther(String(n));
 const fmt = (wei) => `${Number(ethers.formatEther(wei)).toFixed(4)} POL`;

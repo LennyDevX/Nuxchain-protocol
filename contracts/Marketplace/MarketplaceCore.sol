@@ -69,6 +69,7 @@ contract MarketplaceCore is
 
     address public stakingContractAddress;
     mapping(address => UserProfile) public userProfiles;
+    mapping(address => uint256) public pendingRefunds;
     mapping(uint256 => bool) public isBadge;
     mapping(address => bool) public hasBadge;
 
@@ -90,6 +91,7 @@ contract MarketplaceCore is
     event PlatformFeeTransferred(address indexed from, uint256 amount, address indexed to, string operation);
     event TreasuryManagerUpdated(address indexed newManager);
     event ModuleUpdated(string indexed moduleName, address indexed oldModule, address indexed newModule);
+    event RefundClaimed(address indexed user, uint256 amount);
 
     error NotTokenOwner();
     error TokenNotListed();
@@ -110,6 +112,7 @@ contract MarketplaceCore is
     error TreasuryFailed();
     error SellerFailed();
     error RefundFailed();
+    error NoPendingRefund();
     error BadgeSoulbound();
 
     function initialize(address _platformTreasury) public initializer {
@@ -300,6 +303,7 @@ contract MarketplaceCore is
 
         MarketplaceCoreLib.finalizeSale(
             userProfiles,
+            pendingRefunds,
             isListed,
             listedPrice,
             nftOffers,
@@ -365,6 +369,7 @@ contract MarketplaceCore is
 
         MarketplaceCoreLib.finalizeSale(
             userProfiles,
+            pendingRefunds,
             isListed,
             listedPrice,
             nftOffers,
@@ -394,7 +399,25 @@ contract MarketplaceCore is
         nftOffers[_tokenId].pop();
         
         (bool s,) = payable(msg.sender).call{value: amount}("");
-        if (!s) revert RefundFailed();
+        if (!s) {
+            pendingRefunds[msg.sender] += amount;
+            return;
+        }
+    }
+
+    function claimPendingRefund() external nonReentrant {
+        uint256 amount = pendingRefunds[msg.sender];
+        if (amount == 0) revert NoPendingRefund();
+
+        pendingRefunds[msg.sender] = 0;
+
+        (bool success,) = payable(msg.sender).call{value: amount}("");
+        if (!success) {
+            pendingRefunds[msg.sender] = amount;
+            revert RefundFailed();
+        }
+
+        emit RefundClaimed(msg.sender, amount);
     }
 
     function toggleLike(uint256 _tokenId) external whenNotPaused {

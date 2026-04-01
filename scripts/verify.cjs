@@ -18,7 +18,7 @@ const hre  = require("hardhat");
 const { ethers } = hre;
 const fs   = require("fs");
 const path = require("path");
-require("dotenv").config();
+require("dotenv").config({ override: true });
 
 const IMPL_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
@@ -76,7 +76,8 @@ async function main() {
     // ── Treasury ──────────────────────────────────────────────────────────────
     console.log("── TREASURY ──────────────────────────────────────────────────────────────────");
     (await verify(tm.manager,        "contracts/Treasury/TreasuryManager.sol:TreasuryManager", [], "TreasuryManager"))        ? ok() : bad(); await sleep(2000);
-    (await verify(tm.questRewardsPool,"contracts/Treasury/QuestRewardsPool.sol:QuestRewardsPool", [data.deployment.deployer], "QuestRewardsPool")) ? ok() : bad(); await sleep(2000);
+    const questRewardsImpl = await getImpl(tm.questRewardsPool);
+    (await verify(questRewardsImpl,  "contracts/Treasury/QuestRewardsPool.sol:QuestRewardsPool", [], "QuestRewardsPool impl")) ? ok() : bad(); await sleep(2000);
 
     // ── Smart Staking — plain contracts ───────────────────────────────────────
     console.log("\n── SMART STAKING ─────────────────────────────────────────────────────────────");
@@ -85,6 +86,7 @@ async function main() {
     (await verify(st.gamification, "contracts/SmartStaking/SmartStakingGamification.sol:SmartStakingGamification", [], "SmartStakingGamification"))   ? ok() : bad(); await sleep(2000);
     (await verify(st.dynamicAPY,   "contracts/SmartStaking/DynamicAPYCalculator.sol:DynamicAPYCalculator",         [], "DynamicAPYCalculator"))       ? ok() : bad(); await sleep(2000);
     (await verify(st.skillViewLib, "contracts/SmartStaking/SkillViewLib.sol:SkillViewLib",                         [], "SkillViewLib"))               ? ok() : bad(); await sleep(2000);
+    (await verify(st.coreLib,      "contracts/SmartStaking/SmartStakingCoreLib.sol:SmartStakingCoreLib",          [], "SmartStakingCoreLib"))          ? ok() : bad(); await sleep(2000);
     (await verify(st.viewCore,     "contracts/SmartStaking/SmartStakingViewCore.sol:SmartStakingViewCore",         [st.core], "SmartStakingViewCore")) ? ok() : bad(); await sleep(2000);
     (await verify(st.viewStats,    "contracts/SmartStaking/SmartStakingViewStats.sol:SmartStakingViewStats",       [st.core], "SmartStakingViewStats")) ? ok() : bad(); await sleep(2000);
     (await verify(st.viewSkills,   "contracts/SmartStaking/SmartStakingViewSkills.sol:SmartStakingViewSkills",     [st.core], "SmartStakingViewSkills")) ? ok() : bad(); await sleep(2000);
@@ -105,18 +107,19 @@ async function main() {
     const questImpl    = await getImpl(mp.questCore);
     const collabImpl   = await getImpl(mp.collaboratorRewards);
 
+    (await verify(mp.coreLib,     "contracts/Marketplace/MarketplaceCoreLib.sol:MarketplaceCoreLib",                [], "MarketplaceCoreLib"))             ? ok() : bad(); await sleep(2000);
     (await verify(mktCoreImpl,  "contracts/Marketplace/MarketplaceCore.sol:MarketplaceCore",                       [], "MarketplaceCore impl"))            ? ok() : bad(); await sleep(2000);
     (await verify(levelingImpl, "contracts/Leveling/LevelingSystem.sol:LevelingSystem",                            [], "LevelingSystem impl"))              ? ok() : bad(); await sleep(2000);
     (await verify(referralImpl, "contracts/Referral/ReferralSystem.sol:ReferralSystem",                            [], "ReferralSystem impl"))              ? ok() : bad(); await sleep(2000);
     (await verify(questImpl,    "contracts/Quest/QuestCore.sol:QuestCore",                                         [], "QuestCore impl"))                   ? ok() : bad(); await sleep(2000);
-    (await verify(collabImpl,   "contracts/Rewards/CollaboratorBadgeRewards.sol:CollaboratorBadgeRewards",         [], "CollaboratorBadgeRewards impl"))     ? ok() : bad(); await sleep(2000);
+    (await verify(collabImpl,   "contracts/Colabortors/CollaboratorBadgeRewards.sol:CollaboratorBadgeRewards",     [], "CollaboratorBadgeRewards impl"))     ? ok() : bad(); await sleep(2000);
 
     // Plain marketplace contracts
     (await verify(mp.view,       "contracts/Analytics/MarketplaceView.sol:MarketplaceView",           [data.deployment.deployer, mp.core], "MarketplaceView"))    ? ok() : bad(); await sleep(2000);
     (await verify(mp.statistics, "contracts/Analytics/MarketplaceStatistics.sol:MarketplaceStatistics",[data.deployment.deployer, mp.core], "MarketplaceStatistics")) ? ok() : bad(); await sleep(2000);
     (await verify(mp.social,     "contracts/Social/MarketplaceSocial.sol:MarketplaceSocial",           [data.deployment.deployer, mp.core], "MarketplaceSocial"))  ? ok() : bad(); await sleep(2000);
     (await verify(mp.nuxPowerNft,"contracts/NuxPower/NuxPowerNft.sol:NuxPowerNft",                     [mp.core], "NuxPowerNft"))                                   ? ok() : bad(); await sleep(2000);
-    (await verify(mp.nuxPowerMarketplace,"contracts/NuxPower/NuxPowerMarketplace.sol:NuxPowerMarketplace",[mp.core, data.deployment.deployer],"NuxPowerMarketplace")) ? ok() : bad(); await sleep(2000);
+    (await verify(mp.nuxPowerMarketplace,"contracts/NuxPower/NuxPowerMarketplace.sol:NuxPowerMarketplace",[tm.manager],"NuxPowerMarketplace")) ? ok() : bad(); await sleep(2000);
 
     console.log(`\n╔══════════════════════════════════════════════════════════════════════════════╗`);
     console.log(`║  VERIFICATION SUMMARY                                                      ║`);
