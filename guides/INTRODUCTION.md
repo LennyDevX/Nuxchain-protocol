@@ -8,7 +8,7 @@
 
 Nuxchain Protocol is a **unified DeFi ecosystem** built on Polygon combining:
 
-- **💰 Smart Staking**: Earn 43.8% - 250% APY with skill-based multipliers
+- **💰 Smart Staking**: Earn 8.60%% - 25.5% APY with skill-based multipliers
 - **🎮 Gameified Marketplace**: Trade NFTs while earning XP and leveling up
 - **🏅 Skill System**: Collectible NFTs that boost your staking & marketplace rewards
 - **🏦 Treasury Management**: Circular economy ensuring long-term sustainability
@@ -22,8 +22,8 @@ Nuxchain Protocol is a **unified DeFi ecosystem** built on Polygon combining:
 | Metric | Value |
 |--------|-------|
 | **Network** | Polygon (Chain 137) |
-| **Base APY** | 43.8% (no lock-up) |
-| **Max APY** | 250%+ (fully optimized) |
+| **Base APY** | 8.60% (no lock-up) |
+| **Max APY** | 25.5%+ (fully optimized) |
 | **Min Deposit** | 10 POL |
 | **Max Deposit** | 10,000 POL |
 | **Withdrawal Limit** | 1,000 POL/day |

@@ -194,4 +194,6 @@ contract SocialAgentNFT is NuxAgentNFTBase {
         require(_exists(tokenId), "SocialNFT: token does not exist");
         return socialProfiles[tokenId];
     }
+
+    uint256[50] private __gap;
 }

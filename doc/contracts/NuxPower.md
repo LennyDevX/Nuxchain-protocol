@@ -18,6 +18,27 @@ SmartStakingPower (tracks active powers per user)
 SmartStakingRewards (applies rarity multiplier to APY)
 ```
 
+## What A New Reader Should Take Away
+
+NuxPower is the protocol's "special abilities" layer.
+
+- The NFT itself represents the right to a power.
+- The marketplace is where a user typically acquires it.
+- `SmartStakingPower` decides whether that power is currently active for the holder.
+- `SmartStakingRewards` or other modules read the active power when calculating an outcome.
+
+That means buying a power NFT is only the first step. The actual value appears when the staking or marketplace modules recognize it and apply the associated effect.
+
+## Fast Reading Guide
+
+| If you want to understand... | Start with... |
+|---|---|
+| What each power type is supposed to do | `PowerType Reference` |
+| Why rarity matters | `PowerRarity Reference` |
+| How powers become active or inactive | `Activation Flow` |
+| Where powers affect staking | [SmartStaking.md](./SmartStaking.md) |
+| Where powers are surfaced to users | [Marketplace.md](./Marketplace.md) |
+
 ---
 
 ## PowerType Reference

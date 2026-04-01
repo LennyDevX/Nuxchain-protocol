@@ -51,6 +51,15 @@ contract Gamification is Ownable, ReentrancyGuard, ISmartStakingGamification {
     uint256 private constant MAX_QUEST_XP       = 25;  // dynamic range ceiling
     uint256 private constant ACHIEVEMENT_XP     = 100; // fixed XP per achievement
 
+    uint16 private constant MAX_LEVEL = 250;
+    uint16 private constant LEVELS_PER_BRACKET = 25;
+    uint16 private constant BRACKET_COUNT = 10;
+    uint256 private constant XP_PER_BRACKET_STEP = 50;
+    uint256 private constant MAX_XP_TOTAL = 68_750;
+    uint256 private constant MIN_LEVEL_REWARD = 0.05 ether;
+    uint256 private constant MAX_LEVEL_REWARD = 0.5 ether;
+    uint256 private constant LEVEL_REWARD_STEP = 0.05 ether;
+
     // ────────────────────────────────────────────────────────────────
     // Streak bonuses (applied as XP multipliers in basis points)
     // ────────────────────────────────────────────────────────────────
@@ -316,16 +325,16 @@ contract Gamification is Ownable, ReentrancyGuard, ISmartStakingGamification {
                 try treasuryManager.requestEmergencyFunds(ITreasuryManager.TreasuryType.REWARDS, deficit)
                     returns (bool ok) {
                     emergencyRequested = true;
-                    emit TreasuryNotificationSent(ok ? "EMERGENCY_FUNDS_GRANTED" : "EMERGENCY_FUNDS_DENIED", deficit, block.timestamp);
+                    emit TreasuryNotificationSent(ok ? "EF_OK" : "EF_NO", deficit, block.timestamp);
                 } catch {
-                    emit TreasuryNotificationSent("EMERGENCY_FUNDS_DENIED", deficit, block.timestamp);
+                    emit TreasuryNotificationSent("EF_NO", deficit, block.timestamp);
                 }
             }
         }
 
         if (newStatus != prev) {
             _protocolHealth = newStatus;
-            emit ProtocolHealthStatusChanged(newStatus, block.timestamp, _statusReason(newStatus));
+            emit ProtocolHealthStatusChanged(newStatus, block.timestamp, "");
             if (address(treasuryManager) != address(0)) {
                 try treasuryManager.setProtocolStatus(ITreasuryManager.TreasuryType.REWARDS, newStatus) {} catch {}
             }
@@ -338,11 +347,11 @@ contract Gamification is Ownable, ReentrancyGuard, ISmartStakingGamification {
     function reportCriticalStatus(uint256 requiredAmount) external override onlyAuthorized returns (bool notified) {
         if (address(treasuryManager) == address(0)) revert InvalidAddress();
         if (_protocolHealth != ITreasuryManager.ProtocolStatus.CRITICAL) revert InvalidParam();
-        try treasuryManager.declareEmergency("Gamification: insufficient level-up reward funds") {
-            emit TreasuryNotificationSent("CRITICAL_STATUS_REPORTED", requiredAmount, block.timestamp);
+        try treasuryManager.declareEmergency("Reward deficit") {
+            emit TreasuryNotificationSent("CRIT_OK", requiredAmount, block.timestamp);
             return true;
         } catch {
-            emit TreasuryNotificationSent("CRITICAL_STATUS_REPORT_FAILED", requiredAmount, block.timestamp);
+            emit TreasuryNotificationSent("CRIT_NO", requiredAmount, block.timestamp);
             return false;
         }
     }
@@ -365,11 +374,15 @@ contract Gamification is Ownable, ReentrancyGuard, ISmartStakingGamification {
      * @notice Admin override: set a user's local XP and sync to LevelingSystem.
      */
     function setUserXP(address user, uint256 xp) external override onlyOwner {
-        _localXP[user] = xp;
+        uint256 cappedXP = xp > MAX_XP_TOTAL ? MAX_XP_TOTAL : xp;
+        _localXP[user] = cappedXP;
         if (levelingSystemAddress != address(0)) {
-            try IXPHub(levelingSystemAddress).updateUserXP(user, xp, "admin_set") {} catch {}
+            (bool ok,) = levelingSystemAddress.call(
+                abi.encodeWithSignature("adminSetUserXP(address,uint256)", user, cappedXP)
+            );
+            if (!ok) {}
         }
-        emit XPUpdated(user, xp, 0);
+        emit XPUpdated(user, cappedXP, _levelFromXP(cappedXP));
     }
 
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -430,7 +443,7 @@ contract Gamification is Ownable, ReentrancyGuard, ISmartStakingGamification {
             if (!r.claimed && block.timestamp > r.expirationTime && r.amount > 0) {
                 uint256 expired = r.amount;
                 r.amount = 0;
-                emit RewardExpired(user, "quest", expired);
+                emit RewardExpired(user, "q", expired);
             }
         }
     }
@@ -478,7 +491,7 @@ contract Gamification is Ownable, ReentrancyGuard, ISmartStakingGamification {
             if (!r.claimed && block.timestamp > r.expirationTime && r.amount > 0) {
                 uint256 expired = r.amount;
                 r.amount = 0;
-                emit RewardExpired(user, "achievement", expired);
+                emit RewardExpired(user, "a", expired);
             }
         }
     }
@@ -617,9 +630,8 @@ contract Gamification is Ownable, ReentrancyGuard, ISmartStakingGamification {
         }
 
         uint16 nextLvl = level + 1;
-        uint256 reqNext = _xpPerLevel(nextLvl);
-        uint256 cumulCurrent;
-        for (uint16 i = 1; i <= level && i <= 50; i++) cumulCurrent += _xpPerLevel(i);
+        uint256 reqNext = level < MAX_LEVEL ? _xpPerLevel(nextLvl) : 0;
+        uint256 cumulCurrent = level > 0 ? _cumulativeXPForLevel(level) : 0;
         uint256 xpInLevel = xp > cumulCurrent ? xp - cumulCurrent : 0;
         xpToNextLevel = reqNext > xpInLevel ? reqNext - xpInLevel : 0;
     }
@@ -634,7 +646,13 @@ contract Gamification is Ownable, ReentrancyGuard, ISmartStakingGamification {
     }
 
     function getXPForLevel(uint16 level) external pure override returns (uint256 cumul) {
-        for (uint16 i = 1; i <= level && i <= 50; i++) cumul += _xpPerLevel(i);
+        if (level == 0) {
+            return 0;
+        }
+        if (level > MAX_LEVEL) {
+            level = MAX_LEVEL;
+        }
+        return _cumulativeXPForLevel(level);
     }
 
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -814,12 +832,11 @@ contract Gamification is Ownable, ReentrancyGuard, ISmartStakingGamification {
 
     function _distributeLevelUpReward(address user, uint8 newLevel) internal {
         uint256 reward = _calculateLevelUpReward(newLevel);
-        totalPendingRewards += reward;
+        uint256 reservedBefore = totalPendingRewards;
 
-        if (address(this).balance >= reward) {
+        if (_hasRewardLiquidity(reward, reservedBefore)) {
             (bool ok,) = payable(user).call{value: reward}("");
             if (ok) {
-                totalPendingRewards -= reward;
                 statTotalRewardsPaid += reward;
                 emit RewardPaid(user, reward);
                 return;
@@ -829,10 +846,9 @@ contract Gamification is Ownable, ReentrancyGuard, ISmartStakingGamification {
         // Try Treasury
         if (address(treasuryManager) != address(0)) {
             try treasuryManager.requestRewardFunds(reward) returns (bool funded) {
-                if (funded && address(this).balance >= reward) {
+                if (funded && _hasRewardLiquidity(reward, reservedBefore)) {
                     (bool ok,) = payable(user).call{value: reward}("");
                     if (ok) {
-                        totalPendingRewards -= reward;
                         statTotalRewardsPaid += reward;
                         emit RewardPaid(user, reward);
                         return;
@@ -842,20 +858,27 @@ contract Gamification is Ownable, ReentrancyGuard, ISmartStakingGamification {
         }
 
         // Defer
+    totalPendingRewards = reservedBefore + reward;
         deferredRewardAmount[user] += reward;
         deferredRewardTime[user]    = block.timestamp;
         emit CriticalRewardDeficit(user, reward, totalPendingRewards, address(this).balance);
-        emit RewardDeferred(user, newLevel, reward, "Insufficient funds");
+        emit RewardDeferred(user, newLevel, reward, "Liquidity");
 
         if (block.timestamp >= _lastHealthCheckTime + 1 hours) _quickHealthCheck();
     }
 
     function _calculateLevelUpReward(uint8 level) internal pure returns (uint256) {
-        if (level <= 10) return 1 ether;
-        if (level <= 20) return 2 ether;
-        if (level <= 30) return 3 ether;
-        if (level <= 40) return 4 ether;
-        return 5 ether;
+        if (level == 0 || level > MAX_LEVEL) revert InvalidParam();
+
+        uint256 rewardTier = ((uint256(level) - 1) / LEVELS_PER_BRACKET) + 1;
+        uint256 rewardAmount = rewardTier * LEVEL_REWARD_STEP;
+        if (rewardAmount > MAX_LEVEL_REWARD) {
+            return MAX_LEVEL_REWARD;
+        }
+        if (rewardAmount < MIN_LEVEL_REWARD) {
+            return MIN_LEVEL_REWARD;
+        }
+        return rewardAmount;
     }
 
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -912,30 +935,38 @@ contract Gamification is Ownable, ReentrancyGuard, ISmartStakingGamification {
 
     function _checkAndAwardBadges(address user, uint8 newLevel) internal {
         if (newLevel == 10  && !_userHasBadge[user][keccak256("LEVEL_10")])
-            _awardBadgeInternal(user, 1, "Level 10 Achieved", "Reached level 10");
+            _awardBadgeInternal(user, 1, "Bronze", "L10");
         if (newLevel == 25  && !_userHasBadge[user][keccak256("LEVEL_25")])
-            _awardBadgeInternal(user, 2, "Level 25 Pro", "Reached level 25");
+            _awardBadgeInternal(user, 2, "Silver", "L25");
         if (newLevel == 50  && !_userHasBadge[user][keccak256("LEVEL_50")])
-            _awardBadgeInternal(user, 3, "Level 50 Legend", "Reached maximum level 50");
+            _awardBadgeInternal(user, 3, "Gold", "L50");
+        if (newLevel == 100 && !_userHasBadge[user][keccak256("LEVEL_100")])
+            _awardBadgeInternal(user, 4, "Platinum", "L100");
+        if (newLevel == 150 && !_userHasBadge[user][keccak256("LEVEL_150")])
+            _awardBadgeInternal(user, 5, "Diamond", "L150");
+        if (newLevel == 200 && !_userHasBadge[user][keccak256("LEVEL_200")])
+            _awardBadgeInternal(user, 6, "Mythic", "L200");
+        if (newLevel == 250 && !_userHasBadge[user][keccak256("LEVEL_250")])
+            _awardBadgeInternal(user, 7, "Legend", "L250");
 
         uint256 quests = _userQuestIds[user].length;
         if (quests >= 10  && !_userHasBadge[user][keccak256("QUEST_MASTER")])
-            _awardBadgeInternal(user, 10, "Quest Master", "Completed 10 quests");
+            _awardBadgeInternal(user, 10, "Quests I", "10 quests");
         if (quests >= 50  && !_userHasBadge[user][keccak256("QUEST_LEGEND")])
-            _awardBadgeInternal(user, 11, "Quest Legend", "Completed 50 quests");
+            _awardBadgeInternal(user, 11, "Quests II", "50 quests");
 
         uint256 ach = _userAchievementIds[user].length;
         if (ach >= 5  && !_userHasBadge[user][keccak256("ACHIEVER")])
-            _awardBadgeInternal(user, 20, "Achiever", "Unlocked 5 achievements");
+            _awardBadgeInternal(user, 20, "Achv I", "5 unlocks");
         if (ach >= 20 && !_userHasBadge[user][keccak256("ACHIEVEMENT_HUNTER")])
-            _awardBadgeInternal(user, 21, "Achievement Hunter", "Unlocked 20 achievements");
+            _awardBadgeInternal(user, 21, "Achv II", "20 unlocks");
 
         // Streak badges
         uint32 streak = _streaks[user].current;
         if (streak >= 7  && !_userHasBadge[user][keccak256("STREAK_WEEK")])
-            _awardBadgeInternal(user, 30, "Week Streak", "7 consecutive days active");
+            _awardBadgeInternal(user, 30, "Streak I", "7 days");
         if (streak >= 30 && !_userHasBadge[user][keccak256("STREAK_MONTH")])
-            _awardBadgeInternal(user, 31, "Month Streak", "30 consecutive days active");
+            _awardBadgeInternal(user, 31, "Streak II", "30 days");
     }
 
     function _awardBadgeInternal(address user, uint256 id, string memory name, string memory description) internal {
@@ -986,7 +1017,7 @@ contract Gamification is Ownable, ReentrancyGuard, ISmartStakingGamification {
 
         if (ns != _protocolHealth) {
             _protocolHealth = ns;
-            emit ProtocolHealthStatusChanged(ns, block.timestamp, _statusReason(ns));
+            emit ProtocolHealthStatusChanged(ns, block.timestamp, "");
             if (address(treasuryManager) != address(0)) {
                 try treasuryManager.setProtocolStatus(ITreasuryManager.TreasuryType.REWARDS, ns) {} catch {}
             }
@@ -994,11 +1025,8 @@ contract Gamification is Ownable, ReentrancyGuard, ISmartStakingGamification {
         _lastHealthCheckTime = block.timestamp;
     }
 
-    function _statusReason(ITreasuryManager.ProtocolStatus s) internal pure returns (string memory) {
-        if (s == ITreasuryManager.ProtocolStatus.HEALTHY)  return "Healthy";
-        if (s == ITreasuryManager.ProtocolStatus.UNSTABLE) return "Unstable";
-        if (s == ITreasuryManager.ProtocolStatus.CRITICAL) return "Critical";
-        return "Emergency";
+    function _hasRewardLiquidity(uint256 reward, uint256 reservedBefore) internal view returns (bool) {
+        return address(this).balance >= reservedBefore + reward;
     }
 
     // ════════════════════════════════════════════════════════════════════════════════════════
@@ -1007,37 +1035,47 @@ contract Gamification is Ownable, ReentrancyGuard, ISmartStakingGamification {
 
     /**
      * @dev XP required to complete a given level (not cumulative).
-     *  Levels  1-10: 50 XP each
-     *  Levels 11-20: 100 XP each
-     *  Levels 21-30: 150 XP each
-     *  Levels 31-40: 200 XP each
-     *  Levels 41-50: 250 XP each
+     * Each bracket of 25 levels increases the per-level XP cost by 50.
      */
     function _xpPerLevel(uint16 level) internal pure returns (uint256) {
-        if (level == 0 || level > 50) return 0;
-        if (level <= 10) return 50;
-        if (level <= 20) return 100;
-        if (level <= 30) return 150;
-        if (level <= 40) return 200;
-        return 250;
+        if (level == 0 || level > MAX_LEVEL) return 0;
+        uint256 bracket = ((uint256(level) - 1) / LEVELS_PER_BRACKET) + 1;
+        return bracket * XP_PER_BRACKET_STEP;
     }
 
     /**
-     * @dev O(1) level from cumulative XP — mirrors LevelingSystem.getLevelFromXP.
-     *  The user "is at level N" when they have accumulated threshold(N) XP.
-     *   threshold(N) = N*50  for N in [1,10]
-     *   threshold(N) = 500 + (N-10)*100  for N in [11,20]
-     *   threshold(N) = 1500 + (N-20)*150 for N in [21,30]
-     *   threshold(N) = 3000 + (N-30)*200 for N in [31,40]
-     *   threshold(N) = 5000 + (N-40)*250 for N in [41,50]
+     * @dev Level from cumulative XP — mirrors LevelingSystem.getLevelFromXP.
      */
     function _levelFromXP(uint256 xp) internal pure returns (uint16) {
-        if (xp < 50)    return 0;
-        if (xp < 500)   return uint16(xp / 50);                  // levels 1–9
-        if (xp < 1500)  return uint16(10 + (xp - 500)  / 100);  // levels 10–19
-        if (xp < 3000)  return uint16(20 + (xp - 1500) / 150);  // levels 20–29
-        if (xp < 5000)  return uint16(30 + (xp - 3000) / 200);  // levels 30–39
-        if (xp < 7500)  return uint16(40 + (xp - 5000) / 250);  // levels 40–49
-        return 50;
+        if (xp < XP_PER_BRACKET_STEP) return 0;
+
+        uint256 remainingXP = xp > MAX_XP_TOTAL ? MAX_XP_TOTAL : xp;
+        for (uint256 bracket = 1; bracket <= BRACKET_COUNT; bracket++) {
+            uint256 xpPerLevel = bracket * XP_PER_BRACKET_STEP;
+            uint256 bracketXP = xpPerLevel * LEVELS_PER_BRACKET;
+            if (remainingXP <= bracketXP) {
+                return uint16(((bracket - 1) * LEVELS_PER_BRACKET) + (remainingXP / xpPerLevel));
+            }
+            remainingXP -= bracketXP;
+        }
+
+        return MAX_LEVEL;
+    }
+
+    function _cumulativeXPForLevel(uint16 level) internal pure returns (uint256 cumulativeXP) {
+        if (level == 0) {
+            return 0;
+        }
+        if (level > MAX_LEVEL) {
+            level = MAX_LEVEL;
+        }
+
+        uint256 bracket = ((uint256(level) - 1) / LEVELS_PER_BRACKET) + 1;
+        uint256 completedBrackets = bracket - 1;
+        uint256 levelsBeforeBracket = completedBrackets * LEVELS_PER_BRACKET;
+        uint256 xpBeforeBracket = XP_PER_BRACKET_STEP * LEVELS_PER_BRACKET * completedBrackets * bracket / 2;
+        uint256 levelsInCurrentBracket = uint256(level) - levelsBeforeBracket;
+
+        return xpBeforeBracket + (levelsInCurrentBracket * bracket * XP_PER_BRACKET_STEP);
     }
 }

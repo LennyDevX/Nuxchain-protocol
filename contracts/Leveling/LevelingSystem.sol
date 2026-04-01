@@ -9,8 +9,10 @@ import "../interfaces/IXPHub.sol";
 /**
  * @title LevelingSystem
  * @dev Singleton XP hub for the entire Nuxchain Protocol (implements IXPHub).
- * - Tiered leveling: L1-10 (50 XP each), L11-20 (100), L21-30 (150), L31-40 (200), L41-50 (250)
- * - Total: 7 500 XP to reach Level 50
+ * - 250 levels split into 10 progression brackets of 25 levels each
+ * - XP per level scales by bracket: 50, 100, 150 ... 500 XP
+ * - Total: 68 750 XP to reach Level 250
+ * - Native rewards scale conservatively from 0.05 POL to 0.5 POL
  * - Tracks per-source XP breakdown for frontend dashboards
  * - All protocol contracts call awardXP() (REPORTER_ROLE) or updateUserXP() (MARKETPLACE_ROLE)
  */
@@ -21,21 +23,18 @@ contract LevelingSystem is Initializable, AccessControlUpgradeable, UUPSUpgradea
     /// @notice Granted to SmartStakingGamification, Auction, NuxPower, Referral, etc.
     bytes32 public constant REPORTER_ROLE    = keccak256("REPORTER_ROLE");
 
-    // XP and Level Constants
-    uint8 private constant MAX_LEVEL = 50;
-    uint256 private constant MAX_XP_TOTAL = 7500;
+    // XP and level constants
+    uint8 private constant MAX_LEVEL = 250;
+    uint8 private constant LEVELS_PER_BRACKET = 25;
+    uint8 private constant BRACKET_COUNT = 10;
+    uint256 private constant XP_PER_BRACKET_STEP = 50;
+    uint256 private constant MAX_XP_TOTAL = 68_750;
     
-    // Dynamic Level-Up Reward System (Scaled 1-5 POL based on level)
-    // Formula: min(5, 1 + (level / 10)) POL
-    // Level 1: 1.1 POL → 1 POL (rounded down)
-    // Level 10: 2 POL
-    // Level 20: 3 POL
-    // Level 30: 4 POL
-    // Level 40: 5 POL (max cap)
-    // Level 50: 6 POL → 5 POL (max cap)
-    uint256 private constant MIN_LEVEL_REWARD = 1 ether;      // 1 POL minimum
-    uint256 private constant MAX_LEVEL_REWARD = 5 ether;      // 5 POL maximum
-    uint256 private constant REWARD_SCALE_DIVISOR = 10;       // level / 10 for scaling
+    // Dynamic level-up reward system.
+    // Reward tier increases every 25 levels and remains conservatively capped.
+    uint256 private constant MIN_LEVEL_REWARD = 0.05 ether;
+    uint256 private constant MAX_LEVEL_REWARD = 0.5 ether;
+    uint256 private constant LEVEL_REWARD_STEP = 0.05 ether;
     
     // Batch NFT Creation XP Constants
     uint256 private constant BASE_NFT_XP = 10;
@@ -94,61 +93,65 @@ contract LevelingSystem is Initializable, AccessControlUpgradeable, UUPSUpgradea
 
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
-    /**
-     * @dev Calculate dynamic level-up reward based on user's new level
-     * Formula: min(MAX_LEVEL_REWARD, MIN_LEVEL_REWARD + (level / REWARD_SCALE_DIVISOR))
-     * 
-     * Examples:10) = 1.1 POL → 1 POL (integer division)
-     * - Level 10: 1 + (10/10) = 2 POL
-     * - Level 20: 1 + (20/10) = 3 POL
-     * - Level 30: 1 + (30/10) = 4 POL
-     * - Level 40: 1 + (40/10) = 5 POL (max cap)
-     * - Level 50: 1 + (50/10) = 6 POL → capped at 5 POL
-     */
     function _calculateLevelUpReward(uint8 level) internal pure returns (uint256) {
-        require(level >= 1 && level <= MAX_LEVEL, "Invalid level");
-        
-        // Formula: 1 + (level / 10), capped at 5
-        // Formula: 1 + (level / 5), capped at 10 POL
-        uint256 scaledReward = MIN_LEVEL_REWARD + (uint256(level) * 1 ether / REWARD_SCALE_DIVISOR);
-        
-        // Apply max cap
-        if (scaledReward > MAX_LEVEL_REWARD) {
-            return MAX_LEVEL_REWARD;
-        }
-        
-        return scaledReward;
+        return getRewardForLevel(level);
     }
 
-    /**
-     * @dev Get XP required for a specific level (not cumulative)
-     */
+    /// @inheritdoc IXPHub
     function getXPRequiredForLevel(uint8 _level) public pure returns (uint256) {
         require(_level >= 1 && _level <= MAX_LEVEL, "Invalid level");
-        
-        if (_level <= 10) return 50;
-        if (_level <= 20) return 100;
-        if (_level <= 30) return 150;
-        if (_level <= 40) return 200;
-        return 250; // levels 41-50
+
+        uint256 bracket = ((uint256(_level) - 1) / LEVELS_PER_BRACKET) + 1;
+        return bracket * XP_PER_BRACKET_STEP;
+    }
+
+    /// @inheritdoc IXPHub
+    function getCumulativeXPForLevel(uint8 _level) public pure returns (uint256 cumulativeXP) {
+        require(_level <= MAX_LEVEL, "Invalid level");
+        if (_level == 0) {
+            return 0;
+        }
+
+        uint256 bracket = ((uint256(_level) - 1) / LEVELS_PER_BRACKET) + 1;
+        uint256 completedBrackets = bracket - 1;
+        uint256 levelsBeforeBracket = completedBrackets * LEVELS_PER_BRACKET;
+        uint256 xpBeforeBracket = XP_PER_BRACKET_STEP * LEVELS_PER_BRACKET * completedBrackets * bracket / 2;
+        uint256 levelsInCurrentBracket = uint256(_level) - levelsBeforeBracket;
+
+        return xpBeforeBracket + (levelsInCurrentBracket * bracket * XP_PER_BRACKET_STEP);
+    }
+
+    /// @inheritdoc IXPHub
+    function getRewardForLevel(uint8 level) public pure returns (uint256 rewardAmount) {
+        require(level >= 1 && level <= MAX_LEVEL, "Invalid level");
+
+        uint256 rewardTier = ((uint256(level) - 1) / LEVELS_PER_BRACKET) + 1;
+        rewardAmount = rewardTier * LEVEL_REWARD_STEP;
+        if (rewardAmount > MAX_LEVEL_REWARD) {
+            rewardAmount = MAX_LEVEL_REWARD;
+        }
+        if (rewardAmount < MIN_LEVEL_REWARD) {
+            rewardAmount = MIN_LEVEL_REWARD;
+        }
     }
 
     /**
-     * @dev Calculate level from total XP
-     * Returns level 1-50 based on cumulative XP
+     * @dev Calculate level from total XP.
+     * Returns level 0-250 based on cumulative XP.
      */
     function getLevelFromXP(uint256 _totalXP) public pure returns (uint8) {
-        if (_totalXP == 0) return 0;
-        // Tier 1: levels 1-10, 50 XP each, cumulative range (0, 500]
-        if (_totalXP <= 500)  return uint8((_totalXP + 49) / 50);
-        // Tier 2: levels 11-20, 100 XP each, cumulative range (500, 1500]
-        if (_totalXP <= 1500) return uint8(10 + (_totalXP - 500 + 99) / 100);
-        // Tier 3: levels 21-30, 150 XP each, cumulative range (1500, 3000]
-        if (_totalXP <= 3000) return uint8(20 + (_totalXP - 1500 + 149) / 150);
-        // Tier 4: levels 31-40, 200 XP each, cumulative range (3000, 5000]
-        if (_totalXP <= 5000) return uint8(30 + (_totalXP - 3000 + 199) / 200);
-        // Tier 5: levels 41-50, 250 XP each, cumulative range (5000, 7500]
-        if (_totalXP <= 7500) return uint8(40 + (_totalXP - 5000 + 249) / 250);
+        if (_totalXP < XP_PER_BRACKET_STEP) return 0;
+
+        uint256 remainingXP = _totalXP;
+        for (uint256 bracket = 1; bracket <= BRACKET_COUNT; bracket++) {
+            uint256 xpPerLevel = bracket * XP_PER_BRACKET_STEP;
+            uint256 bracketXP = xpPerLevel * LEVELS_PER_BRACKET;
+            if (remainingXP <= bracketXP) {
+                return uint8(((bracket - 1) * LEVELS_PER_BRACKET) + (remainingXP / xpPerLevel));
+            }
+            remainingXP -= bracketXP;
+        }
+
         return MAX_LEVEL;
     }
 
@@ -218,7 +221,7 @@ contract LevelingSystem is Initializable, AccessControlUpgradeable, UUPSUpgradea
     function _distributeLevelUpReward(address user, uint8 newLevel) internal {
         // Calculate reward based on new level reached
         uint256 levelReward = _calculateLevelUpReward(newLevel);
-        if (address(this).balance >= levelReward) {
+        if (address(this).balance >= totalPendingRewards + levelReward) {
             (bool success, ) = payable(user).call{value: levelReward}("");
             if (success) {
                 emit RewardPaid(user, levelReward);
@@ -264,6 +267,24 @@ contract LevelingSystem is Initializable, AccessControlUpgradeable, UUPSUpgradea
         _updateUserXP(user, xpAmount, reason, 255, true); // 255 = untracked source
     }
 
+    /// @inheritdoc IXPHub
+    function adminSetUserXP(address user, uint256 totalXP) external onlyRole(ADMIN_ROLE) {
+        require(user != address(0), "LevelingSystem: zero address");
+
+        UserProfile storage profile = userProfiles[user];
+        uint8 oldLevel = profile.level;
+        uint256 cappedXP = totalXP > MAX_XP_TOTAL ? MAX_XP_TOTAL : totalXP;
+        uint8 newLevel = getLevelFromXP(cappedXP);
+
+        profile.totalXP = cappedXP;
+        profile.level = newLevel;
+
+        emit XPGained(user, cappedXP, "ADMIN_SET_XP");
+        if (newLevel > oldLevel) {
+            emit LevelUp(user, newLevel);
+        }
+    }
+
     /**
      * @dev Get user profile
      */
@@ -293,21 +314,8 @@ contract LevelingSystem is Initializable, AccessControlUpgradeable, UUPSUpgradea
         ) 
     {
         UserProfile memory profile = userProfiles[user];
-        uint256 currentLevelXP = 0;
-        uint256 nextLevelXP = 0;
-        
-        // Calculate XP needed for current level
-        if (profile.level > 0) {
-            for (uint8 i = 1; i < profile.level; i++) {
-                currentLevelXP += getXPRequiredForLevel(i);
-            }
-        }
-        
-        // Calculate XP needed for next level
-        nextLevelXP = currentLevelXP;
-        if (profile.level < MAX_LEVEL) {
-            nextLevelXP += getXPRequiredForLevel(profile.level + 1);
-        }
+        uint256 currentLevelXP = profile.level > 1 ? getCumulativeXPForLevel(profile.level - 1) : 0;
+        uint256 nextLevelXP = profile.level < MAX_LEVEL ? getCumulativeXPForLevel(profile.level + 1) : currentLevelXP;
         
         return (
             profile.totalXP,
@@ -514,9 +522,7 @@ contract LevelingSystem is Initializable, AccessControlUpgradeable, UUPSUpgradea
         
         // Calculate cumulative XP for current level
         currentLevelXP = 0;
-        for (uint8 i = 1; i < currentLevel; i++) {
-            currentLevelXP += getXPRequiredForLevel(i);
-        }
+        currentLevelXP = currentLevel > 1 ? getCumulativeXPForLevel(currentLevel - 1) : 0;
         
         // Calculate XP within current level
         xpInCurrentLevel = profile.totalXP > currentLevelXP ? profile.totalXP - currentLevelXP : 0;

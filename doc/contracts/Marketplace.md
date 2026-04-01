@@ -21,6 +21,40 @@ MarketplaceCore (UUPS proxy + ERC721)
     └── CollaboratorBadgeRewards — Badge holder rewards
 ```
 
+## What This Module Does In Plain English
+
+If Smart Staking is the "earn yield" side of Nuxchain, Marketplace is the "do things and build a profile" side.
+
+- A creator mints an NFT and chooses royalties.
+- An owner lists it, updates the price, or accepts offers.
+- A buyer purchases it and the payment is split automatically.
+- The protocol records activity, social interactions, and XP in the background.
+- Extra modules handle rewards, quests, referrals, comments, likes, and analytics.
+
+The important idea for a new reader is that `MarketplaceCore` is not meant to do everything by itself. It is the transaction hub, while the surrounding contracts keep the marketplace readable, reward-driven, and easier to query from a frontend.
+
+## How To Read This Page
+
+| If you want to understand... | Start with... |
+|---|---|
+| How minting, listing, buying, and offers work | `MarketplaceCore` |
+| Why users gain XP and level up | `LevelingSystem` |
+| How the frontend gets rich NFT/user data | `MarketplaceView` |
+| Where marketplace metrics come from | `MarketplaceStatistics` |
+| How comments and likes are stored | `MarketplaceSocial` |
+| How referrals work | [Referral.md](./Referral.md) |
+| How quests and collaborator rewards plug in | [Gamification.md](./Gamification.md) |
+| How power NFTs affect the marketplace | [NuxPower.md](./NuxPower.md) |
+
+## Typical User Journey
+
+1. A creator mints an NFT with `createToken()`.
+2. The NFT can be listed for direct sale or left unlisted to receive offers.
+3. A buyer purchases the NFT or submits an offer.
+4. The contract sends the platform fee to treasury, pays royalties when needed, and pays the seller.
+5. Marketplace activity increases XP, which can trigger a level-up reward.
+6. Comments, likes, quests, referrals, and analytics update through their own modules.
+
 ---
 
 ## MarketplaceCore
@@ -212,20 +246,9 @@ function addXP(address user, uint256 amount) external onlyMarketplace
 
 ## ReferralSystem
 
-**Type:** UUPS Proxy (Ownable)  
-**Deploy:** `upgrades.deployProxy(factory, [admin], { kind: "uups" })`  
-**Post-deploy:** `grantRole(MARKETPLACE_ROLE, marketplaceCoreAddr)`
+`ReferralSystem` is part of the marketplace experience, but it now has its own page because it is easier to understand as a separate user journey: share a code, onboard a buyer, apply a first-purchase discount, then reward the referrer when the referred account becomes active.
 
-Tracks referral relationships and manages bonuses.
-
-### Key Functions
-
-```solidity
-function registerReferral(address referrer, address referee) external onlyMarketplace
-function getReferrer(address user) external view returns (address)
-function getReferralCount(address referrer) external view returns (uint256)
-function getReferralBonus(address user) external view returns (uint256)
-```
+See [Referral.md](./Referral.md) for the dedicated explanation, flows, and key functions.
 
 ---
 

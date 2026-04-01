@@ -29,6 +29,7 @@ export interface ContractAddresses {
   MarketplaceView:       string;  // MarketplaceView
   MarketplaceStatistics: string;  // MarketplaceStatistics
   MarketplaceSocial:     string;  // MarketplaceSocial
+  NuxAgentView?:         string;  // NuxAgentView
   // --- Treasury ---
   TreasuryManager:       string;  // TreasuryManager
 

@@ -192,4 +192,6 @@ contract BusinessAgentNFT is NuxAgentNFTBase {
     function getWorkflowCount(uint256 tokenId) external view returns (uint256) { return _workflows[tokenId].length; }
     function getClient(uint256 tokenId, uint256 idx)   external view returns (Client memory)   { return _clients[tokenId][idx];   }
     function getWorkflow(uint256 tokenId, uint256 idx) external view returns (Workflow memory) { return _workflows[tokenId][idx]; }
+
+    uint256[50] private __gap;
 }

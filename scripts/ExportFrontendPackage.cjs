@@ -35,6 +35,7 @@ const FRONTEND_ADDRESS_MAP = {
     MarketplaceView: ["marketplace", "view"],
     MarketplaceStatistics: ["marketplace", "statistics"],
     MarketplaceSocial: ["marketplace", "social"],
+    NuxAgentView: ["nft", "agentView"],
     TreasuryManager: ["treasury", "manager"],
     QuestRewardsPool: ["treasury", "questRewardsPool"],
     NuxTapGame: ["nuxtap", "game"],
@@ -47,7 +48,8 @@ const OPTIONAL_GENERATED_ADDRESS_KEYS = [
     "NuxTapGame",
     "NuxTapAgentMarketplace",
     "NuxTapStore",
-    "NuxTapTreasury"
+    "NuxTapTreasury",
+    "NuxAgentView"
 ];
 
 function fileExists(filePath) {

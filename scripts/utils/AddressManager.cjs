@@ -30,6 +30,7 @@ class AddressManager {
             staking: {},
             marketplace: {},
             treasury: {},
+            nft: {},
             nuxtap: {},
             other: {}
         };
@@ -68,6 +69,16 @@ class AddressManager {
                             addresses.treasury[key] = value.address;
                         } else if (typeof value === 'string' && value.startsWith('0x')) {
                             addresses.treasury[key] = value;
+                        }
+                    });
+                }
+
+                if (contractGroups.nft) {
+                    Object.entries(contractGroups.nft).forEach(([key, value]) => {
+                        if (typeof value === 'object' && value.address) {
+                            addresses.nft[key] = value.address;
+                        } else if (typeof value === 'string' && value.startsWith('0x')) {
+                            addresses.nft[key] = value;
                         }
                     });
                 }
@@ -122,6 +133,7 @@ class AddressManager {
             staking: deployment.staking,
             marketplace: deployment.marketplace,
             treasury: deployment.treasury,
+            nft: deployment.nft,
             nuxtap: deployment.nuxtap,
             other: deployment.other
         };
@@ -136,6 +148,7 @@ class AddressManager {
             staking: {},
             marketplace: {},
             treasury: {},
+            nft: {},
             nuxtap: {},
             other: {}
         };
@@ -329,6 +342,7 @@ class AddressManager {
         deploymentData.contracts.staking = deploymentData.contracts.staking || {};
         deploymentData.contracts.marketplace = deploymentData.contracts.marketplace || {};
         deploymentData.contracts.treasury = deploymentData.contracts.treasury || {};
+        deploymentData.contracts.nft = deploymentData.contracts.nft || {};
         deploymentData.contracts.nuxtap = deploymentData.contracts.nuxtap || {};
         deploymentData.contracts.other = deploymentData.contracts.other || {};
 
@@ -358,6 +372,16 @@ class AddressManager {
                     deploymentData.contracts.treasury[key].address = value;
                 } else {
                     deploymentData.contracts.treasury[key] = value;
+                }
+            });
+        }
+
+        if (addresses.nft) {
+            Object.entries(addresses.nft).forEach(([key, value]) => {
+                if (typeof deploymentData.contracts.nft[key] === 'object') {
+                    deploymentData.contracts.nft[key].address = value;
+                } else {
+                    deploymentData.contracts.nft[key] = value;
                 }
             });
         }
@@ -395,7 +419,7 @@ class AddressManager {
     flattenAddresses(addresses) {
         const flat = {};
 
-        ['staking', 'marketplace', 'treasury', 'nuxtap', 'other'].forEach((category) => {
+        ['staking', 'marketplace', 'treasury', 'nft', 'nuxtap', 'other'].forEach((category) => {
             if (!addresses[category]) {
                 return;
             }

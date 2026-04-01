@@ -68,6 +68,27 @@ interface INuxAgentNFT {
         uint256 reputation;       // On-chain reputation score (ERC-8004 aggregated)
     }
 
+    struct AgentView {
+        uint256 tokenId;
+        address owner;
+        address effectiveController;
+        address tokenBoundAccount;
+        address renter;
+        uint256 rentalExpiry;
+        uint256 remainingRentalTime;
+        bool isCurrentlyRented;
+        string tokenMetadataURI;
+        string agentRegistrationURI;
+        AgentConfig config;
+    }
+
+    struct CollectionStats {
+        uint256 totalAgents;
+        uint256 activeAgents;
+        uint256 rentedAgents;
+        uint256[5] categoryCounts;
+    }
+
     // ============================================
     // EVENTS (ERC-7662 required)
     // ============================================
@@ -170,4 +191,5 @@ interface INuxAgentNFT {
      * @param newURI New registration file URI (IPFS, HTTPS, or base64 data URI)
      */
     function setAgentURI(uint256 tokenId, string calldata newURI) external;
+
 }

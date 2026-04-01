@@ -26,7 +26,7 @@ interface ITreasuryReceiver {
  *   with ERC-8004 proof-of-payment in reputation feedback.
  *
  * ARCHITECTURE:
- *   1. Owner deposits ETH into agent's budget (deposited per tokenId)
+ *   1. Owner deposits ETH into agent's budget (scoped by nftContract + tokenId)
  *   2. Owner (or agent's TBA) creates spending authorizations per service provider
  *   3. Service providers execute authorized payments off-chain, then prove execution
  *   4. On-chain: Paymaster verifies and settles the payment from agent's balance
@@ -36,7 +36,7 @@ interface ITreasuryReceiver {
  *   The contract emits standardized PaymentReceipt events that include:
  *     - X-PAYMENT resource URI (as resourceURI)
  *     - amount and currency (native ETH normalized)
- *     - payerAgentId (NFT tokenId)
+ *     - payer agent identity (nftContract + tokenId)
  *   This receipt hash can be included as the `x402Proof` in ERC-8004 giveFeedback().
  *
  * SPENDING POLICIES:
@@ -409,6 +409,8 @@ contract NuxAgentPaymaster is
         require(fc != address(0), "Paymaster: invalid address");
         feeCollector = fc;
     }
+
+    uint256[50] private __gap;
 
     function _authorizeUpgrade(address) internal override onlyRole(UPGRADER_ROLE) {}
 

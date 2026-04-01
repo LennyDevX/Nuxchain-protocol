@@ -24,6 +24,32 @@ View contracts (read-only, no storage):
     └── SmartStakingViewDashboard — Full dashboard in one call
 ```
 
+## Staking Journey In Plain English
+
+For a new reader, Smart Staking is easier to understand as a four-step loop:
+
+1. Deposit POL with a flexible or locked position.
+2. Let rewards accumulate over time.
+3. Improve the result with lockups, loyalty, amount tiers, or power NFTs.
+4. Claim, compound, migrate a lockup, or withdraw when the rules allow it.
+
+The main thing to remember is that `SmartStakingCore` owns the user flow, while the other contracts answer specific questions:
+
+- `SmartStakingRewards` answers "how much should this account earn?"
+- `SmartStakingPower` answers "which NFT boosts are active?"
+- `SmartStakingGamification` answers "how much progression did this action create?"
+- the view contracts answer "what should the app show on screen?"
+
+## Reading Guide
+
+| If your question is... | Start with... |
+|---|---|
+| How users deposit, claim, compound, and withdraw | `SmartStakingCore` |
+| Why APY changes between users | `SmartStakingRewards` |
+| How NFT powers change the outcome | `SmartStakingPower` and [NuxPower.md](./NuxPower.md) |
+| Which numbers should the frontend display | `SmartStakingViewDashboard` and the other view contracts |
+| How staking connects to quests and treasury | [Gamification.md](./Gamification.md) and [Treasury.md](./Treasury.md) |
+
 ---
 
 ## SmartStakingCore

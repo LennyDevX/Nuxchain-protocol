@@ -217,5 +217,7 @@ contract NuxTapTreasury is
         }
     }
 
+    uint256[50] private __gap;
+
     function _authorizeUpgrade(address) internal override onlyRole(UPGRADER_ROLE) {}
 }

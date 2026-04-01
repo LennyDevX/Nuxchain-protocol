@@ -249,8 +249,8 @@ contract NuxAgentFactory is Initializable, AccessControlUpgradeable, UUPSUpgrade
             // Initialize agent metadata in registry (best-effort)
             (bool ok,) = agentRegistry.call(
                 abi.encodeWithSignature(
-                    "configureAgent(uint256,uint256,bool,string,string)",
-                    tokenId, 0, false, "", ""
+                    "configureAgent(address,uint256,uint256,bool,string,string)",
+                    nftContract, tokenId, 0, false, "", ""
                 )
             );
             if (!ok) {} // solhint-disable-line no-empty-blocks
@@ -394,4 +394,6 @@ contract NuxAgentFactory is Initializable, AccessControlUpgradeable, UUPSUpgrade
         contracts[3] = templates[INuxAgentNFT.AgentCategory.FINANCE].nftContract;
         contracts[4] = templates[INuxAgentNFT.AgentCategory.BUSINESS].nftContract;
     }
+
+    uint256[50] private __gap;
 }

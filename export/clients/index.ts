@@ -8,6 +8,7 @@ import {
   MarketplaceCore,
   MarketplaceView,
   MarketplaceStatistics,
+  NuxAgentView,
   TreasuryManager,
   NuxTapGame,
   NuxTapAgentMarketplace,
@@ -27,6 +28,7 @@ export interface NuxchainCoreClients {
   marketplaceCore: Contract;
   marketplaceView: Contract;
   marketplaceStatistics: Contract;
+  nuxAgentView?: Contract;
   treasuryManager: Contract;
 }
 
@@ -68,11 +70,24 @@ export function createMarketplaceClients(
   runner: ContractRunner,
   addresses: GeneratedContractAddresses = CONTRACT_ADDRESSES
 ) {
+  const nuxAgentView = addresses.NuxAgentView
+    ? new Contract(addresses.NuxAgentView, NuxAgentView, runner)
+    : undefined;
+
   return {
     marketplaceCore: new Contract(addresses.MarketplaceProxy, MarketplaceCore, runner),
     marketplaceView: new Contract(addresses.MarketplaceView, MarketplaceView, runner),
-    marketplaceStatistics: new Contract(addresses.MarketplaceStatistics, MarketplaceStatistics, runner)
+    marketplaceStatistics: new Contract(addresses.MarketplaceStatistics, MarketplaceStatistics, runner),
+    nuxAgentView
   };
+}
+
+export function createNuxAgentViewClient(
+  runner: ContractRunner,
+  addresses: GeneratedContractAddresses = CONTRACT_ADDRESSES
+): Contract {
+  const nuxAgentViewAddress = requireAddress(addresses.NuxAgentView, "NuxAgentView");
+  return new Contract(nuxAgentViewAddress, NuxAgentView, runner);
 }
 
 export function createNuxTapClients(

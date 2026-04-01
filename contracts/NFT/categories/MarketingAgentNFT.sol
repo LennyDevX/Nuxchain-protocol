@@ -241,4 +241,6 @@ contract MarketingAgentNFT is NuxAgentNFTBase {
         emit ReferralMultiplierUpdated(tokenId, newMultiplier);
     }
 
+    uint256[50] private __gap;
+
 }

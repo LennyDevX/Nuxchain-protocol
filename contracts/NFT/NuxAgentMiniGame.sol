@@ -9,11 +9,12 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 interface IMiniGameRegistry {
     function registeredNFTContracts(address nftContract) external view returns (bool);
 
-    function recordTaskExecution(uint256 agentId, address executor, uint256 rewardPaid) external;
+    function recordTaskExecution(address nftContract, uint256 tokenId, address executor, uint256 rewardPaid) external;
 
     function validationRequest(
         address validatorAddress,
-        uint256 agentId,
+        address nftContract,
+        uint256 tokenId,
         string calldata requestURI,
         bytes32 requestHash
     ) external returns (bytes32);
@@ -360,6 +361,7 @@ contract NuxAgentMiniGame is
         if (task.validationRequired && address(agentRegistry) != address(0)) {
             try agentRegistry.validationRequest(
                 defaultValidator,
+                nftContract,
                 tokenId,
                 resultURI,
                 resultHash
@@ -446,7 +448,7 @@ contract NuxAgentMiniGame is
 
         // Notify ERC-8004 registry
         if (address(agentRegistry) != address(0)) {
-            try agentRegistry.recordTaskExecution(sub.tokenId, sub.submitter, escrowed) {} catch {}
+            try agentRegistry.recordTaskExecution(sub.nftContract, sub.tokenId, sub.submitter, escrowed) {} catch {}
         }
 
         // Emit leaderboard event — off-chain indexers build the sorted top-20
@@ -570,6 +572,8 @@ contract NuxAgentMiniGame is
         require(feeBps_ <= 1_000, "Game: fee too high"); // max 10%
         miniGameFeeBps = feeBps_;
     }
+
+    uint256[50] private __gap;
 
     function _authorizeUpgrade(address) internal override onlyRole(UPGRADER_ROLE) {}
 

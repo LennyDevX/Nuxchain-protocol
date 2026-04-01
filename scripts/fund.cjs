@@ -7,7 +7,7 @@
  * ║                                                                  ║
  * ║  Sends POL to the contracts that pay out rewards:               ║
  * ║    • LevelingSystem           (marketplace level-up rewards)    ║
- * ║    • SmartStakingGamification (staking level-up rewards)        ║
+ * ║    • Gamification            (staking level-up rewards)        ║
  * ║    • SmartStakingRewards      (staking yield & quest rewards)   ║
  * ║    • QuestRewardsPool         (quest prize pool)                ║
  * ║                                                                  ║
@@ -63,7 +63,7 @@ async function main() {
             amount  : POL(process.env.FUND_LEVELING         ?? "1000"),
         },
         {
-            name    : "SmartStakingGamification",
+            name    : "Gamification",
             address : st.gamification,
             amount  : POL(process.env.FUND_GAMIFICATION     ?? "1000"),
         },

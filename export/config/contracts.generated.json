@@ -1,39 +1,36 @@
 {
   "meta": {
-    "source": "contracts.config.ts",
+    "source": "deployment",
     "network": "polygon",
     "chainId": 137,
-    "generatedAt": "2026-03-31T13:00:40.786Z",
+    "generatedAt": "2026-04-01T16:04:27.145Z",
     "deploymentTimestamp": null,
-    "deployer": "0x581A41c663223bAE563134C67151CdC2C274f06A"
+    "deployer": "0xf555eEa65477a1727606272433403d6d7d83B28C"
   },
   "addresses": {
-    "StakingCore": "0x2cda88046543be25a3EC4eA2d86dBe975Fda0028",
-    "StakingRewards": "0xEa481FB987d95F8a58730bBd89a91ef733f8C128",
-    "StakingSkills": "0x4cF5F1eDfACC19E2FABC1Ec2955A0de4b222025d",
-    "StakingGamification": "0x58b38720BE35eDD36e3D252ea41e8B0a9629EA1F",
-    "StakingViewCore": "0xDd21d682f3625eF90c446C8DE622A51e4084DA56",
-    "StakingViewStats": "0x994BC04688577066CD4c6E55B459788dfe408007",
-    "StakingViewSkills": "0xc5a07f94b5Ecaaf8E65d9F3adb7AB590550a9bE9",
-    "DynamicAPYCalculator": "0xb3900912495c02191C96631141e5A169669E2ced",
-    "MarketplaceProxy": "0xc8Af452F3842805Bc79bfFBBbDB9b130f222d9BC",
-    "MarketplaceLeveling": "0xC1f6f5b27F58bbB7a61C177D1D8782B117e28A91",
-    "MarketplaceReferral": "0xBCEFd299776237e6D7cf0d08E030582cE3214C90",
-    "MarketplaceSkillsNFT": "0xe09e85E7AEd3A35fa77DCaC44D110664C42A4DCd",
-    "IndividualSkills": "0x2248e909EC9E122D1D7206E86D2061681EfCC49B",
-    "QuestCore": "0x090774e87CFF7478910fbF8f035fA85414a8625a",
-    "CollaboratorBadges": "0xc9B1bf1ae921280f2f048fd3d893AF6D18E99C51",
-    "MarketplaceView": "0x579d34872d25a56235D61138dBdE1c81a6f20f4d",
-    "MarketplaceStatistics": "0x7C4c72d3D1b9a54178254c79Ca4F788111A9c99D",
-    "MarketplaceSocial": "0x4FE695192c20E2D9b4bDB0A18F168e198F7e9557",
-    "TreasuryManager": "0x312a3c5072c9DE2aB5cbDd799b3a65fb053DF043",
-    "StakingPowers": "0x4cF5F1eDfACC19E2FABC1Ec2955A0de4b222025d",
-    "StakingViewPowers": "0xc5a07f94b5Ecaaf8E65d9F3adb7AB590550a9bE9",
-    "MarketplacePowerNFT": "0xe09e85E7AEd3A35fa77DCaC44D110664C42A4DCd",
-    "IndividualPowers": "0x2248e909EC9E122D1D7206E86D2061681EfCC49B"
+    "StakingCore": "0x96D6F29d5046CB4422e5e3BC2bdF185Fd21f302D",
+    "StakingRewards": "0x3d9E78Fe36fD89C96dd27a84b0837324316279BB",
+    "StakingSkills": "0xdBab58a4E28F1b3E22145F051994e05ef8f5aef7",
+    "StakingGamification": "0x0753920050340ABb3e005435bEd838d0EaB282ce",
+    "StakingViewCore": "0x7d30FE104A5407fD24Ea373399232b8679909fDA",
+    "StakingViewStats": "0x3833Bf46BB424fDA03D7E107643488180643F729",
+    "StakingViewSkills": "0xc4b9d12Aa18a6cFA6E4af5a0F173D6745dE0813C",
+    "StakingViewDashboard": "0x96c308D8F324e394Faf6aD7D327e3587bb2CA0b3",
+    "DynamicAPYCalculator": "0x1F394fDfDF51BD538Bc006b54A66E57f62A4135d",
+    "SkillViewLib": "0x64411210c577714C3ff1c9284C916FB806770304",
+    "MarketplaceProxy": "0xB39421d34479aa4bFe560DefB66eA6A46cA5909A",
+    "MarketplaceLeveling": "0xE98D427C131c5c9506AcE31215e6E70eDaBB8Cd4",
+    "MarketplaceReferral": "0x230d24410283D9A945C292C035082568d5d96b34",
+    "MarketplaceSkillsNFT": "0x27d9cB8517ff62fdD24F6e49F48866706c58E8EC",
+    "IndividualSkills": "0xb9F7De1560C97100D84D550b330AC99a35533481",
+    "QuestCore": "0x126712d66b5AC71fCe1117A36D2BDd69Af141e6B",
+    "CollaboratorBadges": "0xbfbcc7f57cAF275b5F0679226ca53A5901862eBA",
+    "MarketplaceView": "0xe03eeE5eCf4c5c06F231aeb73b49111B0cC6ACC9",
+    "MarketplaceStatistics": "0xEce31778Dc157689B3A1Da9a4724b28a16066b9C",
+    "MarketplaceSocial": "0x23D53101De769eb8498132CE73dDd43d2D34687f",
+    "NuxAgentView": "0x712Df7A03FbFF483DC526821Ffb2A1beD669da86",
+    "TreasuryManager": "0x1C2575CC4a4596B8d216dB200A2344145D590C9d",
+    "QuestRewardsPool": "0x7610CF5ea944a703Cb469FDA244160bd4DAf583f"
   },
-  "wallets": {
-    "deployer": "0x581A41c663223bAE563134C67151CdC2C274f06A",
-    "treasury": "0xe67cbb6c94353903ddbb15fd376e0967bdef13b1"
-  }
+  "wallets": {}
 }

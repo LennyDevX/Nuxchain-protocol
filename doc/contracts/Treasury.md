@@ -22,6 +22,80 @@ QuestRewardsPool ← funded by TreasuryManager REWARDS treasury
                       └─ pays out on quest completion
 ```
 
+## What Treasury Means In Practice
+
+This is the protocol's money-routing layer.
+
+- Staking fees, marketplace fees, and other authorized revenues arrive here.
+- Part of every payment is kept as reserve before normal distribution.
+- The rest is sent on a weekly cadence to the operating buckets that keep the protocol alive.
+- Reward-oriented contracts can pull funds from treasury when they need to pay users.
+
+For a new reader, the easiest way to think about treasury is: this is the contract family that decides where protocol income goes after users interact with the product.
+
+## Reading Guide
+
+| If you want to understand... | Start with... |
+|---|---|
+| Where fees from staking and marketplace end up | `TreasuryManager` |
+| How weekly distribution works | `Distribution Lifecycle` |
+| How quests get paid | `QuestRewardsPool` |
+| How treasury affects the rest of the system | [SmartStaking.md](./SmartStaking.md), [Marketplace.md](./Marketplace.md), and [Gamification.md](./Gamification.md) |
+| All revenue sources feeding the treasury | `Revenue Sources` |
+
+---
+
+## Revenue Sources
+
+Treasury receives funds from the following contracts and operations. All incoming revenue is first routed through `receiveRevenue()`, which automatically reserves 20% before distributing the remainder to sub-treasuries.
+
+| Contract | Treasury Type | Revenue Type | Amount/Fee | Purpose |
+|---|---|---|---|---|
+| **SmartStakingCore** | STAKING | `staking_commission` | Variable | Commission from staking operations |
+| **SmartStakingRewards** | REWARDS | `quest_reward_commission` | Variable | Commission on quest-based reward payouts |
+| **MarketplaceCore** | MARKETPLACE | `marketplace_fee` | Variable | Platform fees from NFT marketplace transactions |
+| **NuxAuctionMarketplace** | MARKETPLACE | `auction_platform_fee` | Variable | Platform fees from auction sales |
+| **NuxAgentPaymaster** | DEVELOPMENT | `paymaster_fee` | Variable | Gas sponsorship/paymaster fees |
+| **CollaboratorBadgeRewards** | COLLABORATORS | `quest_claim_fee` | Variable | Claim fees from collaborator badge rewards |
+| **AgentNuxPower** | STAKING | `AgentNuxPower` | Variable | Agent NuxPower transaction fees |
+| **NuxPowerMarketplace** (purchase) | MARKETPLACE | `individual_skill_purchase` | Variable | Skill marketplace purchase fees |
+| **NuxPowerMarketplace** (renewal) | MARKETPLACE | `individual_skill_renewal` | Variable | Skill renewal fees |
+| **Owner** (Direct) | — | Manual deposit | Direct transfer | Direct funding by protocol owner |
+
+### Revenue Flow Diagram
+
+```
+SmartStakingCore ──→ staking_commission
+SmartStakingRewards → quest_reward_commission
+MarketplaceCore ────→ marketplace_fee
+NuxAuctionMarketplace → auction_platform_fee
+NuxAgentPaymaster ──→ paymaster_fee
+CollaboratorBadgeRewards → quest_claim_fee
+AgentNuxPower ──────→ AgentNuxPower fees
+NuxPowerMarketplace → skill_purchase/renewal
+Direct deposits ────→ Manual funding
+                     │
+                     ├→ TreasuryManager.receiveRevenue()
+                     │
+                     ├→ 20% → Reserve Fund
+                     └→ 80% → Distributed weekly to:
+                              • REWARDS (24%)
+                              • STAKING (28%)
+                              • COLLABORATORS (16%)
+                              • DEVELOPMENT (12%)
+                              • MARKETPLACE (0% — reserved)
+```
+
+### Authorization Requirements
+
+All revenue sources must be initialized as **authorized sources** before they can call `receiveRevenue()`. This is configured via:
+
+```solidity
+TreasuryManager.setAuthorizedSource(contractAddress, true)
+```
+
+Without this authorization, calls to `receiveRevenue()` will revert with `"Not authorized source"`.
+
 ---
 
 ## TreasuryManager

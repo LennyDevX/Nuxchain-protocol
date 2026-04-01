@@ -45,6 +45,11 @@ const nuxTapClients = createNuxTapClients(signer, {
 const treasuryStats = await coreClients.treasuryManager.getStats();
 console.log(POLYGON_MAINNET.chainName, SkillType.AUTO_COMPOUND, treasuryStats);
 console.log(nuxTapClients.nuxTapGame.target);
+
+if (coreClients.nuxAgentView) {
+	const agentView = await coreClients.nuxAgentView.getAgentView("0xYourAgentNFT", 1n);
+	console.log(agentView);
+}
 ```
 
 ## What it exports
@@ -78,6 +83,7 @@ const treasuryStats = await clients.treasuryManager.getStats();
 ## Notes
 
 - Generated addresses are sourced from `deployments/complete-deployment.json` when available
+- `NuxAgentView` is exported as an optional address/client because older deployments may not include it yet
 - The current package is focused on Polygon mainnet
 - Curated shared types still come from `config/contracts.config.ts`
 - The JS runtime surface now matches the TS surface for exported config values and NuxTap clients

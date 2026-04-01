@@ -3069,6 +3069,25 @@
           "anonymous": false,
           "inputs": [
             {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "currentBalance",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "maxBalanceLimit",
+              "type": "uint256"
+            }
+          ],
+          "name": "BalanceLimitExceeded",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
               "indexed": true,
               "internalType": "address",
               "name": "beacon",
@@ -9684,6 +9703,25 @@
               "type": "address"
             },
             {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "PendingPolRewardsClaimed",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            },
+            {
               "indexed": true,
               "internalType": "uint256",
               "name": "questId",
@@ -9791,6 +9829,38 @@
           ],
           "name": "QuestProgressUpdated",
           "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "questId",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "QuestRewardDeferred",
+          "type": "event"
+        },
+        {
+          "inputs": [],
+          "name": "claimPendingPolRewards",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
         },
         {
           "inputs": [
@@ -13635,6 +13705,24 @@
             },
             {
               "internalType": "uint256",
+              "name": "totalXP",
+              "type": "uint256"
+            }
+          ],
+          "name": "adminSetUserXP",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
               "name": "amount",
               "type": "uint256"
             },
@@ -13663,6 +13751,25 @@
         {
           "inputs": [
             {
+              "internalType": "uint8",
+              "name": "level",
+              "type": "uint8"
+            }
+          ],
+          "name": "getCumulativeXPForLevel",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "cumulativeXP",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "pure",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
               "internalType": "uint256",
               "name": "xp",
               "type": "uint256"
@@ -13674,6 +13781,25 @@
               "internalType": "uint8",
               "name": "level",
               "type": "uint8"
+            }
+          ],
+          "stateMutability": "pure",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint8",
+              "name": "level",
+              "type": "uint8"
+            }
+          ],
+          "name": "getRewardForLevel",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "rewardAmount",
+              "type": "uint256"
             }
           ],
           "stateMutability": "pure",
@@ -13771,6 +13897,25 @@
             }
           ],
           "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint8",
+              "name": "level",
+              "type": "uint8"
+            }
+          ],
+          "name": "getXPRequiredForLevel",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "xpRequired",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "pure",
           "type": "function"
         },
         {
@@ -13927,6 +14072,25 @@
           "anonymous": false,
           "inputs": [
             {
+              "indexed": true,
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "DeferredRewardClaimed",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
               "indexed": false,
               "internalType": "uint8",
               "name": "version",
@@ -14005,6 +14169,37 @@
             }
           ],
           "name": "NFTSold",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint8",
+              "name": "level",
+              "type": "uint8"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "reason",
+              "type": "string"
+            }
+          ],
+          "name": "RewardDeferred",
           "type": "event"
         },
         {
@@ -14263,6 +14458,24 @@
           "inputs": [
             {
               "internalType": "address",
+              "name": "user",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "totalXP",
+              "type": "uint256"
+            }
+          ],
+          "name": "adminSetUserXP",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
               "name": "",
               "type": "address"
             }
@@ -14379,6 +14592,13 @@
           "type": "function"
         },
         {
+          "inputs": [],
+          "name": "claimDeferredReward",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
           "inputs": [
             {
               "internalType": "address",
@@ -14387,6 +14607,44 @@
             }
           ],
           "name": "dailyXPGained",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "name": "deferredRewardAmount",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "name": "deferredRewardTime",
           "outputs": [
             {
               "internalType": "uint256",
@@ -14439,6 +14697,25 @@
         {
           "inputs": [
             {
+              "internalType": "uint8",
+              "name": "_level",
+              "type": "uint8"
+            }
+          ],
+          "name": "getCumulativeXPForLevel",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "cumulativeXP",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "pure",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
               "internalType": "uint256",
               "name": "_totalXP",
               "type": "uint256"
@@ -14450,6 +14727,25 @@
               "internalType": "uint8",
               "name": "",
               "type": "uint8"
+            }
+          ],
+          "stateMutability": "pure",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint8",
+              "name": "level",
+              "type": "uint8"
+            }
+          ],
+          "name": "getRewardForLevel",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "rewardAmount",
+              "type": "uint256"
             }
           ],
           "stateMutability": "pure",
@@ -15018,6 +15314,19 @@
           "type": "function"
         },
         {
+          "inputs": [],
+          "name": "totalPendingRewards",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
           "inputs": [
             {
               "internalType": "address",
@@ -15219,6 +15528,11 @@
         {
           "inputs": [],
           "name": "InvalidRoyalty",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "NoPendingRefund",
           "type": "error"
         },
         {
@@ -15653,6 +15967,25 @@
             }
           ],
           "name": "ReferralSystemUpdated",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "RefundClaimed",
           "type": "event"
         },
         {
@@ -16140,6 +16473,13 @@
           "type": "function"
         },
         {
+          "inputs": [],
+          "name": "claimPendingRefund",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
           "inputs": [
             {
               "internalType": "string",
@@ -16325,7 +16665,7 @@
                   "type": "uint256"
                 }
               ],
-              "internalType": "struct MarketplaceCore.Offer[]",
+              "internalType": "struct Offer[]",
               "name": "",
               "type": "tuple[]"
             }
@@ -16700,6 +17040,25 @@
               "internalType": "bool",
               "name": "",
               "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "name": "pendingRefunds",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
             }
           ],
           "stateMutability": "view",
@@ -17247,6 +17606,125 @@
             }
           ],
           "stateMutability": "view",
+          "type": "function"
+        }
+      ]
+    },
+    "MarketplaceCoreLib": {
+      "name": "MarketplaceCoreLib",
+      "source": "contracts/Marketplace/MarketplaceCoreLib.sol",
+      "abi": [
+        {
+          "inputs": [],
+          "name": "RefundFailed",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "SellerFailed",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "TreasuryFailed",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "seller",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "buyer",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "grossAmount",
+              "type": "uint256"
+            },
+            {
+              "components": [
+                {
+                  "internalType": "address",
+                  "name": "creator",
+                  "type": "address"
+                },
+                {
+                  "internalType": "string",
+                  "name": "uri",
+                  "type": "string"
+                },
+                {
+                  "internalType": "string",
+                  "name": "category",
+                  "type": "string"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "createdAt",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint96",
+                  "name": "royaltyPercentage",
+                  "type": "uint96"
+                }
+              ],
+              "internalType": "struct NFTMetadata",
+              "name": "meta",
+              "type": "tuple"
+            },
+            {
+              "internalType": "uint256",
+              "name": "platformFeePercentage",
+              "type": "uint256"
+            }
+          ],
+          "name": "buildSaleSettlement",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "address",
+                  "name": "seller",
+                  "type": "address"
+                },
+                {
+                  "internalType": "address",
+                  "name": "buyer",
+                  "type": "address"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "grossAmount",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "platformFee",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "royaltyAmount",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "sellerAmount",
+                  "type": "uint256"
+                }
+              ],
+              "internalType": "struct SaleSettlement",
+              "name": "settlement",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "pure",
           "type": "function"
         }
       ]
@@ -27812,6 +28290,276 @@
         }
       ]
     },
+    "IERC6551Account": {
+      "name": "IERC6551Account",
+      "source": "contracts/NFT/NuxAgentAccount6551.sol",
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "signer",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes",
+              "name": "context",
+              "type": "bytes"
+            }
+          ],
+          "name": "isValidSigner",
+          "outputs": [
+            {
+              "internalType": "bytes4",
+              "name": "magicValue",
+              "type": "bytes4"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "state",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "token",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "tokenContract",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "stateMutability": "payable",
+          "type": "receive"
+        }
+      ]
+    },
+    "IERC6551Executable": {
+      "name": "IERC6551Executable",
+      "source": "contracts/NFT/NuxAgentAccount6551.sol",
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            },
+            {
+              "internalType": "uint8",
+              "name": "operation",
+              "type": "uint8"
+            }
+          ],
+          "name": "execute",
+          "outputs": [
+            {
+              "internalType": "bytes",
+              "name": "result",
+              "type": "bytes"
+            }
+          ],
+          "stateMutability": "payable",
+          "type": "function"
+        }
+      ]
+    },
+    "NuxAgentAccount6551": {
+      "name": "NuxAgentAccount6551",
+      "source": "contracts/NFT/NuxAgentAccount6551.sol",
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            },
+            {
+              "internalType": "uint8",
+              "name": "operation",
+              "type": "uint8"
+            }
+          ],
+          "name": "execute",
+          "outputs": [
+            {
+              "internalType": "bytes",
+              "name": "result",
+              "type": "bytes"
+            }
+          ],
+          "stateMutability": "payable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "hash",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes",
+              "name": "signature",
+              "type": "bytes"
+            }
+          ],
+          "name": "isValidSignature",
+          "outputs": [
+            {
+              "internalType": "bytes4",
+              "name": "magicValue",
+              "type": "bytes4"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "signer",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes",
+              "name": "",
+              "type": "bytes"
+            }
+          ],
+          "name": "isValidSigner",
+          "outputs": [
+            {
+              "internalType": "bytes4",
+              "name": "magicValue",
+              "type": "bytes4"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "owner",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "state",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes4",
+              "name": "interfaceId",
+              "type": "bytes4"
+            }
+          ],
+          "name": "supportsInterface",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "pure",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "token",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "tokenContract",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "stateMutability": "payable",
+          "type": "receive"
+        }
+      ]
+    },
     "ICategoryNFT": {
       "name": "ICategoryNFT",
       "source": "contracts/NFT/NuxAgentFactory.sol",
@@ -28855,8 +29603,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -28902,8 +29655,13 @@
               "type": "address"
             },
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -33600,8 +34358,14 @@
           "inputs": [
             {
               "indexed": true,
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
+              "indexed": true,
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -33625,8 +34389,14 @@
           "inputs": [
             {
               "indexed": true,
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
+              "indexed": true,
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             }
           ],
@@ -33638,8 +34408,14 @@
           "inputs": [
             {
               "indexed": true,
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
+              "indexed": true,
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -33670,8 +34446,14 @@
           "inputs": [
             {
               "indexed": true,
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
+              "indexed": true,
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -33681,7 +34463,7 @@
               "type": "address"
             },
             {
-              "indexed": true,
+              "indexed": false,
               "internalType": "uint64",
               "name": "feedbackIndex",
               "type": "uint64"
@@ -33721,8 +34503,14 @@
           "inputs": [
             {
               "indexed": true,
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
+              "indexed": true,
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -33770,8 +34558,14 @@
           "inputs": [
             {
               "indexed": true,
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
+              "indexed": true,
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -33787,7 +34581,7 @@
               "type": "uint64"
             },
             {
-              "indexed": true,
+              "indexed": false,
               "internalType": "address",
               "name": "responder",
               "type": "address"
@@ -33876,8 +34670,14 @@
           "inputs": [
             {
               "indexed": true,
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
+              "indexed": true,
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -33895,8 +34695,14 @@
           "inputs": [
             {
               "indexed": true,
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
+              "indexed": true,
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -33939,8 +34745,14 @@
             },
             {
               "indexed": true,
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
+              "indexed": true,
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -33950,7 +34762,7 @@
               "type": "string"
             },
             {
-              "indexed": true,
+              "indexed": false,
               "internalType": "bytes32",
               "name": "requestHash",
               "type": "bytes32"
@@ -33970,12 +34782,18 @@
             },
             {
               "indexed": true,
-              "internalType": "uint256",
-              "name": "agentId",
-              "type": "uint256"
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
             },
             {
               "indexed": true,
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
               "internalType": "bytes32",
               "name": "requestHash",
               "type": "bytes32"
@@ -34064,6 +34882,11 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
               "name": "",
               "type": "uint256"
@@ -34123,8 +34946,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -34147,8 +34975,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -34180,8 +35013,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             }
           ],
@@ -34261,8 +35099,104 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
+              "type": "uint256"
+            }
+          ],
+          "name": "getAgentPerformanceSnapshot",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "uint256",
+                  "name": "totalTasksRun",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "totalRevenueEarned",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "averageRevenuePerTask",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "currentReputationScore",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "totalClients",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "totalFeedbackCount",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "activeFeedbackCount",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "revokedFeedbackCount",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "validationCount",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "spendingLimitDaily",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "spentToday",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "remainingDailySpend",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "bool",
+                  "name": "x402Enabled",
+                  "type": "bool"
+                }
+              ],
+              "internalType": "struct NuxAgentRegistry.AgentPerformanceSnapshot",
+              "name": "snapshot",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
               "type": "uint256"
             }
           ],
@@ -34280,8 +35214,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             }
           ],
@@ -34299,8 +35238,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -34375,8 +35319,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             }
           ],
@@ -34394,8 +35343,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             }
           ],
@@ -34433,8 +35387,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -34457,8 +35416,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -34500,8 +35464,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -34557,8 +35526,13 @@
               "type": "address"
             },
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -34607,8 +35581,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -34744,8 +35723,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -34793,8 +35777,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -34879,6 +35868,11 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
               "name": "",
               "type": "uint256"
@@ -34898,8 +35892,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -34934,8 +35933,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -34962,8 +35966,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -35004,8 +36013,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             }
           ],
@@ -35053,8 +36067,13 @@
               "type": "address"
             },
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             },
             {
@@ -35069,7 +36088,13 @@
             }
           ],
           "name": "validationRequest",
-          "outputs": [],
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
           "stateMutability": "nonpayable",
           "type": "function"
         },
@@ -35967,6 +36992,47 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "owner",
+              "type": "address"
+            }
+          ],
+          "name": "getOwnerRentalSummary",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "uint256",
+                  "name": "totalOffers",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "activeOffers",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "totalRentalsOut",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "activeRentalsOut",
+                  "type": "uint256"
+                }
+              ],
+              "internalType": "struct NuxAgentRental.OwnerRentalSummary",
+              "name": "summary",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
               "internalType": "uint256",
               "name": "offerId",
               "type": "uint256"
@@ -35983,6 +37049,41 @@
               "internalType": "uint256",
               "name": "",
               "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "getRentalMarketStats",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "uint256",
+                  "name": "totalOffers",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "activeOffers",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "totalRentals",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "activeRentals",
+                  "type": "uint256"
+                }
+              ],
+              "internalType": "struct NuxAgentRental.RentalMarketStats",
+              "name": "stats",
+              "type": "tuple"
             }
           ],
           "stateMutability": "view",
@@ -36749,6 +37850,683 @@
           "name": "upgradeToAndCall",
           "outputs": [],
           "stateMutability": "payable",
+          "type": "function"
+        }
+      ]
+    },
+    "INuxAgentViewSource": {
+      "name": "INuxAgentViewSource",
+      "source": "contracts/NFT/NuxAgentView.sol",
+      "abi": [
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "description",
+              "type": "string"
+            },
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "model",
+              "type": "string"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "recipient",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            }
+          ],
+          "name": "AgentCreated",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "enum INuxAgentNFT.AgentState",
+              "name": "newState",
+              "type": "uint8"
+            }
+          ],
+          "name": "AgentStateChanged",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "newURI",
+              "type": "string"
+            }
+          ],
+          "name": "AgentURIUpdated",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            }
+          ],
+          "name": "AgentUpdated",
+          "type": "event"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            }
+          ],
+          "name": "currentRenter",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            }
+          ],
+          "name": "effectiveController",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            }
+          ],
+          "name": "getAgentConfig",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "string",
+                  "name": "name",
+                  "type": "string"
+                },
+                {
+                  "internalType": "string",
+                  "name": "description",
+                  "type": "string"
+                },
+                {
+                  "internalType": "string",
+                  "name": "model",
+                  "type": "string"
+                },
+                {
+                  "internalType": "enum INuxAgentNFT.AgentCategory",
+                  "name": "category",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "string",
+                  "name": "systemPromptURI",
+                  "type": "string"
+                },
+                {
+                  "internalType": "string",
+                  "name": "userPromptURI",
+                  "type": "string"
+                },
+                {
+                  "internalType": "bool",
+                  "name": "promptsEncrypted",
+                  "type": "bool"
+                },
+                {
+                  "internalType": "bytes",
+                  "name": "geminiConfig",
+                  "type": "bytes"
+                },
+                {
+                  "internalType": "string",
+                  "name": "agentURI",
+                  "type": "string"
+                },
+                {
+                  "internalType": "enum INuxAgentNFT.AgentState",
+                  "name": "state",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "mintedAt",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "reputation",
+                  "type": "uint256"
+                }
+              ],
+              "internalType": "struct INuxAgentNFT.AgentConfig",
+              "name": "",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            }
+          ],
+          "name": "getAgentData",
+          "outputs": [
+            {
+              "internalType": "string",
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "description",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "model",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "userPromptURI",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "systemPromptURI",
+              "type": "string"
+            },
+            {
+              "internalType": "bool",
+              "name": "promptsEncrypted",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            }
+          ],
+          "name": "getAgentState",
+          "outputs": [
+            {
+              "internalType": "enum INuxAgentNFT.AgentState",
+              "name": "",
+              "type": "uint8"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            }
+          ],
+          "name": "getAgentURI",
+          "outputs": [
+            {
+              "internalType": "string",
+              "name": "",
+              "type": "string"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            }
+          ],
+          "name": "getTokenBoundAccount",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            }
+          ],
+          "name": "ownerOf",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            }
+          ],
+          "name": "rentalExpiry",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "enum INuxAgentNFT.AgentState",
+              "name": "newState",
+              "type": "uint8"
+            }
+          ],
+          "name": "setAgentState",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "string",
+              "name": "newURI",
+              "type": "string"
+            }
+          ],
+          "name": "setAgentURI",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            }
+          ],
+          "name": "tokenURI",
+          "outputs": [
+            {
+              "internalType": "string",
+              "name": "",
+              "type": "string"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "totalSupply",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "string",
+              "name": "systemPromptURI",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "userPromptURI",
+              "type": "string"
+            },
+            {
+              "internalType": "bool",
+              "name": "encrypted",
+              "type": "bool"
+            }
+          ],
+          "name": "updatePrompts",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        }
+      ]
+    },
+    "NuxAgentView": {
+      "name": "NuxAgentView",
+      "source": "contracts/NFT/NuxAgentView.sol",
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            }
+          ],
+          "name": "getAgentView",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "uint256",
+                  "name": "tokenId",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "address",
+                  "name": "owner",
+                  "type": "address"
+                },
+                {
+                  "internalType": "address",
+                  "name": "effectiveController",
+                  "type": "address"
+                },
+                {
+                  "internalType": "address",
+                  "name": "tokenBoundAccount",
+                  "type": "address"
+                },
+                {
+                  "internalType": "address",
+                  "name": "renter",
+                  "type": "address"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "rentalExpiry",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "remainingRentalTime",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "bool",
+                  "name": "isCurrentlyRented",
+                  "type": "bool"
+                },
+                {
+                  "internalType": "string",
+                  "name": "tokenMetadataURI",
+                  "type": "string"
+                },
+                {
+                  "internalType": "string",
+                  "name": "agentRegistrationURI",
+                  "type": "string"
+                },
+                {
+                  "components": [
+                    {
+                      "internalType": "string",
+                      "name": "name",
+                      "type": "string"
+                    },
+                    {
+                      "internalType": "string",
+                      "name": "description",
+                      "type": "string"
+                    },
+                    {
+                      "internalType": "string",
+                      "name": "model",
+                      "type": "string"
+                    },
+                    {
+                      "internalType": "enum INuxAgentNFT.AgentCategory",
+                      "name": "category",
+                      "type": "uint8"
+                    },
+                    {
+                      "internalType": "string",
+                      "name": "systemPromptURI",
+                      "type": "string"
+                    },
+                    {
+                      "internalType": "string",
+                      "name": "userPromptURI",
+                      "type": "string"
+                    },
+                    {
+                      "internalType": "bool",
+                      "name": "promptsEncrypted",
+                      "type": "bool"
+                    },
+                    {
+                      "internalType": "bytes",
+                      "name": "geminiConfig",
+                      "type": "bytes"
+                    },
+                    {
+                      "internalType": "string",
+                      "name": "agentURI",
+                      "type": "string"
+                    },
+                    {
+                      "internalType": "enum INuxAgentNFT.AgentState",
+                      "name": "state",
+                      "type": "uint8"
+                    },
+                    {
+                      "internalType": "uint256",
+                      "name": "mintedAt",
+                      "type": "uint256"
+                    },
+                    {
+                      "internalType": "uint256",
+                      "name": "reputation",
+                      "type": "uint256"
+                    }
+                  ],
+                  "internalType": "struct INuxAgentNFT.AgentConfig",
+                  "name": "config",
+                  "type": "tuple"
+                }
+              ],
+              "internalType": "struct INuxAgentNFT.AgentView",
+              "name": "view_",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            }
+          ],
+          "name": "getCollectionStats",
+          "outputs": [
+            {
+              "components": [
+                {
+                  "internalType": "uint256",
+                  "name": "totalAgents",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "activeAgents",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "rentedAgents",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256[5]",
+                  "name": "categoryCounts",
+                  "type": "uint256[5]"
+                }
+              ],
+              "internalType": "struct INuxAgentNFT.CollectionStats",
+              "name": "stats",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "owner",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "offset",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "limit",
+              "type": "uint256"
+            }
+          ],
+          "name": "getOwnerAgentIds",
+          "outputs": [
+            {
+              "internalType": "uint256[]",
+              "name": "tokenIds",
+              "type": "uint256[]"
+            },
+            {
+              "internalType": "uint256",
+              "name": "total",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
           "type": "function"
         }
       ]
@@ -46188,8 +47966,13 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
               "internalType": "uint256",
-              "name": "agentId",
+              "name": "tokenId",
               "type": "uint256"
             }
           ],
@@ -50108,6 +51891,11 @@
         },
         {
           "inputs": [],
+          "name": "NoPendingPolRewards",
+          "type": "error"
+        },
+        {
+          "inputs": [],
           "name": "QuestExpired",
           "type": "error"
         },
@@ -50129,6 +51917,11 @@
         {
           "inputs": [],
           "name": "RequirementNotMet",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "RewardPoolUnavailable",
           "type": "error"
         },
         {
@@ -50262,6 +52055,25 @@
               "type": "address"
             },
             {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "PendingPolRewardsClaimed",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            },
+            {
               "indexed": true,
               "internalType": "uint256",
               "name": "questId",
@@ -50368,6 +52180,31 @@
             }
           ],
           "name": "QuestProgressUpdated",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "questId",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "QuestRewardDeferred",
           "type": "event"
         },
         {
@@ -50602,6 +52439,13 @@
             }
           ],
           "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "claimPendingPolRewards",
+          "outputs": [],
+          "stateMutability": "nonpayable",
           "type": "function"
         },
         {
@@ -51549,6 +53393,25 @@
           "type": "function"
         },
         {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "name": "pendingPolRewards",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
           "inputs": [],
           "name": "proxiableUUID",
           "outputs": [
@@ -51808,6 +53671,19 @@
         {
           "inputs": [],
           "name": "totalCompletionsAllTime",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "totalPendingPolRewards",
           "outputs": [
             {
               "internalType": "uint256",
@@ -56172,14 +58048,116 @@
         }
       ]
     },
-    "SmartStakingGamification": {
-      "name": "SmartStakingGamification",
-      "source": "contracts/SmartStaking/SmartStakingGamification.sol",
+    "ISmartStakingRewardsExtendedLib": {
+      "name": "ISmartStakingRewardsExtendedLib",
+      "source": "contracts/SmartStaking/SmartStakingCoreLib.sol",
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            }
+          ],
+          "name": "clearStakingSince",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        }
+      ]
+    },
+    "SmartStakingCoreLib": {
+      "name": "SmartStakingCoreLib",
+      "source": "contracts/SmartStaking/SmartStakingCoreLib.sol",
       "abi": [
         {
           "inputs": [],
-          "stateMutability": "nonpayable",
-          "type": "constructor"
+          "name": "AutoCompoundNotEnabled",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "treasury",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "CommissionTransferFailed",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "availableToWithdraw",
+              "type": "uint256"
+            }
+          ],
+          "name": "DailyWithdrawalLimitExceeded",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "index",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "length",
+              "type": "uint256"
+            }
+          ],
+          "name": "DepositIndexOutOfBounds",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "FundsAreLocked",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InsufficientBalance",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidAddress",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidLockupDuration",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "MigrationNotAllowed",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ModuleNotSet",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "NoDepositsFound",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "NoRewardsAvailable",
+          "type": "error"
         },
         {
           "anonymous": false,
@@ -56193,17 +58171,11 @@
             {
               "indexed": false,
               "internalType": "uint256",
-              "name": "achievementId",
-              "type": "uint256"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint256",
-              "name": "rewardAmount",
+              "name": "feeAmount",
               "type": "uint256"
             }
           ],
-          "name": "AchievementUnlocked",
+          "name": "AutocompoundFeePaid",
           "type": "event"
         },
         {
@@ -56212,333 +58184,13 @@
             {
               "indexed": true,
               "internalType": "address",
-              "name": "user",
-              "type": "address"
-            }
-          ],
-          "name": "AutoCompoundDisabled",
-          "type": "event"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            {
-              "indexed": true,
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint256",
-              "name": "minAmount",
-              "type": "uint256"
-            }
-          ],
-          "name": "AutoCompoundEnabled",
-          "type": "event"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            {
-              "indexed": true,
-              "internalType": "address",
-              "name": "user",
+              "name": "receiver",
               "type": "address"
             },
             {
               "indexed": false,
               "internalType": "uint256",
               "name": "amount",
-              "type": "uint256"
-            }
-          ],
-          "name": "AutoCompoundExecuted",
-          "type": "event"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            {
-              "indexed": true,
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint256",
-              "name": "badgeId",
-              "type": "uint256"
-            },
-            {
-              "indexed": false,
-              "internalType": "string",
-              "name": "name",
-              "type": "string"
-            }
-          ],
-          "name": "BadgeEarned",
-          "type": "event"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            {
-              "indexed": true,
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint256",
-              "name": "rewardAmount",
-              "type": "uint256"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint256",
-              "name": "totalPendingRewards",
-              "type": "uint256"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint256",
-              "name": "contractBalance",
-              "type": "uint256"
-            }
-          ],
-          "name": "CriticalRewardDeficit",
-          "type": "event"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            {
-              "indexed": false,
-              "internalType": "uint256",
-              "name": "contractBalance",
-              "type": "uint256"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint256",
-              "name": "totalPendingRewards",
-              "type": "uint256"
-            },
-            {
-              "indexed": false,
-              "internalType": "enum ITreasuryManager.ProtocolStatus",
-              "name": "status",
-              "type": "uint8"
-            },
-            {
-              "indexed": false,
-              "internalType": "bool",
-              "name": "emergencyFundsRequested",
-              "type": "bool"
-            }
-          ],
-          "name": "HealthCheckPerformed",
-          "type": "event"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            {
-              "indexed": true,
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint8",
-              "name": "newLevel",
-              "type": "uint8"
-            }
-          ],
-          "name": "LevelUp",
-          "type": "event"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            {
-              "indexed": true,
-              "internalType": "address",
-              "name": "previousOwner",
-              "type": "address"
-            },
-            {
-              "indexed": true,
-              "internalType": "address",
-              "name": "newOwner",
-              "type": "address"
-            }
-          ],
-          "name": "OwnershipTransferred",
-          "type": "event"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            {
-              "indexed": false,
-              "internalType": "enum ITreasuryManager.ProtocolStatus",
-              "name": "newStatus",
-              "type": "uint8"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint256",
-              "name": "timestamp",
-              "type": "uint256"
-            },
-            {
-              "indexed": false,
-              "internalType": "string",
-              "name": "reason",
-              "type": "string"
-            }
-          ],
-          "name": "ProtocolHealthStatusChanged",
-          "type": "event"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            {
-              "indexed": true,
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint256",
-              "name": "questId",
-              "type": "uint256"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint256",
-              "name": "rewardAmount",
-              "type": "uint256"
-            }
-          ],
-          "name": "QuestCompleted",
-          "type": "event"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            {
-              "indexed": true,
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint16",
-              "name": "level",
-              "type": "uint16"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint256",
-              "name": "amount",
-              "type": "uint256"
-            },
-            {
-              "indexed": false,
-              "internalType": "string",
-              "name": "reason",
-              "type": "string"
-            }
-          ],
-          "name": "RewardDeferred",
-          "type": "event"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            {
-              "indexed": true,
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "indexed": false,
-              "internalType": "string",
-              "name": "rewardType",
-              "type": "string"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint256",
-              "name": "amount",
-              "type": "uint256"
-            }
-          ],
-          "name": "RewardExpired",
-          "type": "event"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            {
-              "indexed": true,
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint256",
-              "name": "amount",
-              "type": "uint256"
-            }
-          ],
-          "name": "RewardPaid",
-          "type": "event"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            {
-              "indexed": true,
-              "internalType": "address",
-              "name": "oldAddress",
-              "type": "address"
-            },
-            {
-              "indexed": true,
-              "internalType": "address",
-              "name": "newAddress",
-              "type": "address"
-            }
-          ],
-          "name": "TreasuryManagerUpdated",
-          "type": "event"
-        },
-        {
-          "anonymous": false,
-          "inputs": [
-            {
-              "indexed": false,
-              "internalType": "string",
-              "name": "alertType",
-              "type": "string"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint256",
-              "name": "deficit",
               "type": "uint256"
             },
             {
@@ -56548,7 +58200,7 @@
               "type": "uint256"
             }
           ],
-          "name": "TreasuryNotificationSent",
+          "name": "CommissionPaid",
           "type": "event"
         },
         {
@@ -56563,969 +58215,12 @@
             {
               "indexed": false,
               "internalType": "uint256",
-              "name": "newXP",
+              "name": "feeAmount",
               "type": "uint256"
-            },
-            {
-              "indexed": false,
-              "internalType": "uint16",
-              "name": "newLevel",
-              "type": "uint16"
             }
           ],
-          "name": "XPUpdated",
+          "name": "EarlyExitFeePaid",
           "type": "event"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "internalType": "uint256",
-              "name": "id",
-              "type": "uint256"
-            },
-            {
-              "internalType": "string",
-              "name": "name",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
-              "name": "description",
-              "type": "string"
-            }
-          ],
-          "name": "awardBadge",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address[]",
-              "name": "users",
-              "type": "address[]"
-            }
-          ],
-          "name": "batchAutoCompound",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "uint256",
-              "name": "xp",
-              "type": "uint256"
-            }
-          ],
-          "name": "calculateLevel",
-          "outputs": [
-            {
-              "internalType": "uint16",
-              "name": "level",
-              "type": "uint16"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            }
-          ],
-          "name": "checkAutoCompound",
-          "outputs": [
-            {
-              "internalType": "bool",
-              "name": "shouldCompound",
-              "type": "bool"
-            },
-            {
-              "internalType": "uint256",
-              "name": "compoundAmount",
-              "type": "uint256"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "uint256",
-              "name": "",
-              "type": "uint256"
-            }
-          ],
-          "name": "claimAchievementReward",
-          "outputs": [],
-          "stateMutability": "pure",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "claimDeferredReward",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "uint256",
-              "name": "",
-              "type": "uint256"
-            }
-          ],
-          "name": "claimQuestReward",
-          "outputs": [],
-          "stateMutability": "pure",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "internalType": "uint256",
-              "name": "questId",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "rewardAmount",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "questXP",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "expirationDays",
-              "type": "uint256"
-            }
-          ],
-          "name": "completeQuest",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "coreStakingContract",
-          "outputs": [
-            {
-              "internalType": "address",
-              "name": "",
-              "type": "address"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "disableAutoCompound",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "effectiveXpMultiplier",
-          "outputs": [
-            {
-              "internalType": "uint256",
-              "name": "mult",
-              "type": "uint256"
-            }
-          ],
-          "stateMutability": "pure",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "uint256",
-              "name": "minAmount",
-              "type": "uint256"
-            }
-          ],
-          "name": "enableAutoCompound",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "internalType": "uint256[]",
-              "name": "achievementIds",
-              "type": "uint256[]"
-            }
-          ],
-          "name": "expireAchievementRewards",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "internalType": "uint256[]",
-              "name": "questIds",
-              "type": "uint256[]"
-            }
-          ],
-          "name": "expireQuestRewards",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "internalType": "uint256",
-              "name": "achievementId",
-              "type": "uint256"
-            }
-          ],
-          "name": "getAchievementReward",
-          "outputs": [
-            {
-              "components": [
-                {
-                  "internalType": "uint256",
-                  "name": "amount",
-                  "type": "uint256"
-                },
-                {
-                  "internalType": "uint256",
-                  "name": "expirationTime",
-                  "type": "uint256"
-                },
-                {
-                  "internalType": "bool",
-                  "name": "claimed",
-                  "type": "bool"
-                }
-              ],
-              "internalType": "struct ISmartStakingGamification.AchievementReward",
-              "name": "reward",
-              "type": "tuple"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            }
-          ],
-          "name": "getAllAchievementRewards",
-          "outputs": [
-            {
-              "internalType": "uint256[]",
-              "name": "achievementIds",
-              "type": "uint256[]"
-            },
-            {
-              "components": [
-                {
-                  "internalType": "uint256",
-                  "name": "amount",
-                  "type": "uint256"
-                },
-                {
-                  "internalType": "uint256",
-                  "name": "expirationTime",
-                  "type": "uint256"
-                },
-                {
-                  "internalType": "bool",
-                  "name": "claimed",
-                  "type": "bool"
-                }
-              ],
-              "internalType": "struct ISmartStakingGamification.AchievementReward[]",
-              "name": "rewards",
-              "type": "tuple[]"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            }
-          ],
-          "name": "getAllQuestRewards",
-          "outputs": [
-            {
-              "internalType": "uint256[]",
-              "name": "questIds",
-              "type": "uint256[]"
-            },
-            {
-              "components": [
-                {
-                  "internalType": "uint256",
-                  "name": "amount",
-                  "type": "uint256"
-                },
-                {
-                  "internalType": "uint256",
-                  "name": "expirationTime",
-                  "type": "uint256"
-                },
-                {
-                  "internalType": "bool",
-                  "name": "claimed",
-                  "type": "bool"
-                }
-              ],
-              "internalType": "struct ISmartStakingGamification.QuestReward[]",
-              "name": "rewards",
-              "type": "tuple[]"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            }
-          ],
-          "name": "getAutoCompoundConfig",
-          "outputs": [
-            {
-              "components": [
-                {
-                  "internalType": "bool",
-                  "name": "enabled",
-                  "type": "bool"
-                },
-                {
-                  "internalType": "uint256",
-                  "name": "minAmount",
-                  "type": "uint256"
-                },
-                {
-                  "internalType": "uint256",
-                  "name": "lastCompoundTime",
-                  "type": "uint256"
-                }
-              ],
-              "internalType": "struct ISmartStakingGamification.AutoCompoundConfig",
-              "name": "config",
-              "type": "tuple"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "uint256",
-              "name": "offset",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "limit",
-              "type": "uint256"
-            }
-          ],
-          "name": "getAutoCompoundUsersPage",
-          "outputs": [
-            {
-              "internalType": "address[]",
-              "name": "users",
-              "type": "address[]"
-            },
-            {
-              "components": [
-                {
-                  "internalType": "bool",
-                  "name": "enabled",
-                  "type": "bool"
-                },
-                {
-                  "internalType": "uint256",
-                  "name": "minAmount",
-                  "type": "uint256"
-                },
-                {
-                  "internalType": "uint256",
-                  "name": "lastCompoundTime",
-                  "type": "uint256"
-                }
-              ],
-              "internalType": "struct ISmartStakingGamification.AutoCompoundConfig[]",
-              "name": "configs",
-              "type": "tuple[]"
-            },
-            {
-              "internalType": "uint256",
-              "name": "total",
-              "type": "uint256"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "getProtocolHealth",
-          "outputs": [
-            {
-              "internalType": "enum ITreasuryManager.ProtocolStatus",
-              "name": "status",
-              "type": "uint8"
-            },
-            {
-              "internalType": "uint256",
-              "name": "contractBalance",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "totalPendingRewards",
-              "type": "uint256"
-            },
-            {
-              "internalType": "int256",
-              "name": "deficit",
-              "type": "int256"
-            },
-            {
-              "internalType": "bool",
-              "name": "canPayRewards",
-              "type": "bool"
-            },
-            {
-              "internalType": "uint256",
-              "name": "healthPercentage",
-              "type": "uint256"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "getProtocolStats",
-          "outputs": [
-            {
-              "internalType": "uint256",
-              "name": "totalXP",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "totalRewards",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint32",
-              "name": "totalLevelUps",
-              "type": "uint32"
-            },
-            {
-              "internalType": "uint32",
-              "name": "totalQuests",
-              "type": "uint32"
-            },
-            {
-              "internalType": "uint32",
-              "name": "totalAchievements",
-              "type": "uint32"
-            }
-          ],
-          "stateMutability": "pure",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "internalType": "uint256",
-              "name": "questId",
-              "type": "uint256"
-            }
-          ],
-          "name": "getQuestReward",
-          "outputs": [
-            {
-              "components": [
-                {
-                  "internalType": "uint256",
-                  "name": "amount",
-                  "type": "uint256"
-                },
-                {
-                  "internalType": "uint256",
-                  "name": "expirationTime",
-                  "type": "uint256"
-                },
-                {
-                  "internalType": "bool",
-                  "name": "claimed",
-                  "type": "bool"
-                }
-              ],
-              "internalType": "struct ISmartStakingGamification.QuestReward",
-              "name": "reward",
-              "type": "tuple"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            }
-          ],
-          "name": "getUserBadgeCount",
-          "outputs": [
-            {
-              "internalType": "uint256",
-              "name": "",
-              "type": "uint256"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            }
-          ],
-          "name": "getUserBadges",
-          "outputs": [
-            {
-              "components": [
-                {
-                  "internalType": "uint256",
-                  "name": "id",
-                  "type": "uint256"
-                },
-                {
-                  "internalType": "string",
-                  "name": "name",
-                  "type": "string"
-                },
-                {
-                  "internalType": "string",
-                  "name": "description",
-                  "type": "string"
-                },
-                {
-                  "internalType": "uint256",
-                  "name": "dateEarned",
-                  "type": "uint256"
-                }
-              ],
-              "internalType": "struct SmartStakingGamification.Badge[]",
-              "name": "",
-              "type": "tuple[]"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "",
-              "type": "address"
-            }
-          ],
-          "name": "getUserStreak",
-          "outputs": [
-            {
-              "internalType": "uint32",
-              "name": "streak",
-              "type": "uint32"
-            },
-            {
-              "internalType": "uint32",
-              "name": "longestStreak",
-              "type": "uint32"
-            },
-            {
-              "internalType": "uint256",
-              "name": "lastActivityDay",
-              "type": "uint256"
-            }
-          ],
-          "stateMutability": "pure",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            }
-          ],
-          "name": "getUserXPInfo",
-          "outputs": [
-            {
-              "internalType": "uint256",
-              "name": "xp",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint16",
-              "name": "level",
-              "type": "uint16"
-            },
-            {
-              "internalType": "uint256",
-              "name": "xpToNextLevel",
-              "type": "uint256"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "uint16",
-              "name": "level",
-              "type": "uint16"
-            }
-          ],
-          "name": "getXPForLevel",
-          "outputs": [
-            {
-              "internalType": "uint256",
-              "name": "xp",
-              "type": "uint256"
-            }
-          ],
-          "stateMutability": "pure",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "levelingSystemAddress",
-          "outputs": [
-            {
-              "internalType": "address",
-              "name": "",
-              "type": "address"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "marketplaceContract",
-          "outputs": [
-            {
-              "internalType": "address",
-              "name": "",
-              "type": "address"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "owner",
-          "outputs": [
-            {
-              "internalType": "address",
-              "name": "",
-              "type": "address"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            }
-          ],
-          "name": "performAutoCompound",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "performHealthCheck",
-          "outputs": [
-            {
-              "internalType": "enum ITreasuryManager.ProtocolStatus",
-              "name": "newStatus",
-              "type": "uint8"
-            }
-          ],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "renounceOwnership",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "uint256",
-              "name": "requiredAmount",
-              "type": "uint256"
-            }
-          ],
-          "name": "reportCriticalStatus",
-          "outputs": [
-            {
-              "internalType": "bool",
-              "name": "notified",
-              "type": "bool"
-            }
-          ],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "_coreStaking",
-              "type": "address"
-            }
-          ],
-          "name": "setCoreStakingContract",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "_levelingSystem",
-              "type": "address"
-            }
-          ],
-          "name": "setLevelingSystemAddress",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "_marketplace",
-              "type": "address"
-            }
-          ],
-          "name": "setMarketplaceContract",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "internalType": "uint256",
-              "name": "questId",
-              "type": "uint256"
-            }
-          ],
-          "name": "setQuestClaimed",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "_treasuryManager",
-              "type": "address"
-            }
-          ],
-          "name": "setTreasuryManager",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "internalType": "uint256",
-              "name": "xp",
-              "type": "uint256"
-            }
-          ],
-          "name": "setUserXP",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "newOwner",
-              "type": "address"
-            }
-          ],
-          "name": "transferOwnership",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "treasuryManager",
-          "outputs": [
-            {
-              "internalType": "contract ITreasuryManager",
-              "name": "",
-              "type": "address"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "internalType": "uint256",
-              "name": "achievementId",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "rewardAmount",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "expirationDays",
-              "type": "uint256"
-            }
-          ],
-          "name": "unlockAchievement",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "user",
-              "type": "address"
-            },
-            {
-              "internalType": "uint8",
-              "name": "actionType",
-              "type": "uint8"
-            },
-            {
-              "internalType": "uint256",
-              "name": "amount",
-              "type": "uint256"
-            }
-          ],
-          "name": "updateUserXP",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "stateMutability": "payable",
-          "type": "receive"
         }
       ]
     },
@@ -66477,6 +67172,24 @@
             },
             {
               "internalType": "uint256",
+              "name": "totalXP",
+              "type": "uint256"
+            }
+          ],
+          "name": "adminSetUserXP",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
               "name": "amount",
               "type": "uint256"
             },
@@ -66505,6 +67218,25 @@
         {
           "inputs": [
             {
+              "internalType": "uint8",
+              "name": "level",
+              "type": "uint8"
+            }
+          ],
+          "name": "getCumulativeXPForLevel",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "cumulativeXP",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "pure",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
               "internalType": "uint256",
               "name": "xp",
               "type": "uint256"
@@ -66516,6 +67248,25 @@
               "internalType": "uint8",
               "name": "level",
               "type": "uint8"
+            }
+          ],
+          "stateMutability": "pure",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint8",
+              "name": "level",
+              "type": "uint8"
+            }
+          ],
+          "name": "getRewardForLevel",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "rewardAmount",
+              "type": "uint256"
             }
           ],
           "stateMutability": "pure",
@@ -66613,6 +67364,25 @@
             }
           ],
           "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint8",
+              "name": "level",
+              "type": "uint8"
+            }
+          ],
+          "name": "getXPRequiredForLevel",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "xpRequired",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "pure",
           "type": "function"
         },
         {
@@ -66773,6 +67543,166 @@
             }
           ],
           "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "stateMutability": "payable",
+          "type": "receive"
+        }
+      ]
+    },
+    "ILevelingDeferredRewards": {
+      "name": "ILevelingDeferredRewards",
+      "source": "contracts/test/MockRejectingWallet.sol",
+      "abi": [
+        {
+          "inputs": [],
+          "name": "claimDeferredReward",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        }
+      ]
+    },
+    "IMarketplaceRefundClaims": {
+      "name": "IMarketplaceRefundClaims",
+      "source": "contracts/test/MockRejectingWallet.sol",
+      "abi": [
+        {
+          "inputs": [],
+          "name": "claimPendingRefund",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint8",
+              "name": "expiresInDays",
+              "type": "uint8"
+            }
+          ],
+          "name": "makeOffer",
+          "outputs": [],
+          "stateMutability": "payable",
+          "type": "function"
+        }
+      ]
+    },
+    "MockRejectingWallet": {
+      "name": "MockRejectingWallet",
+      "source": "contracts/test/MockRejectingWallet.sol",
+      "abi": [
+        {
+          "inputs": [],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "leveling",
+              "type": "address"
+            }
+          ],
+          "name": "claimLevelingReward",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "marketplace",
+              "type": "address"
+            }
+          ],
+          "name": "claimMarketplaceRefund",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "marketplace",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint8",
+              "name": "expiresInDays",
+              "type": "uint8"
+            }
+          ],
+          "name": "makeMarketplaceOffer",
+          "outputs": [],
+          "stateMutability": "payable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "owner",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "rejectPayments",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bool",
+              "name": "reject",
+              "type": "bool"
+            }
+          ],
+          "name": "setRejectPayments",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address payable",
+              "name": "recipient",
+              "type": "address"
+            }
+          ],
+          "name": "withdraw",
+          "outputs": [],
+          "stateMutability": "nonpayable",
           "type": "function"
         },
         {
@@ -67340,6 +68270,11 @@
         },
         {
           "inputs": [],
+          "name": "NoPendingPolRewards",
+          "type": "error"
+        },
+        {
+          "inputs": [],
           "name": "QuestExpired",
           "type": "error"
         },
@@ -67361,6 +68296,11 @@
         {
           "inputs": [],
           "name": "RequirementNotMet",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "RewardPoolUnavailable",
           "type": "error"
         },
         {
@@ -67494,6 +68434,25 @@
               "type": "address"
             },
             {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "PendingPolRewardsClaimed",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            },
+            {
               "indexed": true,
               "internalType": "uint256",
               "name": "questId",
@@ -67600,6 +68559,31 @@
             }
           ],
           "name": "QuestProgressUpdated",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "user",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "questId",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "QuestRewardDeferred",
           "type": "event"
         },
         {
@@ -67834,6 +68818,13 @@
             }
           ],
           "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "claimPendingPolRewards",
+          "outputs": [],
+          "stateMutability": "nonpayable",
           "type": "function"
         },
         {
@@ -68781,6 +69772,25 @@
           "type": "function"
         },
         {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "name": "pendingPolRewards",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
           "inputs": [],
           "name": "proxiableUUID",
           "outputs": [
@@ -69040,6 +70050,19 @@
         {
           "inputs": [],
           "name": "totalCompletionsAllTime",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "totalPendingPolRewards",
           "outputs": [
             {
               "internalType": "uint256",
@@ -70260,6 +71283,31 @@
           "inputs": [
             {
               "indexed": true,
+              "internalType": "enum TreasuryManager.TreasuryType",
+              "name": "treasuryType",
+              "type": "uint8"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "treasuryAddress",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "RevenueDistributionFailed",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
               "internalType": "address",
               "name": "source",
               "type": "address"
@@ -70366,6 +71414,32 @@
             }
           ],
           "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "requester",
+              "type": "address"
+            }
+          ],
+          "name": "authorizeRequester",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "source",
+              "type": "address"
+            }
+          ],
+          "name": "authorizeSource",
+          "outputs": [],
+          "stateMutability": "nonpayable",
           "type": "function"
         },
         {

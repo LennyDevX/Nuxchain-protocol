@@ -6,30 +6,30 @@
 
 ## Overview
 
-The protocol is organized in three independently deployable systems that share a common revenue layer:
+The protocol started around three core systems, but the repository now exposes a broader product surface around them. The easiest way to read the architecture is as a set of connected layers:
+
+- core value loops: Smart Staking, Marketplace, NuxPower, Treasury,
+- user progression: levels, quests, referrals, social actions,
+- advanced surfaces: auctions, AI Agent NFTs, and NuxTap,
+- read models and metadata helpers that make the frontend usable.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                         NUXCHAIN PROTOCOL v7.0                          │
 │                                                                          │
-│  ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐    │
-│  │  SMART STAKING   │   │   MARKETPLACE    │   │   NUXPOWER NFTs  │    │
-│  │                  │   │                  │   │                  │    │
-│  │  SmartStakingCore│◄──┤  MarketplaceCore │   │  NuxPowerNft     │    │
-│  │  Rewards         │   │  LevelingSystem  │   │  SmartStakingPow.│    │
-│  │  Power Module    │◄──┤  QuestCore       │   │  NuxPowerMkt     │    │
-│  │  Gamification    │   │  Social/Stats/   │   │                  │    │
-│  │  View contracts  │   │  View modules    │   │                  │    │
-│  └────────┬─────────┘   └────────┬─────────┘   └────────┬─────────┘    │
-│           │                      │                       │              │
-│           └──────────────────────┼───────────────────────┘              │
-│                                  ▼                                       │
-│                    ┌─────────────────────────┐                          │
-│                    │     TREASURYMANAGER      │                          │
-│                    │  Weekly distribution     │                          │
-│                    │  20% reserve fund        │                          │
-│                    │  5 sub-treasuries        │                          │
-│                    └─────────────────────────┘                          │
+│  ┌────────────────┐  ┌────────────────┐  ┌──────────────────────────┐  │
+│  │ SMART STAKING  │  │  MARKETPLACE   │  │  AGENT / NUXTAP LAYER    │  │
+│  │ Core           │  │ Core           │  │ Factory / Registry       │  │
+│  │ Rewards        │  │ Social / Stats │  │ Rental / Game / Store    │  │
+│  │ Power / Views  │  │ Levels / Quest │  │ Agent Market / Treasury  │  │
+│  └──────┬─────────┘  └──────┬─────────┘  └────────────┬─────────────┘  │
+│         │                   │                         │                │
+│         └──────────────┬────┴──────────────┬──────────┘                │
+│                        │                   │                           │
+│                 ┌──────▼──────┐     ┌──────▼──────┐                    │
+│                 │ NUXPOWER    │     │ TREASURY    │                    │
+│                 │ NFT Powers  │     │ Revenue hub │                    │
+│                 └─────────────┘     └─────────────┘                    │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -63,20 +63,68 @@ The protocol is organized in three independently deployable systems that share a
 
 ---
 
-### Marketplace (10 contracts)
+### Marketplace Core (6 contracts)
 
 | Contract | Type | Purpose |
 |---|---|---|
 | `MarketplaceCore` | UUPS Proxy + ERC721 | Minting, listing, buying, offers, XP system |
 | `LevelingSystem` | UUPS Proxy | Level-up rewards (POL payout per level) |
-| `ReferralSystem` | UUPS Proxy | Referral tracking and bonus management |
-| `MarketplaceView` | Plain | Rich read queries: NFT info, user summaries |
-| `MarketplaceStatistics` | Plain | Sales recording; daily and category volume |
-| `MarketplaceSocial` | Plain | Comments and likes on NFTs |
 | `NuxPowerNft` | Plain | Mints NuxPower NFTs (marketplace-facing) |
 | `NuxPowerMarketplace` | Plain | Marketplace integration for power NFTs |
 | `QuestCore` | UUPS Proxy | Quest creation, tracking, and completion |
 | `CollaboratorBadgeRewards` | UUPS Proxy | Reward distribution to badge holders |
+
+---
+
+### Marketplace Support Modules (4 contracts)
+
+| Contract | Type | Purpose |
+|---|---|---|
+| `MarketplaceStatistics` | Plain | Records sales volume, royalties, category totals, and daily totals |
+| `MarketplaceView` | Plain | Aggregates NFT and user views for frontends |
+| `MarketplaceSocial` | Plain | Stores likes/comments and forwards social actions to quests |
+| `ReferralSystem` | UUPS Proxy | Manages referral codes, first-purchase discounts, and referral XP |
+
+---
+
+### Auction (1 contract)
+
+| Contract | Type | Purpose |
+|---|---|---|
+| `NuxAuctionMarketplace` | UUPS Proxy | Runs English, Dutch, and sealed-bid auctions for agent NFTs |
+
+---
+
+### AI Agent NFTs (7 contracts)
+
+| Contract | Type | Purpose |
+|---|---|---|
+| `NuxAgentNFTBase` | UUPS base | Base ERC-721 agent implementation with ERC-6551, royalties, and agent config storage |
+| `NuxAgentFactory` | UUPS Proxy | User-facing minting router with category templates |
+| `NuxAgentRegistry` | UUPS Proxy | Identity, reputation, validation, and operational profile registry |
+| `NuxAgentPaymaster` | UUPS Proxy | Payment and spend-control helper for agent activity |
+| `NuxAgentRental` | UUPS Proxy | Time-based rental market for agent NFTs |
+| `NuxAgentView` | Plain | Read-only helper for agent collection and token views |
+| `NuxAgentMiniGame` | UUPS Proxy | Task execution surface used by quests and agent progression |
+
+---
+
+### NuxTap (4 contracts)
+
+| Contract | Type | Purpose |
+|---|---|---|
+| `NuxTapGame` | UUPS Proxy | Tap-to-earn gameplay loop with streaks, levels, and linked agents |
+| `NuxTapItemStore` | UUPS Proxy | ERC-1155 store for boosters, auto-tap items, withdraw passes, and agent inventory |
+| `NuxTapTreasury` | UUPS Proxy | Dedicated reward-liquidity treasury for NuxTap |
+| `NuxTapAgentMarketplace` | UUPS Proxy | Secondary market for supported AI Agent NFTs inside NuxTap |
+
+---
+
+### XP Metadata (1 contract)
+
+| Contract | Type | Purpose |
+|---|---|---|
+| `XPSourceMetadata` | Plain | Read-only labels, descriptions, icons, and relative weights for XP sources |
 
 ---
 
@@ -92,6 +140,8 @@ Phase 1:  SmartStakingRewards, SmartStakingPower, SmartStakingGamification,
 Phase 2:  LevelingSystem, ReferralSystem, MarketplaceCore,
           MarketplaceView, MarketplaceStatistics, MarketplaceSocial,
           NuxPowerNft, NuxPowerMarketplace, QuestCore, CollaboratorBadgeRewards
+
+Extended modules such as auctions, agent NFTs, and NuxTap can be deployed as separate surfaces once treasury, progression hooks, and any required NFT contracts are available.
 ```
 
 ---
@@ -131,6 +181,25 @@ Action → MarketplaceCore._addXP(user, amount)
               └─ totalXP += amount (capped at 5000)
               └─ level = sqrt(totalXP / 100) (capped at 50)
               └─ if LevelUp → emit LevelUp + call LevelingSystem.rewardLevelUp()
+```
+
+### Agent Mint / Registry Flow
+
+```
+user.mintAgent() → NuxAgentFactory
+                    └─ category NFT contract mints token
+                    └─ NuxAgentNFTBase deploys ERC-6551 account
+                    └─ NuxTap treasury receives mint fee
+                    └─ registry can store operational metadata
+```
+
+### NuxTap Reward Flow
+
+```
+player taps / uses items → NuxTapGame
+                           ├─ score and unclaimed rewards updated
+                           ├─ reward liquidity reserved in NuxTapTreasury
+                           └─ claimRewards() pulls payout from NuxTapTreasury
 ```
 
 ---

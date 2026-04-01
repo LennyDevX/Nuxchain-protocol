@@ -24,6 +24,7 @@
     "setup": "npm run clean && npm install",
     "check:contract-sizes": "node scripts/CheckContractSizes.cjs",
     "deploy:nuxtap": "npx hardhat run scripts/deploy-nuxtap.cjs",
+    "upgrade:uups": "npx hardhat run scripts/upgrade-uups.cjs",
     "export:abis": "npx hardhat run scripts/ExportABIs.cjs",
     "export:package": "node scripts/ExportFrontendPackage.cjs",
     "build:export": "npm run export:abis && npm run export:package"

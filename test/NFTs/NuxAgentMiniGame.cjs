@@ -90,7 +90,7 @@ describe("NuxAgentMiniGame", function () {
     expect(await game.getAgentGameStats(await mockNFT.getAddress(), 1)).to.equal(50n);
     expect(await game.userMissionXP(player.address)).to.equal(50n);
 
-    const profile = await registry.getAgentOperationalProfile(1);
+    const profile = await registry.getAgentOperationalProfile(await mockNFT.getAddress(), 1);
     expect(profile.totalTasksRun).to.equal(1n);
   });
 

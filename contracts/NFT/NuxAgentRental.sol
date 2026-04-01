@@ -112,6 +112,20 @@ contract NuxAgentRental is
         uint256 remainingTime;
     }
 
+    struct RentalMarketStats {
+        uint256 totalOffers;
+        uint256 activeOffers;
+        uint256 totalRentals;
+        uint256 activeRentals;
+    }
+
+    struct OwnerRentalSummary {
+        uint256 totalOffers;
+        uint256 activeOffers;
+        uint256 totalRentalsOut;
+        uint256 activeRentalsOut;
+    }
+
     IRentalTreasury public treasuryManager;
     address public agentRegistry;
 
@@ -414,6 +428,8 @@ contract NuxAgentRental is
         treasuryManager = IRentalTreasury(tm_);
     }
 
+    uint256[50] private __gap;
+
     function _authorizeUpgrade(address) internal override onlyRole(UPGRADER_ROLE) {}
 
     function _isSupportedNFTContract(address nftContract) internal view returns (bool) {
@@ -516,6 +532,48 @@ contract NuxAgentRental is
         bool activeOnly
     ) external view returns (ActiveRentalView[] memory rentals, uint256 total) {
         return _getRenterRentals(renter, offset, limit, activeOnly);
+    }
+
+    function getRentalMarketStats() external view returns (RentalMarketStats memory stats) {
+        stats.totalOffers = offerCounter;
+        stats.totalRentals = rentalCounter;
+
+        for (uint256 offerId = 1; offerId <= offerCounter; offerId++) {
+            if (rentalOffers[offerId].active) {
+                stats.activeOffers++;
+            }
+        }
+
+        for (uint256 rentalId = 1; rentalId <= rentalCounter; rentalId++) {
+            if (activeRentals[rentalId].active) {
+                stats.activeRentals++;
+            }
+        }
+    }
+
+    function getOwnerRentalSummary(address owner) external view returns (OwnerRentalSummary memory summary) {
+        for (uint256 offerId = 1; offerId <= offerCounter; offerId++) {
+            RentalOffer storage offer = rentalOffers[offerId];
+            if (offer.owner != owner) {
+                continue;
+            }
+            summary.totalOffers++;
+            if (offer.active) {
+                summary.activeOffers++;
+            }
+        }
+
+        for (uint256 rentalId = 1; rentalId <= rentalCounter; rentalId++) {
+            ActiveRental storage rental = activeRentals[rentalId];
+            RentalOffer storage offer = rentalOffers[rental.offerId];
+            if (offer.owner != owner) {
+                continue;
+            }
+            summary.totalRentalsOut++;
+            if (rental.active) {
+                summary.activeRentalsOut++;
+            }
+        }
     }
 
     function _getRentalOffersPage(

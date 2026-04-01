@@ -13,8 +13,11 @@ error RefundFailed();
 library MarketplaceCoreLib {
     using EnumerableSet for EnumerableSet.UintSet;
 
-    uint8 private constant MAX_LEVEL = 50;
-    uint256 private constant MAX_XP = 5000;
+    uint8 private constant MAX_LEVEL = 250;
+    uint8 private constant LEVELS_PER_BRACKET = 25;
+    uint8 private constant BRACKET_COUNT = 10;
+    uint256 private constant XP_PER_BRACKET_STEP = 50;
+    uint256 private constant MAX_XP = 68_750;
 
     function buildSaleSettlement(
         address seller,
@@ -158,10 +161,25 @@ library MarketplaceCoreLib {
         uint256 newTotal = profile.totalXP + amount;
         if (newTotal > MAX_XP) newTotal = MAX_XP;
         profile.totalXP = newTotal;
-        uint8 newLevel = uint8(newTotal / 100);
-        if (newLevel > MAX_LEVEL) newLevel = MAX_LEVEL;
+        uint8 newLevel = _levelFromXP(newTotal);
         if (newLevel > profile.level) {
             profile.level = newLevel;
         }
+    }
+
+    function _levelFromXP(uint256 xp) private pure returns (uint8) {
+        if (xp < XP_PER_BRACKET_STEP) return 0;
+
+        uint256 remainingXP = xp > MAX_XP ? MAX_XP : xp;
+        for (uint256 bracket = 1; bracket <= BRACKET_COUNT; bracket++) {
+            uint256 xpPerLevel = bracket * XP_PER_BRACKET_STEP;
+            uint256 bracketXP = xpPerLevel * LEVELS_PER_BRACKET;
+            if (remainingXP <= bracketXP) {
+                return uint8(((bracket - 1) * LEVELS_PER_BRACKET) + (remainingXP / xpPerLevel));
+            }
+            remainingXP -= bracketXP;
+        }
+
+        return MAX_LEVEL;
     }
 }

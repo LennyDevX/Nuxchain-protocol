@@ -16,6 +16,11 @@ Nuxchain is an on-chain DeFi + NFT ecosystem built on Polygon. It combines three
 
 All revenue flows through a central **TreasuryManager** that distributes funds weekly to staking rewards, collaborators, and development.
 
+This section is the technical entry point for understanding the contract surfaces. The contract pages are now written to be readable in two passes:
+
+1. a plain-language explanation of what each module does and why it exists,
+2. a reference section with constants, structs, roles, and key functions.
+
 ---
 
 ## Documentation Index
@@ -25,10 +30,17 @@ All revenue flows through a central **TreasuryManager** that distributes funds w
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Full system overview, contract map, data flows |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Deploy workflow: 4-step process from zero to live |
 | [contracts/SmartStaking.md](./contracts/SmartStaking.md) | All 12 staking contracts: core, modules, views |
-| [contracts/Marketplace.md](./contracts/Marketplace.md) | All 10 marketplace contracts: core, modules, social |
+| [contracts/Marketplace.md](./contracts/Marketplace.md) | Marketplace trading flow: minting, sales, offers, levels, and linked modules |
 | [contracts/Treasury.md](./contracts/Treasury.md) | TreasuryManager + QuestRewardsPool |
 | [contracts/NuxPower.md](./contracts/NuxPower.md) | NuxPowerNFT + PowerType enum + SmartStakingPower |
 | [contracts/Gamification.md](./contracts/Gamification.md) | LevelingSystem, QuestCore, CollaboratorBadgeRewards |
+| [contracts/Analytics.md](./contracts/Analytics.md) | Marketplace statistics, category indexing, and rich read models |
+| [contracts/Social.md](./contracts/Social.md) | Comments, likes, and social quest hooks |
+| [contracts/Referral.md](./contracts/Referral.md) | Referral codes, first-purchase discounts, and referral XP |
+| [contracts/Auction.md](./contracts/Auction.md) | English, Dutch, and sealed-bid auction flow for agent NFTs |
+| [contracts/NFTAgents.md](./contracts/NFTAgents.md) | AI Agent NFT creation, registry, rental, and read models |
+| [contracts/NuxTapGame.md](./contracts/NuxTapGame.md) | NuxTap gameplay loop, item economy, treasury, and agent trading |
+| [contracts/XP.md](./contracts/XP.md) | Read-only metadata for XP sources across the protocol |
 | [integration/FRONTEND.md](./integration/FRONTEND.md) | ABI usage, key read calls, ethers.js patterns |
 | [integration/REWARDS.md](./integration/REWARDS.md) | APY formula, XP system, treasury flow details |
 
@@ -75,14 +87,15 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for full details.
 
 ---
 
-## Contract Count
+## Documentation Areas
 
-| System | Deployable contracts |
+| Area | Coverage |
 |---|---|
-| Treasury | 2 |
-| Smart Staking | 12 (1 library + 11 deployable) |
-| Marketplace | 10 |
-| **Total** | **24** |
+| Core protocol | Treasury, Smart Staking, Marketplace, NuxPower, Gamification |
+| Marketplace support modules | Analytics, Social, Referral |
+| Advanced trading | Auction |
+| AI agent stack | NFT Agents, NuxTap Game |
+| Shared helper metadata | XP source catalog |
 
 ---
 

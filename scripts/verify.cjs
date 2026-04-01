@@ -61,6 +61,7 @@ async function main() {
     const tm   = data.contracts.treasury;
     const st   = data.contracts.staking;
     const mp   = data.contracts.marketplace;
+    const nft  = data.contracts.nft || {};
 
     let passed = 0;
     let failed = 0;
@@ -83,7 +84,7 @@ async function main() {
     console.log("\n── SMART STAKING ─────────────────────────────────────────────────────────────");
     (await verify(st.rewards,      "contracts/SmartStaking/SmartStakingRewards.sol:SmartStakingRewards",           [], "SmartStakingRewards"))      ? ok() : bad(); await sleep(2000);
     (await verify(st.power,        "contracts/SmartStaking/SmartStakingPower.sol:SmartStakingPower",               [], "SmartStakingPower"))          ? ok() : bad(); await sleep(2000);
-    (await verify(st.gamification, "contracts/SmartStaking/SmartStakingGamification.sol:SmartStakingGamification", [], "SmartStakingGamification"))   ? ok() : bad(); await sleep(2000);
+    (await verify(st.gamification, "contracts/Gamification/Gamification.sol:Gamification", [], "Gamification"))                                         ? ok() : bad(); await sleep(2000);
     (await verify(st.dynamicAPY,   "contracts/SmartStaking/DynamicAPYCalculator.sol:DynamicAPYCalculator",         [], "DynamicAPYCalculator"))       ? ok() : bad(); await sleep(2000);
     (await verify(st.skillViewLib, "contracts/SmartStaking/SkillViewLib.sol:SkillViewLib",                         [], "SkillViewLib"))               ? ok() : bad(); await sleep(2000);
     (await verify(st.coreLib,      "contracts/SmartStaking/SmartStakingCoreLib.sol:SmartStakingCoreLib",          [], "SmartStakingCoreLib"))          ? ok() : bad(); await sleep(2000);
@@ -120,6 +121,40 @@ async function main() {
     (await verify(mp.social,     "contracts/Social/MarketplaceSocial.sol:MarketplaceSocial",           [data.deployment.deployer, mp.core], "MarketplaceSocial"))  ? ok() : bad(); await sleep(2000);
     (await verify(mp.nuxPowerNft,"contracts/NuxPower/NuxPowerNft.sol:NuxPowerNft",                     [mp.core], "NuxPowerNft"))                                   ? ok() : bad(); await sleep(2000);
     (await verify(mp.nuxPowerMarketplace,"contracts/NuxPower/NuxPowerMarketplace.sol:NuxPowerMarketplace",[tm.manager],"NuxPowerMarketplace")) ? ok() : bad(); await sleep(2000);
+
+    if (Object.keys(nft).length > 0) {
+        console.log("\n── NFT AGENTS ───────────────────────────────────────────────────────────────");
+
+        if (nft.erc6551Implementation) {
+            (await verify(nft.erc6551Implementation, "contracts/NFT/NuxAgentAccount6551.sol:NuxAgentAccount6551", [], "NuxAgentAccount6551")) ? ok() : bad(); await sleep(2000);
+        }
+
+        const nftProxyTargets = [
+            ["registry", "contracts/NFT/NuxAgentRegistry.sol:NuxAgentRegistry", "NuxAgentRegistry"],
+            ["factory", "contracts/NFT/NuxAgentFactory.sol:NuxAgentFactory", "NuxAgentFactory"],
+            ["paymaster", "contracts/NFT/NuxAgentPaymaster.sol:NuxAgentPaymaster", "NuxAgentPaymaster"],
+            ["rental", "contracts/NFT/NuxAgentRental.sol:NuxAgentRental", "NuxAgentRental"],
+            ["miniGame", "contracts/NFT/NuxAgentMiniGame.sol:NuxAgentMiniGame", "NuxAgentMiniGame"],
+            ["socialAgent", "contracts/NFT/categories/SocialAgentNFT.sol:SocialAgentNFT", "SocialAgentNFT"],
+            ["techAgent", "contracts/NFT/categories/TechAgentNFT.sol:TechAgentNFT", "TechAgentNFT"],
+            ["marketingAgent", "contracts/NFT/categories/MarketingAgentNFT.sol:MarketingAgentNFT", "MarketingAgentNFT"],
+            ["financeAgent", "contracts/NFT/categories/FinanceAgentNFT.sol:FinanceAgentNFT", "FinanceAgentNFT"],
+            ["businessAgent", "contracts/NFT/categories/BusinessAgentNFT.sol:BusinessAgentNFT", "BusinessAgentNFT"],
+        ];
+
+        for (const [key, contractPath, label] of nftProxyTargets) {
+            if (!nft[key]) {
+                continue;
+            }
+
+            const implementation = await getImpl(nft[key]);
+            (await verify(implementation, contractPath, [], `${label} impl`)) ? ok() : bad(); await sleep(2000);
+        }
+        if (nft.agentView) {
+            console.log("\n── NFT VIEWS ────────────────────────────────────────────────────────────────");
+            (await verify(nft.agentView, "contracts/NFT/NuxAgentView.sol:NuxAgentView", [], "NuxAgentView")) ? ok() : bad(); await sleep(2000);
+        }
+    }
 
     console.log(`\n╔══════════════════════════════════════════════════════════════════════════════╗`);
     console.log(`║  VERIFICATION SUMMARY                                                      ║`);

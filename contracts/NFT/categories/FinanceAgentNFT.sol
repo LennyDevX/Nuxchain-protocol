@@ -252,4 +252,6 @@ contract FinanceAgentNFT is NuxAgentNFTBase {
         emit StakingAPYBoostGranted(tokenId, boostBps);
     }
 
+    uint256[50] private __gap;
+
 }

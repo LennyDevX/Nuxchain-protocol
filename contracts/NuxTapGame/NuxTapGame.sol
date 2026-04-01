@@ -24,7 +24,7 @@ interface INuxTapGameStore {
 interface INuxTapAgentRegistry {
     function registeredNFTContracts(address nftContract) external view returns (bool);
 
-    function getAgentOperationalProfile(uint256 agentId)
+    function getAgentOperationalProfile(address nftContract, uint256 tokenId)
         external
         view
         returns (
@@ -501,7 +501,7 @@ contract NuxTapGame is
             return bonus > maxLinkedAgentBonusBps ? maxLinkedAgentBonusBps : bonus;
         }
 
-        try INuxTapAgentRegistry(agentRegistry).getAgentOperationalProfile(profile.linkedTokenId) returns (
+        try INuxTapAgentRegistry(agentRegistry).getAgentOperationalProfile(profile.linkedNftContract, profile.linkedTokenId) returns (
             address,
             uint256 totalTasksRun,
             uint256,
@@ -547,6 +547,8 @@ contract NuxTapGame is
     function _itemKind(uint256 itemId) internal view returns (uint8 kind) {
         (kind, , , , , , , ) = INuxTapGameStore(itemStore).getItemConfig(itemId);
     }
+
+    uint256[50] private __gap;
 
     function _authorizeUpgrade(address) internal override onlyRole(UPGRADER_ROLE) {}
 }

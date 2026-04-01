@@ -832,28 +832,28 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
     it("Should calculate correct level from XP", async function () {
       const { leveling } = await loadFixture(deployMarketplaceFixture);
 
-      // L1-10: 50 XP per level (cumulative: 500 for L10)
-      // L11-20: 100 XP per level (cumulative: 1500 for L20)
-      // L21-30: 150 XP per level (cumulative: 3000 for L30)
-      // L31-40: 200 XP per level (cumulative: 5000 for L40)
-      // L41-50: 250 XP per level (cumulative: 7500 for L50)
+      // Current model:
+      // L1-25:   50 XP per level  (cumulative: 1250 for L25)
+      // L26-50: 100 XP per level  (cumulative: 3750 for L50)
+      // ...
+      // L226-250: 500 XP per level (cumulative: 68750 for L250)
 
       expect(await leveling.getLevelFromXP(0)).to.equal(0);
-      expect(await leveling.getLevelFromXP(1)).to.equal(1);      // 1 XP = Level 1
-      expect(await leveling.getLevelFromXP(49)).to.equal(1);     // 49 XP = Level 1
+      expect(await leveling.getLevelFromXP(1)).to.equal(0);      // Below first threshold
+      expect(await leveling.getLevelFromXP(49)).to.equal(0);     // Below first threshold
       expect(await leveling.getLevelFromXP(50)).to.equal(1);     // 50 XP = Level 1
       expect(await leveling.getLevelFromXP(100)).to.equal(2);    // 100 XP = Level 2
-      expect(await leveling.getLevelFromXP(499)).to.equal(10);   // 499 XP = Level 10
+      expect(await leveling.getLevelFromXP(499)).to.equal(9);    // 499 XP = Level 9
       expect(await leveling.getLevelFromXP(500)).to.equal(10);   // 500 XP = Level 10
-      expect(await leveling.getLevelFromXP(501)).to.equal(11);   // 501 XP = Level 11
-      expect(await leveling.getLevelFromXP(600)).to.equal(11);   // 600 XP = Level 11
-      expect(await leveling.getLevelFromXP(1500)).to.equal(20);  // 1500 XP = Level 20
-      expect(await leveling.getLevelFromXP(3000)).to.equal(30);  // 3000 XP = Level 30
-      expect(await leveling.getLevelFromXP(5000)).to.equal(40);  // 5000 XP = Level 40
-      expect(await leveling.getLevelFromXP(7500)).to.equal(50);  // 7500 XP = Level 50
+      expect(await leveling.getLevelFromXP(501)).to.equal(10);   // 501 XP stays at Level 10
+      expect(await leveling.getLevelFromXP(550)).to.equal(11);   // 550 XP = Level 11
+      expect(await leveling.getLevelFromXP(1250)).to.equal(25);  // 1250 XP = Level 25
+      expect(await leveling.getLevelFromXP(1350)).to.equal(26);  // 1350 XP = Level 26
+      expect(await leveling.getLevelFromXP(3750)).to.equal(50);  // 3750 XP = Level 50
+      expect(await leveling.getLevelFromXP(68750)).to.equal(250); // 68750 XP = Level 250
     });
 
-    it("Should cap XP at 7500 (Level 50)", async function () {
+    it("Should cap XP at 68750 (Level 250)", async function () {
       const { leveling, owner, user1 } = await loadFixture(deployMarketplaceFixture);
 
       // Grant MARKETPLACE_ROLE to owner so we can call updateUserXP
@@ -864,7 +864,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       await leveling.connect(owner).updateUserXP(user1.address, 10000, "TEST_BONUS");
       
       const profile = await leveling.getUserProfile(user1.address);
-      expect(profile.totalXP).to.equal(7500);
+      expect(profile.totalXP).to.equal(10000);
     });
 
     it("Should track NFT activities in profile", async function () {
@@ -903,7 +903,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
         .withArgs(user1.address, 1);
     });
 
-    it("Should reward user with 1.1 POL on level up", async function () {
+    it("Should reward user with 0.05 POL on level up", async function () {
       const { leveling, owner, user1 } = await loadFixture(deployMarketplaceFixture);
 
       // Grant MARKETPLACE_ROLE to owner so we can call updateUserXP
@@ -917,7 +917,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       await leveling.connect(owner).updateUserXP(user1.address, 50, "LEVEL_UP_TEST");
 
       const balanceAfter = await ethers.provider.getBalance(user1.address);
-      const reward = ethers.parseEther("1.1");
+      const reward = ethers.parseEther("0.05");
 
       expect(balanceAfter).to.equal(balanceBefore + reward);
     });
@@ -1034,7 +1034,7 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       await leveling.connect(owner).updateUserXP(user1.address, 10000, "OVERFLOW_TEST");
       
       const profile = await leveling.getUserProfile(user1.address);
-      expect(profile.totalXP).to.be.lte(7500); // Capped at max
+      expect(profile.totalXP).to.be.lte(68750); // Capped at max
     });
 
     it("Should emit LevelUp event at correct thresholds", async function () {
@@ -1476,19 +1476,19 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       const MARKETPLACE_ROLE = ethers.id("MARKETPLACE_ROLE");
       await leveling.connect(owner).grantRole(MARKETPLACE_ROLE, owner.address);
 
-      // Add XP to exactly reach level 10 (500 XP)
-      await leveling.connect(owner).updateUserXP(user1.address, 500, "BOUNDARY_TEST");
+      // Add XP to exactly reach level 25 (1250 XP)
+      await leveling.connect(owner).updateUserXP(user1.address, 1250, "BOUNDARY_TEST");
       
       let profile = await leveling.getUserProfile(user1.address);
-      expect(profile.level).to.equal(10);
-      expect(profile.totalXP).to.equal(500);
+      expect(profile.level).to.equal(25);
+      expect(profile.totalXP).to.equal(1250);
 
-      // Add 1 more XP to cross to level 11
-      await leveling.connect(owner).updateUserXP(user1.address, 1, "CROSS_BOUNDARY");
+      // Need 100 more XP to cross to level 26 in the next bracket
+      await leveling.connect(owner).updateUserXP(user1.address, 100, "CROSS_BOUNDARY");
       
       profile = await leveling.getUserProfile(user1.address);
-      expect(profile.level).to.equal(11);
-      expect(profile.totalXP).to.equal(501);
+      expect(profile.level).to.equal(26);
+      expect(profile.totalXP).to.equal(1350);
     });
 
     it("Should handle maximum XP cap correctly", async function () {
@@ -1498,18 +1498,18 @@ describe("Nuxchain Marketplace - Refactored Architecture", function () {
       await leveling.connect(owner).grantRole(MARKETPLACE_ROLE, owner.address);
 
       // Add XP to max
-      await leveling.connect(owner).updateUserXP(user1.address, 7500, "MAX_XP");
+      await leveling.connect(owner).updateUserXP(user1.address, 68750, "MAX_XP");
       
       let profile = await leveling.getUserProfile(user1.address);
-      expect(profile.totalXP).to.equal(7500);
-      expect(profile.level).to.equal(50);
+      expect(profile.totalXP).to.equal(68750);
+      expect(profile.level).to.equal(250);
 
       // Try to add more XP (should be capped)
       await leveling.connect(owner).updateUserXP(user1.address, 1000, "OVERFLOW_TEST");
       
       profile = await leveling.getUserProfile(user1.address);
-      expect(profile.totalXP).to.equal(7500); // Still capped
-      expect(profile.level).to.equal(50);
+      expect(profile.totalXP).to.equal(68750); // Still capped
+      expect(profile.level).to.equal(250);
     });
 
     it("Should handle large numbers of NFTs per user", async function () {

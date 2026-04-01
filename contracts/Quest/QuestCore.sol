@@ -29,7 +29,7 @@ interface IQuestPoolCaller {
  *     PURCHASE  → profile.nftsBought
  *     CREATE    → profile.nftsCreated
  *     TRADING   → profile.nftsSold
- *     LEVEL_UP  → profile.level (capped at 50)
+ *     LEVEL_UP  → profile.level (capped at 250)
  *   Counter-based (incremented via notifyAction):
  *     SOCIAL    → likes + comments (notified by MarketplaceSocial)
  *     STAKE     → wei deposited    (notified by SmartStakingCore)
@@ -66,7 +66,7 @@ contract QuestCore is
     // CONSTANTS
     // ============================================
 
-    uint8   private constant MAX_LEVEL                    = 50;
+    uint8   private constant MAX_LEVEL                    = 250;
     uint256 private constant MAX_XP_REWARD                = 50_000;
     uint256 private constant MAX_SOCIAL_ACTIONS_PER_QUEST = 1_000;
 

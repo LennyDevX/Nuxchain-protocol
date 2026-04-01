@@ -73,6 +73,11 @@ const NUXPOWER_MARKETPLACE_ABI = [
     "function setStakingContract(address) external",
 ];
 
+const NFT_AGENT_ABI = [
+    "function erc6551Implementation() external view returns (address)",
+    "function setERC6551Implementation(address) external",
+];
+
 // ─── main ───────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -82,6 +87,8 @@ async function main() {
     const tm   = data.contracts.treasury;
     const st   = data.contracts.staking;
     const mp   = data.contracts.marketplace;
+    const nft  = data.contracts.nft || {};
+    const nftErc6551Implementation = process.env.NUXAGENT_ERC6551_IMPL || process.env.ERC6551_IMPLEMENTATION || nft.erc6551Implementation || ethers.ZeroAddress;
 
     console.log("\n╔══════════════════════════════════════════════════════════════════════════════╗");
     console.log("║  ⚙️  NUXCHAIN PROTOCOL — POST-DEPLOY CONFIGURATION                         ║");
@@ -174,6 +181,39 @@ async function main() {
     await send(treasury.authorizeRequester(st.rewards),          "TreasuryManager: SmartStakingRewards requester authorized");
     await send(treasury.authorizeRequester(mp.collaboratorRewards), "TreasuryManager: CollaboratorBadgeRewards requester authorized");
     console.log("");
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 6. NFT agent collections — enable ERC-6551 implementation
+    // ──────────────────────────────────────────────────────────────────────────
+    if (nft.socialAgent || nft.techAgent || nft.marketingAgent || nft.financeAgent || nft.businessAgent) {
+        console.log("6️⃣  Configuring NFT ERC-6551 implementation...");
+
+        if (nftErc6551Implementation === ethers.ZeroAddress) {
+            console.warn("   ⚠️  No ERC-6551 implementation available in env or deployment output; NFT TBAs remain disabled.");
+        } else {
+            const categoryContracts = [
+                ["SocialAgentNFT", nft.socialAgent],
+                ["TechAgentNFT", nft.techAgent],
+                ["MarketingAgentNFT", nft.marketingAgent],
+                ["FinanceAgentNFT", nft.financeAgent],
+                ["BusinessAgentNFT", nft.businessAgent],
+            ].filter(([, address]) => Boolean(address));
+
+            for (const [label, address] of categoryContracts) {
+                const category = new ethers.Contract(address, NFT_AGENT_ABI, deployer);
+                const currentImplementation = await category.erc6551Implementation();
+
+                if (currentImplementation.toLowerCase() === nftErc6551Implementation.toLowerCase()) {
+                    console.log(`   ✅ ${label} ERC-6551 implementation already set`);
+                    continue;
+                }
+
+                await send(category.setERC6551Implementation(nftErc6551Implementation), `${label} → ERC-6551 implementation`);
+            }
+        }
+
+        console.log("");
+    }
 
     console.log("╔══════════════════════════════════════════════════════════════════════════════╗");
     console.log("║  ✅ CONFIGURATION COMPLETE                                                  ║");

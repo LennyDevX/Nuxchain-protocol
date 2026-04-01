@@ -515,6 +515,8 @@ abstract contract NuxAgentNFTBase is
         return super.supportsInterface(interfaceId);
     }
 
+    uint256[50] private __gap;
+
     function _authorizeUpgrade(address) internal override onlyRole(UPGRADER_ROLE) {}
 
     receive() external payable {}

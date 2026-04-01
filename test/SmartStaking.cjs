@@ -929,10 +929,10 @@ describe("SmartStaking System", function () {
   });
 
   // ════════════════════════════════════════════════════════════════════════════════════════════════════
-  // TESTS: SmartStakingGamification
+  // TESTS: Gamification
   // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-  describe("SmartStakingGamification", function () {
+  describe("Gamification", function () {
     describe("XP & Level System", function () {
       it("Should update XP on stake action", async function () {
         const { gamification, core, user1 } = await loadFixture(deployAllContracts);
@@ -954,7 +954,7 @@ describe("SmartStaking System", function () {
         await gamification.connect(owner).setUserXP(user, 5000);
 
         const [, level] = await gamification.getUserXPInfo(user);
-        expect(level).to.equal(40); // Tiered: L1-10=500, L11-20=1000, L21-30=1500, L31-40=2000 → cumul 5000 = lvl 40
+        expect(level).to.equal(58);
       });
 
       it("Should cap XP at maximum", async function () {
@@ -962,10 +962,10 @@ describe("SmartStaking System", function () {
         const user = owner.address;
 
         // Set XP at a large value
-        await gamification.connect(owner).setUserXP(user, 7500);
+        await gamification.connect(owner).setUserXP(user, 100000);
 
         const [xp] = await gamification.getUserXPInfo(user);
-        expect(xp).to.equal(7500); // Max XP in tiered system
+        expect(xp).to.equal(68750);
       });
 
       it("Should calculate XP to next level", async function () {
@@ -973,12 +973,11 @@ describe("SmartStaking System", function () {
         const user = owner.address;
 
         await gamification.connect(owner).setUserXP(user, 500);
-        // XP = 500. Level = 10 (cumul L1-10 = 500).
-        // Next Level = 11. XP needed for L11 = 100.
-        // XP in current = 500 - 500 = 0, so xpToNextLevel = 100.
+        // XP = 500. Level = 10 within the first 25-level bracket.
+        // Each level in the bracket costs 50 XP, so 50 XP remain to reach level 11.
 
         const [, , xpToNextLevel] = await gamification.getUserXPInfo(user);
-        expect(xpToNextLevel).to.equal(100); 
+        expect(xpToNextLevel).to.equal(50); 
       });
 
       it("Should get XP for specific level", async function () {
@@ -988,7 +987,7 @@ describe("SmartStaking System", function () {
         expect(xpForLevel5).to.equal(250); // Tiered cumulative: 5 × 50 = 250
       });
 
-      it("Should reward user with 20 POL on level up", async function () {
+      it("Should reward user on level up", async function () {
         const { gamification, owner, user1 } = await loadFixture(deployAllContracts);
         
         // Fund gamification contract to pay level-up rewards

@@ -12,6 +12,25 @@ The gamification layer incentivizes user participation across the entire protoco
 - **QuestCore** — tracks user progress across all protocol actions and rewards completions
 - **CollaboratorBadgeRewards** — distributes protocol revenue to badge holders
 
+## Why This Matters For New Readers
+
+These contracts are the reason Nuxchain feels like a progression system instead of a set of isolated apps.
+
+- `LevelingSystem` turns repeated marketplace activity into visible account progression.
+- `QuestCore` turns protocol actions into mission-based rewards.
+- `CollaboratorBadgeRewards` turns protocol participation into a revenue-sharing layer for a specific class of community members.
+
+If you only want the shortest explanation: marketplace actions create XP, XP can trigger levels, levels and actions can satisfy quests, and some treasury funds are routed back to engaged users and collaborators.
+
+## Reading Guide
+
+| If you want to understand... | Start with... |
+|---|---|
+| Why users level up and receive POL | `LevelingSystem` |
+| How quests detect progress across modules | `QuestCore` |
+| How badge holders receive protocol-linked rewards | `CollaboratorBadgeRewards` |
+| Which actions feed these systems | [Marketplace.md](./Marketplace.md), [SmartStaking.md](./SmartStaking.md), and [NuxTapGame.md](./NuxTapGame.md) |
+
 ---
 
 ## LevelingSystem

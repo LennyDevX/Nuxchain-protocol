@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 /**
  * @title IXPHub
- * @notice Canonical XP & Leveling interface for the Nuxchain Protocol.
+ * @notice Canonical XP & leveling interface for the Nuxchain Protocol.
  *
  * ARCHITECTURE
  * ─────────────────────────────────────────────────────────────────────
@@ -14,7 +14,7 @@ pragma solidity 0.8.28;
  * ROLES (implemented in LevelingSystem)
  *  MARKETPLACE_ROLE — legacy callers (MarketplaceCore, QuestCore,
  *                     NFT contracts, MiniGame).  Uses updateUserXP.
- *  REPORTER_ROLE    — new callers (SmartStakingGamification, Auction,
+ *  REPORTER_ROLE    — new callers (Gamification, Auction,
  *                     NuxPower, Referral).  Uses awardXP() with source enum.
  *
  * XP SOURCE INDEXES (15 total)
@@ -87,8 +87,8 @@ interface IXPHub {
     /**
      * @notice Award XP with source tracking (primary API for new callers).
      * @dev    Caller must hold REPORTER_ROLE on the LevelingSystem.
-     *         Does NOT trigger level-up POL rewards to avoid double payment
-     *         when the caller (e.g. SmartStakingGamification) handles rewards itself.
+    *         Does NOT trigger level-up POL rewards to avoid double payment
+    *         when the caller (e.g. Gamification) handles rewards itself.
      * @param  user      Recipient address.
      * @param  amount    XP to award.
      * @param  source    Origin of the XP (XPSource enum).
@@ -108,6 +108,12 @@ interface IXPHub {
      *         Includes automatic level-up POL reward distribution.
      */
     function updateUserXP(address user, uint256 xpAmount, string calldata reason) external;
+
+    /**
+     * @notice Admin-only absolute XP synchronization.
+     * @dev    Intended for migrations, corrections, and admin tooling.
+     */
+    function adminSetUserXP(address user, uint256 totalXP) external;
 
     /**
      * @notice Simple XP addition used by MiniGame and legacy callers.
@@ -130,6 +136,15 @@ interface IXPHub {
      */
     function getUserXPBreakdown(address user) external view returns (uint256[15] memory xpBySource);
 
-    /// @notice Calculate level from cumulative XP (uses the tiered formula).
+    /// @notice Calculate level from cumulative XP (uses the protocol progression formula).
     function getLevelFromXP(uint256 xp) external pure returns (uint8 level);
+
+    /// @notice XP required to clear a specific level (not cumulative).
+    function getXPRequiredForLevel(uint8 level) external pure returns (uint256 xpRequired);
+
+    /// @notice Cumulative XP required to reach a specific level.
+    function getCumulativeXPForLevel(uint8 level) external pure returns (uint256 cumulativeXP);
+
+    /// @notice Native token reward paid when a user reaches a specific level.
+    function getRewardForLevel(uint8 level) external pure returns (uint256 rewardAmount);
 }

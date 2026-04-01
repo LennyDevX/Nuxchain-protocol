@@ -1,0 +1,196 @@
+{
+  "deployment": {
+    "network": "polygon",
+    "chainId": "137",
+    "deployer": "0xf555eEa65477a1727606272433403d6d7d83B28C",
+    "timestamp": null,
+    "status": "completed",
+    "currentPhase": "COMPLETED",
+    "updatedAt": "2026-04-01T15:54:09.864Z",
+    "completedAt": "2026-04-01T15:54:09.864Z"
+  },
+  "proxyMetadata": {
+    "treasury.questRewardsPool": {
+      "contract": "QuestRewardsPool",
+      "kind": "uups",
+      "proxy": "0x7610CF5ea944a703Cb469FDA244160bd4DAf583f",
+      "implementation": "0x1F389baAf703C658db56DC1F2c2408b532B8dD5F",
+      "initializerArgsHash": "0xcf06b87f45467d5a33283d8eb4e9c36e957cc4c6aaa8ac339ae9d093d1350694",
+      "upgraderHolder": "0xf555eEa65477a1727606272433403d6d7d83B28C"
+    },
+    "staking.core": {
+      "contract": "SmartStakingCore",
+      "kind": "uups",
+      "proxy": "0x96D6F29d5046CB4422e5e3BC2bdF185Fd21f302D",
+      "implementation": "0x73b925642c8E3cE336b51E6aD52937F9382cD220",
+      "initializerArgsHash": "0x0dd325e2d5379ca98c51146e9fef2cd0231b99946fe3ab415d9a0c520dab8915",
+      "upgraderHolder": "0xf555eEa65477a1727606272433403d6d7d83B28C"
+    },
+    "marketplace.leveling": {
+      "contract": "LevelingSystem",
+      "kind": "uups",
+      "proxy": "0xE98D427C131c5c9506AcE31215e6E70eDaBB8Cd4",
+      "implementation": "0x96440627818b44A1Bae76b7f160e3D6eaB83f5C5",
+      "initializerArgsHash": "0x9611492bf0b433ca6b07ba44387ca06237f4f9f8fb8aa4d45fe3d12c689701d8",
+      "upgraderHolder": "0xf555eEa65477a1727606272433403d6d7d83B28C"
+    },
+    "marketplace.referral": {
+      "contract": "ReferralSystem",
+      "kind": "uups",
+      "proxy": "0x230d24410283D9A945C292C035082568d5d96b34",
+      "implementation": "0xBB1eE811F6dbe869A84b929Bfb3ee4592afB9894",
+      "initializerArgsHash": "0x9611492bf0b433ca6b07ba44387ca06237f4f9f8fb8aa4d45fe3d12c689701d8",
+      "upgraderHolder": "0xf555eEa65477a1727606272433403d6d7d83B28C"
+    },
+    "marketplace.core": {
+      "contract": "MarketplaceCore",
+      "kind": "uups",
+      "proxy": "0xB39421d34479aa4bFe560DefB66eA6A46cA5909A",
+      "implementation": "0xCcc1B82706DA9DDc388d88957750838d84e3f55e",
+      "initializerArgsHash": "0x0dd325e2d5379ca98c51146e9fef2cd0231b99946fe3ab415d9a0c520dab8915",
+      "upgraderHolder": "0xf555eEa65477a1727606272433403d6d7d83B28C"
+    },
+    "marketplace.questCore": {
+      "contract": "QuestCore",
+      "kind": "uups",
+      "proxy": "0x126712d66b5AC71fCe1117A36D2BDd69Af141e6B",
+      "implementation": "0x4215E1988D7e843c4029D69a025f2c71B78d35e7",
+      "initializerArgsHash": "0xa1e080c546cb7cf3fd135f79a2fafacf00a7cdc046d65b7ea2208eef74e12331",
+      "upgraderHolder": "0xf555eEa65477a1727606272433403d6d7d83B28C"
+    },
+    "marketplace.collaboratorRewards": {
+      "contract": "CollaboratorBadgeRewards",
+      "kind": "uups",
+      "proxy": "0xbfbcc7f57cAF275b5F0679226ca53A5901862eBA",
+      "implementation": "0xf9Ef3D803648CBc5373b641516F36327eF7D571A",
+      "initializerArgsHash": "0x518674ab2b227e5f11e9084f615d57663cde47bce1ba168b4c19c7ee22a73d70",
+      "upgraderHolder": "0xf555eEa65477a1727606272433403d6d7d83B28C"
+    },
+    "nft.registry": {
+      "contract": "NuxAgentRegistry",
+      "kind": "uups",
+      "proxy": "0x58a525B6A3154A6D054DaB2F166e67f39726b6d6",
+      "implementation": "0x446a4367A7e0c5B9d8A7F5E1C5dDED0AeeF388A7",
+      "initializerArgsHash": "0x9611492bf0b433ca6b07ba44387ca06237f4f9f8fb8aa4d45fe3d12c689701d8",
+      "upgraderHolder": "0xf555eEa65477a1727606272433403d6d7d83B28C"
+    },
+    "nft.factory": {
+      "contract": "NuxAgentFactory",
+      "kind": "uups",
+      "proxy": "0x52389668B574cF3D6Fc6BbF3379100a6c307C7f4",
+      "implementation": "0x40DB755AbfE7d0504Cf21369297D3d5f8437f6A4",
+      "initializerArgsHash": "0xcf06b87f45467d5a33283d8eb4e9c36e957cc4c6aaa8ac339ae9d093d1350694",
+      "upgraderHolder": "0xf555eEa65477a1727606272433403d6d7d83B28C"
+    },
+    "nft.paymaster": {
+      "contract": "NuxAgentPaymaster",
+      "kind": "uups",
+      "proxy": "0x260F2e1A6d209797F0Fc2712715C5eb3CB097324",
+      "implementation": "0xaa7ad5Ee5A4F452C01D3a4226c75d46bF19Ff4AA",
+      "initializerArgsHash": "0xcf06b87f45467d5a33283d8eb4e9c36e957cc4c6aaa8ac339ae9d093d1350694",
+      "upgraderHolder": "0xf555eEa65477a1727606272433403d6d7d83B28C"
+    },
+    "nft.rental": {
+      "contract": "NuxAgentRental",
+      "kind": "uups",
+      "proxy": "0x59145B4fB4e9012a5a0b2e58a7e0bae600A31156",
+      "implementation": "0xc2bd671Af99A07fe8544fdC5990F7303bCAD2bfE",
+      "initializerArgsHash": "0xcf06b87f45467d5a33283d8eb4e9c36e957cc4c6aaa8ac339ae9d093d1350694",
+      "upgraderHolder": "0xf555eEa65477a1727606272433403d6d7d83B28C"
+    },
+    "nft.miniGame": {
+      "contract": "NuxAgentMiniGame",
+      "kind": "uups",
+      "proxy": "0x365702A23856B1c0c878fC543B19d1976B1C77Bf",
+      "implementation": "0x2e317DA82e9F1f21566e8e7D539731c1af4d88a2",
+      "initializerArgsHash": "0x4e5591fe8a6880f9e6b409a5bf8813655355471069e2c20bee467e210365f887",
+      "upgraderHolder": "0xf555eEa65477a1727606272433403d6d7d83B28C"
+    },
+    "nft.socialAgent": {
+      "contract": "SocialAgentNFT",
+      "kind": "uups",
+      "proxy": "0x23818dEd3C59d7e3200eE58B5d83F4D6Dc72e1e5",
+      "implementation": "0x60a8f57E893EaE823199F424C97802e7C15E3711",
+      "initializerArgsHash": "0xd61298485b6782f06e871482bf5922e3cbd0f965c2c42213956dcf72262b8feb",
+      "upgraderHolder": "0xf555eEa65477a1727606272433403d6d7d83B28C"
+    },
+    "nft.techAgent": {
+      "contract": "TechAgentNFT",
+      "kind": "uups",
+      "proxy": "0xd11FCA34C815cD91d15DFCA358d66e0010d01631",
+      "implementation": "0x217fBD720A6ea5C4BE15b100900DBD2399361578",
+      "initializerArgsHash": "0xd61298485b6782f06e871482bf5922e3cbd0f965c2c42213956dcf72262b8feb",
+      "upgraderHolder": "0xf555eEa65477a1727606272433403d6d7d83B28C"
+    },
+    "nft.marketingAgent": {
+      "contract": "MarketingAgentNFT",
+      "kind": "uups",
+      "proxy": "0x8Db96b1A4FE18211C2505ABC7D68C1CC6e65e1b8",
+      "implementation": "0x0aBFa0378E7da40E59BB2b5e50E42b91BbfbA1d4",
+      "initializerArgsHash": "0xd61298485b6782f06e871482bf5922e3cbd0f965c2c42213956dcf72262b8feb",
+      "upgraderHolder": "0xf555eEa65477a1727606272433403d6d7d83B28C"
+    },
+    "nft.financeAgent": {
+      "contract": "FinanceAgentNFT",
+      "kind": "uups",
+      "proxy": "0xe40eC0B1Ff3F270cD331E57666c864FFf89E4f9c",
+      "implementation": "0x2a42b4C96E7AA5b245799c3Dde2054a096cE445a",
+      "initializerArgsHash": "0xd61298485b6782f06e871482bf5922e3cbd0f965c2c42213956dcf72262b8feb",
+      "upgraderHolder": "0xf555eEa65477a1727606272433403d6d7d83B28C"
+    },
+    "nft.businessAgent": {
+      "contract": "BusinessAgentNFT",
+      "kind": "uups",
+      "proxy": "0xB32f3e04dDCfAe1E1629DF79DBB56801856aB755",
+      "implementation": "0xAc14eB5D3AC4a573A5fc889498754Da4A6B7161a",
+      "initializerArgsHash": "0xd61298485b6782f06e871482bf5922e3cbd0f965c2c42213956dcf72262b8feb",
+      "upgraderHolder": "0xf555eEa65477a1727606272433403d6d7d83B28C"
+    }
+  },
+  "contracts": {
+    "treasury": {
+      "manager": "0x1C2575CC4a4596B8d216dB200A2344145D590C9d",
+      "questRewardsPool": "0x7610CF5ea944a703Cb469FDA244160bd4DAf583f"
+    },
+    "staking": {
+      "rewards": "0x3d9E78Fe36fD89C96dd27a84b0837324316279BB",
+      "power": "0xdBab58a4E28F1b3E22145F051994e05ef8f5aef7",
+      "gamification": "0x0753920050340ABb3e005435bEd838d0EaB282ce",
+      "dynamicAPY": "0x1F394fDfDF51BD538Bc006b54A66E57f62A4135d",
+      "skillViewLib": "0x64411210c577714C3ff1c9284C916FB806770304",
+      "coreLib": "0x37822AB9812A90f681d3e25a2961EbC7839C7230",
+      "core": "0x96D6F29d5046CB4422e5e3BC2bdF185Fd21f302D",
+      "viewCore": "0x7d30FE104A5407fD24Ea373399232b8679909fDA",
+      "viewStats": "0x3833Bf46BB424fDA03D7E107643488180643F729",
+      "viewSkills": "0xc4b9d12Aa18a6cFA6E4af5a0F173D6745dE0813C",
+      "viewDashboard": "0x96c308D8F324e394Faf6aD7D327e3587bb2CA0b3"
+    },
+    "marketplace": {
+      "leveling": "0xE98D427C131c5c9506AcE31215e6E70eDaBB8Cd4",
+      "referral": "0x230d24410283D9A945C292C035082568d5d96b34",
+      "coreLib": "0x8F6a9f2992Ac86188FCDCA032E0A5F4fA472fEcd",
+      "core": "0xB39421d34479aa4bFe560DefB66eA6A46cA5909A",
+      "view": "0xe03eeE5eCf4c5c06F231aeb73b49111B0cC6ACC9",
+      "statistics": "0xEce31778Dc157689B3A1Da9a4724b28a16066b9C",
+      "social": "0x23D53101De769eb8498132CE73dDd43d2D34687f",
+      "nuxPowerNft": "0x27d9cB8517ff62fdD24F6e49F48866706c58E8EC",
+      "nuxPowerMarketplace": "0xb9F7De1560C97100D84D550b330AC99a35533481",
+      "questCore": "0x126712d66b5AC71fCe1117A36D2BDd69Af141e6B",
+      "collaboratorRewards": "0xbfbcc7f57cAF275b5F0679226ca53A5901862eBA"
+    },
+    "nft": {
+      "registry": "0x58a525B6A3154A6D054DaB2F166e67f39726b6d6",
+      "factory": "0x52389668B574cF3D6Fc6BbF3379100a6c307C7f4",
+      "paymaster": "0x260F2e1A6d209797F0Fc2712715C5eb3CB097324",
+      "rental": "0x59145B4fB4e9012a5a0b2e58a7e0bae600A31156",
+      "erc6551Implementation": "0xB6EeF1635dA376Ef96B4247C0C14f2605d422494",
+      "miniGame": "0x365702A23856B1c0c878fC543B19d1976B1C77Bf",
+      "socialAgent": "0x23818dEd3C59d7e3200eE58B5d83F4D6Dc72e1e5",
+      "techAgent": "0xd11FCA34C815cD91d15DFCA358d66e0010d01631",
+      "marketingAgent": "0x8Db96b1A4FE18211C2505ABC7D68C1CC6e65e1b8",
+      "financeAgent": "0xe40eC0B1Ff3F270cD331E57666c864FFf89E4f9c",
+      "businessAgent": "0xB32f3e04dDCfAe1E1629DF79DBB56801856aB755",
+      "agentView": "0x712Df7A03FbFF483DC526821Ffb2A1beD669da86"
+    }
+  }
+}

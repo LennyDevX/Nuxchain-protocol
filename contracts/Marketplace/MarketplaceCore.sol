@@ -45,8 +45,11 @@ contract MarketplaceCore is
     bytes32 private constant VIP_PARTNER_CATEGORY_HASH = keccak256("VIPPartner");
     
     uint256 public constant PLATFORM_FEE_PERCENTAGE = 6;
-    uint8 private constant MAX_LEVEL = 50;
-    uint256 private constant MAX_XP = 5000;
+    uint8 private constant MAX_LEVEL = 250;
+    uint8 private constant LEVELS_PER_BRACKET = 25;
+    uint8 private constant BRACKET_COUNT = 10;
+    uint256 private constant XP_PER_BRACKET_STEP = 50;
+    uint256 private constant MAX_XP = 68_750;
     uint256 public constant MAX_OFFERS_PER_TOKEN = 50;
     
     mapping(uint256 => NFTMetadata) public nftMetadata;
@@ -173,7 +176,7 @@ contract MarketplaceCore is
         });
         
         userProfiles[msg.sender].nftsCreated++;
-        userProfiles[msg.sender].totalXP += 10;
+        _addXP(msg.sender, 10);
         _createdTokens[msg.sender].add(tokenId);
 
         if (address(viewModule) != address(0)) {
@@ -243,7 +246,7 @@ contract MarketplaceCore is
         
         userProfiles[msg.sender].nftsCreated += _count;
         uint256 xpGained = 10 + (_count > 1 ? (_count - 1) * 5 : 0);
-        userProfiles[msg.sender].totalXP += xpGained;
+        _addXP(msg.sender, xpGained);
         
         emit XPGained(msg.sender, xpGained, "NFT_BATCH_CREATED");
         
@@ -467,14 +470,10 @@ contract MarketplaceCore is
 
     function updateUserXP(address _user, uint256 _amount) external onlyRole(ADMIN_ROLE) {
         if (userProfiles[_user].totalXP + _amount > MAX_XP) revert XPOverflow();
-        
+
         userProfiles[_user].totalXP += _amount;
-        
-        uint8 newLevel = uint8(userProfiles[_user].totalXP / 100);
-        if (newLevel > MAX_LEVEL) {
-            newLevel = MAX_LEVEL;
-        }
-        
+
+        uint8 newLevel = _levelFromXP(userProfiles[_user].totalXP);
         if (newLevel > userProfiles[_user].level) {
             userProfiles[_user].level = newLevel;
             emit LevelUp(_user, newLevel);
@@ -570,12 +569,27 @@ contract MarketplaceCore is
         uint256 newTotal = profile.totalXP + amount;
         if (newTotal > MAX_XP) newTotal = MAX_XP;
         profile.totalXP = newTotal;
-        uint8 newLevel = uint8(newTotal / 100);
-        if (newLevel > MAX_LEVEL) newLevel = MAX_LEVEL;
+        uint8 newLevel = _levelFromXP(newTotal);
         if (newLevel > profile.level) {
             profile.level = newLevel;
             emit LevelUp(user, newLevel);
         }
+    }
+
+    function _levelFromXP(uint256 xp) private pure returns (uint8) {
+        if (xp < XP_PER_BRACKET_STEP) return 0;
+
+        uint256 remainingXP = xp > MAX_XP ? MAX_XP : xp;
+        for (uint256 bracket = 1; bracket <= BRACKET_COUNT; bracket++) {
+            uint256 xpPerLevel = bracket * XP_PER_BRACKET_STEP;
+            uint256 bracketXP = xpPerLevel * LEVELS_PER_BRACKET;
+            if (remainingXP <= bracketXP) {
+                return uint8(((bracket - 1) * LEVELS_PER_BRACKET) + (remainingXP / xpPerLevel));
+            }
+            remainingXP -= bracketXP;
+        }
+
+        return MAX_LEVEL;
     }
 
     function _getTokenSetValues(EnumerableSet.UintSet storage tokenSet)

@@ -126,7 +126,7 @@ describe("NuxTapGame", function () {
     await agentNft.mint(player.address);
 
     for (let count = 0; count < 10; count++) {
-      await registry.recordTaskExecution(0, player.address, 0);
+      await registry.recordTaskExecution(await agentNft.getAddress(), 0, player.address, 0);
     }
 
     await game.connect(player).linkAgent(await agentNft.getAddress(), 0);

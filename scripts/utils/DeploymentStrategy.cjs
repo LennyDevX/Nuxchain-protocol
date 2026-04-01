@@ -359,6 +359,7 @@ class DeploymentStrategy {
             'SmartStakingCoreV2': 'core',
             'SmartStakingRewards': 'rewards',
             'SmartStakingSkills': 'skills',
+            'Gamification': 'gamification',
             'SmartStakingGamification': 'gamification',
             'SmartStakingView': 'view',
             'GameifiedMarketplaceCoreV1': 'proxy',
@@ -406,6 +407,10 @@ class DeploymentStrategy {
                 options: { isProxy: false }
             },
             'SmartStakingSkills': {
+                args: [],
+                options: { isProxy: false }
+            },
+            'Gamification': {
                 args: [],
                 options: { isProxy: false }
             },

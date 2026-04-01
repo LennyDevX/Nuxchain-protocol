@@ -208,4 +208,6 @@ contract TechAgentNFT is NuxAgentNFTBase {
         techProfiles[tokenId].oracleEnabled = enabled;
     }
 
+    uint256[50] private __gap;
+
 }

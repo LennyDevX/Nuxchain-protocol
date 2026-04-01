@@ -18,7 +18,7 @@ describe("LevelingSystem", function () {
 
   it("defers a level-up reward when the contract lacks funds and allows claiming later", async function () {
     const { owner, user, leveling } = await loadFixture(deployLevelingFixture);
-    const rewardAmount = ethers.parseEther("1.1");
+    const rewardAmount = ethers.parseEther("0.05");
 
     await expect(leveling.connect(owner).updateUserXP(user.address, 50, "TEST_LEVEL"))
       .to.emit(leveling, "RewardDeferred")
@@ -42,7 +42,7 @@ describe("LevelingSystem", function () {
 
   it("defers a level-up reward when the recipient rejects ETH and allows claiming later", async function () {
     const { owner, leveling } = await loadFixture(deployLevelingFixture);
-    const rewardAmount = ethers.parseEther("1.1");
+    const rewardAmount = ethers.parseEther("0.05");
 
     const RejectingWallet = await ethers.getContractFactory("MockRejectingWallet");
     const rejectingWallet = await RejectingWallet.connect(owner).deploy();
