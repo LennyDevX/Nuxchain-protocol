@@ -1,3 +1,6 @@
+<img width="1982" height="793" alt="NuxchainProtcolsLogo" src="https://github.com/user-attachments/assets/12590469-6849-43d3-986f-8d16cbac7897" />
+
+
 # 🌟 **NuxChain Protocol v7.0**
 
 **A next-gen DeFi ecosystem combining smart staking, AI-powered NFTs, gamification, and automated treasury management on Polygon.**
