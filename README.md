@@ -20,7 +20,7 @@
 
 ### ⚡ Smart Staking
 
-* Dynamic APY (43.8% → 250%+)
+* Dynamic APY (8.6% → 25.50%+)
 * Flexible lockups (24h–365d)
 * Auto-compounding (manual or automatic)
 * Partial reinvestment control
